@@ -1,0 +1,187 @@
+"use client";
+
+import { use, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Play, CheckCircle2, ArrowLeft, BookOpen } from "lucide-react";
+import Quiz from "@/components/Quis/page"; // Pastikan path ini benar
+import { supabase } from "@/lib/supabase"; 
+
+type DetailModulDB = {
+  id_modul: number;
+  nama_modul: string;
+  video_url: string;
+  teks_materi: string;
+};
+
+// Fungsi sakti untuk ngerubah link YouTube biasa jadi link Embed
+function getYouTubeEmbedUrl(url: string) {
+  if (!url) return null;
+  // Kalau udah embed, biarin
+  if (url.includes("youtube.com/embed/")) return url;
+  
+  let videoId = "";
+  // Cek kalau formatnya youtu.be/XXXXX
+  if (url.includes("youtu.be/")) {
+    videoId = url.split("youtu.be/")[1]?.split("?")[0];
+  } 
+  // Cek kalau formatnya youtube.com/watch?v=XXXXX
+  else if (url.includes("youtube.com/watch")) {
+    videoId = new URL(url).searchParams.get("v") || "";
+  }
+  
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+}
+
+export default function ModulDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);        
+  const router = useRouter();
+  
+  const [course, setCourse] = useState<DetailModulDB | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [activeTab, setActiveTab] = useState<"materi" | "kuis">("materi");
+  const [quizScore, setQuizScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function fetchDetail() {
+      const { data, error } = await supabase
+        .from('modul')
+        .select('*')
+        .eq('id_modul', id)
+        .single();
+
+      if (data && !error) {
+        setCourse(data);
+      }
+      setIsLoading(false);
+    }
+    fetchDetail();
+  }, [id]);
+
+  function handleClaimXP(score: number) {
+    setQuizScore(score);
+    setActiveTab("materi"); 
+  }
+
+  if (isLoading) {
+    return <div className="p-10 text-center font-bold text-gray-500">Memuat detail modul... ⏳</div>;
+  }
+
+  if (!course) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+        <p className="text-lg font-bold text-[#5B5288]">Modul tidak ditemukan</p>
+        <button onClick={() => router.push("/modul")} className="flex items-center gap-2 rounded-lg border border-[#5B5288]/50 px-4 py-2 text-sm font-bold text-[#5B5288] hover:bg-[#5B5288]/10">
+          <ArrowLeft className="h-4 w-4" /> Kembali ke Modul Pembelajaran
+        </button>
+      </div>
+    );
+  }
+
+  const paragraphs = course.teks_materi ? course.teks_materi.split('\n').filter(p => p.trim() !== '') : [];
+  
+  // Dapatkan URL embed yang benar
+  const embedUrl = course.video_url ? getYouTubeEmbedUrl(course.video_url) : null;
+
+  return (
+    <div className="flex flex-col gap-6 p-6 lg:flex-row lg:gap-8">
+      {/* AREA KIRI */}
+      <div className="flex-1 min-w-0">
+        <button onClick={() => router.push("/modul")} className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#5B5288] hover:underline">
+          <ArrowLeft className="h-4 w-4" /> Kembali
+        </button>
+
+        <h1 className="mb-4 text-2xl font-bold text-[#5B5288]">{course.nama_modul}</h1>
+
+        {activeTab === "kuis" ? (
+          <div className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#5B5288]/50 bg-white p-8 min-h-[600px]">
+            {/* DI SINI LETAK YANG BENAR: Menambahkan idModul ke komponen Quiz */}
+            <Quiz 
+              onClaimXP={(score: number) => handleClaimXP(score)} 
+              idModul={course.id_modul} 
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-5">
+            
+            {/* AREA VIDEO */}
+            <div className="relative overflow-hidden rounded-xl bg-black">
+              {embedUrl ? (
+                <iframe 
+                  src={embedUrl}
+                  title={course.nama_modul}
+                  className="aspect-video w-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-gray-400 bg-gray-900">
+                  <Play className="h-10 w-10 opacity-50" />
+                  <p className="text-sm">Video materi belum tersedia.</p>
+                </div>
+              )}
+            </div>
+
+            {/* AREA TEKS */}
+            {paragraphs.length > 0 ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <h2 className="mb-4 text-xl font-bold text-[#5B5288]">Penjelasan Materi</h2>
+                <div className="flex flex-col gap-3 text-sm leading-relaxed text-gray-600">
+                  {paragraphs.map((p, i) => (
+                    <p key={i} className="mb-2">{p}</p>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-500">
+                Materi teks belum ditambahkan oleh dosen.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* SIDEBAR KANAN */}
+      <aside className="w-full shrink-0 lg:w-80">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sticky top-6">
+          <h3 className="mb-4 text-lg font-bold text-[#5B5288] border-b pb-2">Daftar Isi</h3>
+          
+          <ul className="flex flex-col gap-2">
+            <li>
+              <button 
+                onClick={() => setActiveTab("materi")} 
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors ${activeTab === "materi" ? "bg-[#5B5288]/10 border border-[#5B5288]/30" : "hover:bg-gray-50"}`}
+              >
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${activeTab === "materi" ? "bg-[#5B5288]" : "bg-gray-200"}`}>
+                  <BookOpen className={`h-4 w-4 ${activeTab === "materi" ? "text-white" : "text-gray-500"}`} />
+                </span>
+                <span className={`text-sm font-semibold flex-1 ${activeTab === "materi" ? "text-[#5B5288]" : "text-gray-600"}`}>
+                  Materi Utama
+                </span>
+              </button>
+            </li>
+            <li>
+              <button 
+                onClick={() => setActiveTab("kuis")} 
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors ${activeTab === "kuis" ? "bg-[#5B5288]/10 border border-[#5B5288]/30" : "hover:bg-gray-50"}`}
+              >
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${quizScore !== null ? "bg-green-500" : activeTab === "kuis" ? "bg-[#5B5288]" : "bg-gray-200"}`}>
+                  {quizScore !== null ? <CheckCircle2 className="h-4 w-4 text-white" /> : <Play className={`h-4 w-4 ${activeTab === "kuis" ? "text-white fill-white" : "text-gray-500"}`} />}
+                </span>
+                <span className={`text-sm font-semibold flex-1 ${activeTab === "kuis" ? "text-[#5B5288]" : "text-gray-600"}`}>
+                  Kuis Evaluasi
+                </span>
+                
+                {quizScore !== null && (
+                  <span className="text-xs font-black text-green-600 bg-green-100 px-2 py-1 rounded-full shadow-sm">
+                    {quizScore}%
+                  </span>
+                )}
+              </button>
+            </li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  );
+}
