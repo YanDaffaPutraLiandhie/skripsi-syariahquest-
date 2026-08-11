@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Trophy } from "lucide-react";
 import type { UserBadge } from "@/hooks/useBadges";
 
@@ -10,11 +12,17 @@ type AllBadgesModalProps = {
 };
 
 export default function AllBadgesModal({ isOpen, onClose, badges }: AllBadgesModalProps) {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
-    // FIX: Tambah z-[9999], h-[100dvh], dan w-screen biar nutup full
-    <div className="fixed inset-0 z-[9999] h-[100dvh] w-screen flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
+
+  // Menggunakan createPortal agar modal benar-benar lepas dari kungkungan layout parent
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] h-[100dvh] w-screen flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-[30px] w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         
         {/* HEADER MODAL */}
@@ -89,6 +97,7 @@ export default function AllBadgesModal({ isOpen, onClose, badges }: AllBadgesMod
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
