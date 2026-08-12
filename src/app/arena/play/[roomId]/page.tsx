@@ -26,71 +26,29 @@ import { useSoalBank, type Soal } from "@/hooks/useSoalBank";
 import { useRoom } from "@/hooks/useRoom";
 import { usePlayerProfiles } from "@/hooks/usePlayerProfiles";
 
-// IMPORT KEDUA HOOK AUDIO
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
-// ==========================================
-// KONFIGURASI EFEK FULLSCREEN TIAP SKILL
-// ==========================================
 const SKILL_EFFECTS: Record<number, SkillEffectConfig> = {
-  1: {
-    emoji: "⚔️",
-    title: "LEMPARAN GANDA!",
-    subtitle: "Dadu akan dilempar 2 kali!",
-    colorClass: "text-yellow-400",
-  },
-  2: {
-    emoji: "🛡️",
-    title: "PERISAI AKTIF!",
-    subtitle: "Kamu kebal dari 1 bom!",
-    colorClass: "text-blue-400",
-  },
-  3: {
-    emoji: "❄️",
-    title: "RAMUAN WAKTU!",
-    subtitle: "Kamu dapat 1 giliran ekstra!",
-    colorClass: "text-cyan-400",
-  },
-  4: {
-    emoji: "🔀",
-    title: "TELEPORTASI!",
-    subtitle: "Posisi disalin ke musuh terdepan!",
-    colorClass: "text-purple-400",
-  },
+  1: { emoji: "⚔️", title: "LEMPARAN GANDA!", subtitle: "Dadu akan dilempar 2 kali!", colorClass: "text-yellow-400" },
+  2: { emoji: "🛡️", title: "PERISAI AKTIF!", subtitle: "Kamu kebal dari 1 bom!", colorClass: "text-blue-400" },
+  3: { emoji: "❄️", title: "RAMUAN WAKTU!", subtitle: "Kamu dapat 1 giliran ekstra!", colorClass: "text-cyan-400" },
+  4: { emoji: "🔀", title: "TELEPORTASI!", subtitle: "Posisi disalin ke musuh terdepan!", colorClass: "text-purple-400" },
 };
 
-const SHIELD_BLOCK_EFFECT: SkillEffectConfig = {
-  emoji: "🛡️",
-  title: "PERISAI MENAHAN!",
-  subtitle: "Ledakan bom berhasil ditahan!",
-  colorClass: "text-blue-400",
-};
+const SHIELD_BLOCK_EFFECT: SkillEffectConfig = { emoji: "🛡️", title: "PERISAI MENAHAN!", subtitle: "Ledakan bom berhasil ditahan!", colorClass: "text-blue-400" };
 
-export default function BoardGameArena({
-  params,
-}: {
-  params: Promise<{ roomId: string }>;
-}) {
+export default function BoardGameArena({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
 
   const {
-    room,
-    players,
-    currentUserId,
-    isHost,
-    isMyTurn,
-    isLoading: isRoomLoading,
-    startGame,
-    updateMyPosisi,
-    passTurnToNext,
-    finishGame,
+    room, players, currentUserId, isHost, isMyTurn, isLoading: isRoomLoading,
+    startGame, updateMyPosisi, passTurnToNext, finishGame,
   } = useRoom(roomId);
 
   const gameId = room?.id_game ?? null;
 
-  const { boardData, mapCoords, isLoading: isBoardLoading, error: boardError } =
-    useGameBoard(gameId);
+  const { boardData, mapCoords, isLoading: isBoardLoading, error: boardError } = useGameBoard(gameId);
   const { skillList, isLoading: isSkillLoading } = useSkills();
   const { pickRandomSoal } = useSoalBank();
 
@@ -101,23 +59,16 @@ export default function BoardGameArena({
   const [showGuide, setShowGuide] = useState(false);
   const [showSkills, setShowSkills] = useState(false);
 
-  // ==========================================
-  // STATE AUDIO PENGATURAN
-  // ==========================================
   const [isBgmEnabled, setIsBgmEnabled] = useState(true);
   const [isSfxEnabled, setIsSfxEnabled] = useState(true);
 
-  // Aktifkan Hook Audio
   useBackgroundMusic('/sounds/bgm-arena.mp3', isBgmEnabled);
   const { playSfx } = useSoundEffects(isSfxEnabled);
-  // ==========================================
 
   const [diceValue, setDiceValue] = useState(6);
   const [playerPosition, setPlayerPosition] = useState(0);
   const [targetPosition, setTargetPosition] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
-
-  // State untuk Animasi Dadu
   const [isRolling, setIsRolling] = useState(false);
 
   const [trapTiles, setTrapTiles] = useState<number[]>([]);
@@ -127,7 +78,6 @@ export default function BoardGameArena({
   const [currentSoal, setCurrentSoal] = useState<Soal | null>(null);
   const [canSkipTurn, setCanSkipTurn] = useState(false);
 
-  // BARU: efek fullscreen hasil jawaban kuis (benar/salah) & aktivasi skill
   const [answerResult, setAnswerResult] = useState<boolean | null>(null);
   const [skillEffect, setSkillEffect] = useState<SkillEffectConfig | null>(null);
 
@@ -138,35 +88,24 @@ export default function BoardGameArena({
 
   const [hasRolled, setHasRolled] = useState(false);
   const hasRolledRef = useRef(false);
+  const turnPassedRef = useRef(false);
   const [usedSoalIds, setUsedSoalIds] = useState<number[]>([]);
 
-  // ==========================================
-  // STATE BARU: SKILLS & EFEKNYA
-  // ==========================================
   const [activeSkillId, setActiveSkillId] = useState<number | null>(null);
-  const [hasShield, setHasShield] = useState(false); // Untuk Skill Perisai (ID 2)
-  const [hasExtraTurn, setHasExtraTurn] = useState(false); // Untuk Skill Pembeku (ID 3)
-  
-  // BARU: Gembok agar skill hanya bisa dibeli 1x per giliran
+  const [hasShield, setHasShield] = useState(false); 
+  const [hasExtraTurn, setHasExtraTurn] = useState(false); 
   const [hasUsedSkillThisTurn, setHasUsedSkillThisTurn] = useState(false);
-  
   const [earnedBadge, setEarnedBadge] = useState<{ nama_badge: string; icon_url: string } | null>(null);
 
-  // ==========================================
-  // BARU: DETEKTOR SFX KALAH
-  // ==========================================
   const hasPlayedEndSfx = useRef(false);
   useEffect(() => {
     if (room?.status === "finished" && !hasPlayedEndSfx.current) {
-      hasPlayedEndSfx.current = true; // Kunci biar cuma bunyi 1x
-      
-      // Jika statusnya finished tapi pemenangnya bukan kita = Kita Kalah!
+      hasPlayedEndSfx.current = true; 
       if (currentUserId && currentUserId !== room.winner_user_id) {
         playSfx('lose');
       }
     }
   }, [room?.status, currentUserId, room?.winner_user_id, playSfx]);
-  // ==========================================
 
   const incrementStat = async (idMahasiswa: number, statColumn: 'arena_main' | 'arena_menang' | 'arena_jebakan') => {
     try {
@@ -184,8 +123,8 @@ export default function BoardGameArena({
     if (isMyTurn) {
       setHasRolled(false);
       hasRolledRef.current = false;
-      // Buka gembok skill saat giliran kita tiba
       setHasUsedSkillThisTurn(false);
+      turnPassedRef.current = false; // Buka gembok turn pengoperan setiap giliran baru
     }
   }, [isMyTurn]);
 
@@ -225,18 +164,16 @@ export default function BoardGameArena({
     setCanSkipTurn(false);
   };
 
-  const turnPassedRef = useRef(false);
-
   const endTurnOnce = () => {
     if (turnPassedRef.current) return;
     turnPassedRef.current = true;
 
-    // JIKA PUNYA GILIRAN EKSTRA DARI SKILL BOM PEMBEKU (RAMUAN WAKTU)
     if (hasExtraTurn) {
       setHasExtraTurn(false);
       setHasRolled(false);
       hasRolledRef.current = false;
-      setHasUsedSkillThisTurn(false); // Buka gembok skill lagi buat giliran ekstra
+      setHasUsedSkillThisTurn(false); 
+      turnPassedRef.current = false; 
       setToastMsg("❄️ Ramuan Waktu: Kamu dapat 1 giliran lagi!");
       setTimeout(() => setToastMsg(""), 3000);
       return; 
@@ -259,9 +196,6 @@ export default function BoardGameArena({
     await startGame(Array.from(newTraps));
   };
 
-  // ==========================================
-  // LOGIKA PENGGUNAAN SKILL (SUDAH DI-FIX + EFEK FULLSCREEN + SFX)
-  // ==========================================
   const handleUseSkill = async (skillId: number, hargaPoin: number) => {
     if (!isMyTurn) {
       setToastMsg("⚠️ Skill hanya bisa dipakai saat giliranmu!");
@@ -282,7 +216,6 @@ export default function BoardGameArena({
     const myIdMahasiswa = profiles[currentUserId as string]?.idMahasiswa;
     if (!myIdMahasiswa) return;
 
-    // 1. Cek XP Terkini
     const { data: mhsData } = await supabase.from('mahasiswa').select('total_xp').eq('id_mahasiswa', myIdMahasiswa).single();
     const currentXp = mhsData?.total_xp || 0;
 
@@ -292,22 +225,21 @@ export default function BoardGameArena({
       return;
     }
 
-    // 2. APLIKASIKAN EFEK SKILL
-    let skillSuccess = true; // Penanda apakah skill berhasil dieksekusi
+    let skillSuccess = true; 
 
     if (Number(skillId) === 1) {
       setActiveSkillId(1);
-      playSfx('skill_double'); // SFX LEMPARAN GANDA
+      playSfx('skill_double'); 
       setToastMsg(`⚔️ Lemparan Ganda Aktif! (Dadu x2)`);
       flashSkillEffect(SKILL_EFFECTS[1]);
     } else if (Number(skillId) === 2) {
       setHasShield(true);
-      playSfx('skill_shield'); // SFX PERISAI AKTIF
+      playSfx('skill_shield'); 
       setToastMsg(`🛡️ Perisai Aktif! Kamu kebal dari 1 bom.`);
       flashSkillEffect(SKILL_EFFECTS[2]);
     } else if (Number(skillId) === 3) {
       setHasExtraTurn(true);
-      playSfx('skill_time'); // SFX RAMUAN WAKTU
+      playSfx('skill_time'); 
       setToastMsg(`❄️ Ramuan Waktu! Kamu mendapat 1 giliran ekstra.`);
       flashSkillEffect(SKILL_EFFECTS[3]);
     } else if (Number(skillId) === 4) {
@@ -317,71 +249,71 @@ export default function BoardGameArena({
       if (maxOpponentPos > playerPosition) {
          hasRolledRef.current = true;
          setHasRolled(true);
+         turnPassedRef.current = false; 
 
-         playSfx('skill_teleport'); // SFX TELEPORTASI
+         playSfx('skill_teleport'); 
          setToastMsg("🔀 Teleportasi! Kamu menyalin posisi musuh terdepan.");
          flashSkillEffect(SKILL_EFFECTS[4]);
 
+         setPlayerPosition(maxOpponentPos);
          setTargetPosition(maxOpponentPos);
+         updateMyPosisi(maxOpponentPos);
+
+         setTimeout(() => {
+           endTurnOnce();
+         }, 2500);
+
       } else {
          skillSuccess = false;
          setToastMsg("⚠️ Kamu sudah di depan, Teleportasi gagal!");
       }
     }
 
-    // Jika skill gagal dieksekusi (contoh: teleportasi), hentikan dan jangan potong XP!
     if (!skillSuccess) {
       setTimeout(() => setToastMsg(""), 3000);
       return; 
     }
 
-    // Kunci penggunaan skill agar tidak bisa beli lagi giliran ini
     setHasUsedSkillThisTurn(true);
     setTimeout(() => setToastMsg(""), 3000);
     setShowSkills(false);
 
-    // 3. KURANGI XP DI BACKGROUND (Hanya dieksekusi jika skillSuccess === true)
     await supabase.from('mahasiswa').update({ total_xp: currentXp - hargaPoin }).eq('id_mahasiswa', myIdMahasiswa);
   };
 
-  // ==========================================
-  // LOGIKA ROLL DADU (DENGAN ANIMASI)
-  // ==========================================
   const handleRollDice = () => {
     if (!isMyTurn || isMoving || mapCoords.length === 0 || hasRolledRef.current || isRolling) return;
     
     hasRolledRef.current = true;
     setHasRolled(true);
     turnPassedRef.current = false;
-    setIsRolling(true); // Mulai animasi
+    setIsRolling(true); 
 
-    // ===== DI SINI LETAK TAMBAHAN SFX DADUNYA! =====
     playSfx('roll_dice');
 
     let finalRoll = Math.floor(Math.random() * 6) + 1;
     let totalSteps = finalRoll;
     let isDouble = activeSkillId === 1;
+    let roll2 = 0;
 
     if (isDouble) {
-      const roll2 = Math.floor(Math.random() * 6) + 1;
+      roll2 = Math.floor(Math.random() * 6) + 1;
       totalSteps = finalRoll + roll2; 
     }
 
-    // Efek ngacak dadu super cepat selama 1 detik
     const rollInterval = setInterval(() => {
       setDiceValue(Math.floor(Math.random() * 6) + 1);
     }, 100);
 
     setTimeout(() => {
-      clearInterval(rollInterval); // Hentikan efek ngacak
-      setIsRolling(false); // Selesai animasi
-
-      // Tampilkan hasil akhir
+      clearInterval(rollInterval); 
+      setIsRolling(false); 
       setActiveSkillId(null);
-      setDiceValue(totalSteps > 6 ? 6 : totalSteps); 
+      
+      setDiceValue(finalRoll); 
 
       if (isDouble) {
-        setToastMsg(`🎲 Lemparan Ganda: ${finalRoll} + ${totalSteps - finalRoll} = ${totalSteps}`);
+        setToastMsg(`🎲 Lemparan Ganda: ${finalRoll} + ${roll2} = ${totalSteps}`);
         setTimeout(() => setToastMsg(""), 3000);
       }
 
@@ -390,7 +322,7 @@ export default function BoardGameArena({
         const maxPos = mapCoords.length - 1;
         return newTarget > maxPos ? maxPos : newTarget;
       });
-    }, 1000); // Durasi animasi 1 detik
+    }, 1000); 
   };
 
   useEffect(() => {
@@ -413,7 +345,7 @@ export default function BoardGameArena({
           if (nextPos === maxPos) {
             if (currentUserId) {
               finishGame(currentUserId);
-              playSfx('win'); // SFX SAAT MENANG! 🎉
+              playSfx('win'); 
 
               const myIdMahasiswa = profiles[currentUserId as string]?.idMahasiswa;
               if (myIdMahasiswa) {
@@ -444,14 +376,11 @@ export default function BoardGameArena({
               }
             }
           } else if (trapTiles.includes(nextPos)) {
-            // ==========================================
-            // SKILL 2: CEK PERISAI SAAT MENGINJAK BOM
-            // ==========================================
             setTrapTiles((prev) => prev.filter((t) => t !== nextPos));
 
             if (hasShield) {
               setHasShield(false); 
-              playSfx('skill_shield'); // SFX PERISAI BLOKIR BOM
+              playSfx('skill_shield'); 
               flashSkillEffect(SHIELD_BLOCK_EFFECT);
               setToastMsg("🛡️ DARR! Tapi Perisaimu menahan ledakan bom!");
               setTimeout(() => endTurnOnce(), 2500); 
@@ -471,7 +400,7 @@ export default function BoardGameArena({
 
               setTimeout(() => {
                 setShowBoom(true);
-                playSfx('boom'); // SFX BOM MELEDAK 💥
+                playSfx('boom'); 
                 setTimeout(() => {
                   setShowBoom(false);
                   setShowQuestionModal(true);
@@ -488,9 +417,6 @@ export default function BoardGameArena({
     }
   }, [playerPosition, targetPosition, trapTiles, mapCoords.length, usedSoalIds, hasShield]);
 
-  // ==========================================
-  // JAWAB KUIS -- SEKARANG DENGAN EFEK FULLSCREEN & SFX BENAR/SALAH
-  // ==========================================
   const handleAnswer = async (id_jawaban: number) => {
     setShowQuestionModal(false);
 
@@ -499,19 +425,12 @@ export default function BoardGameArena({
     if (currentSoal?.id_soal === 999) {
       isCorrect = id_jawaban === 2;
     } else {
-      const { data } = await supabase
-        .from("jawaban")
-        .select("jawaban_benar")
-        .eq("id_jawaban", id_jawaban)
-        .single();
-
+      const { data } = await supabase.from("jawaban").select("jawaban_benar").eq("id_jawaban", id_jawaban).single();
       isCorrect = !!(data && data.jawaban_benar === true);
     }
 
-    // Tampilkan efek fullscreen dulu (mirip BoomModal), baru lanjut proses
     setAnswerResult(isCorrect);
     
-    // SFX SESUAI JAWABAN
     if (isCorrect) playSfx('correct');
     else playSfx('wrong');
 
@@ -548,41 +467,19 @@ export default function BoardGameArena({
     };
   });
 
-  if (isRoomLoading) {
+  if (isRoomLoading || isBoardLoading) {
     return (
       <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-8 h-8 text-[#5B5288] animate-spin" />
-        <p className="text-[#5B5288] font-semibold">Memuat ruang...</p>
+        <p className="text-[#5B5288] font-semibold">Memuat arena...</p>
       </div>
     );
   }
 
-  if (!room) {
+  if (!room || boardError || !boardData) {
     return (
       <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3 text-center px-6">
-        <p className="text-red-500 font-bold text-lg">Ruang tidak ditemukan.</p>
-        <p className="text-gray-500 text-sm">
-          Pastikan PIN atau link yang kamu pakai benar, dan kamu sudah login.
-        </p>
-      </div>
-    );
-  }
-
-  if (isBoardLoading) {
-    return (
-      <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-[#5B5288] animate-spin" />
-        <p className="text-[#5B5288] font-semibold">Memuat papan permainan...</p>
-      </div>
-    );
-  }
-
-  if (boardError || !boardData) {
-    return (
-      <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3 text-center px-6">
-        <p className="text-red-500 font-bold text-lg">
-          {boardError ?? "Papan tidak ditemukan."}
-        </p>
+        <p className="text-red-500 font-bold text-lg">{boardError ?? "Ruangan tidak ditemukan."}</p>
       </div>
     );
   }
@@ -617,16 +514,15 @@ export default function BoardGameArena({
         </div>
       )}
 
-      <div className="w-full flex justify-between items-center p-8 shrink-0 z-10">
+      {/* HEADER NAVIGASI */}
+      <div className="w-full flex justify-between items-center p-8 shrink-0 z-10 relative">
         <h1 className="text-3xl font-extrabold text-[#5B5288]">
           Arena Kelas — {boardData.nama_game}
         </h1>
         <div className="flex items-center gap-6">
           <span
             className={`px-4 py-2 rounded-xl font-bold text-sm ${
-              isMyTurn
-                ? "bg-[#39C936] text-white"
-                : "bg-gray-100 text-gray-400"
+              isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-gray-400"
             }`}
           >
             {isMyTurn ? "Giliranmu! 🎲" : "Menunggu giliran..."}
@@ -641,16 +537,10 @@ export default function BoardGameArena({
             </button>
           )}
           <div className="flex gap-4 items-center">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
-            >
+            <button onClick={() => setShowSettings(true)} className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors">
               <Settings className="w-6 h-6" />
             </button>
-            <button
-              onClick={() => setShowGuide(true)}
-              className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
-            >
+            <button onClick={() => setShowGuide(true)} className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors">
               <HelpCircle className="w-6 h-6" />
             </button>
             <MiniProfile />
@@ -658,53 +548,40 @@ export default function BoardGameArena({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[1fr_auto_1fr] items-center lg:items-stretch w-full px-4 lg:px-8 pb-8 gap-6 lg:gap-4 min-h-0 overflow-y-auto lg:overflow-hidden z-10">
+      {/* AREA GAME MENGGUNAKAN ABSOLUTE POSITIONING AGAR TIDAK SALING DORONG */}
+      <div className="flex-1 relative w-full h-full flex flex-col items-center justify-center p-4 lg:p-8 z-10 overflow-hidden">
         
-        <PlayerDock
-          showSkills={showSkills}
-          onToggleSkills={() => setShowSkills((prev) => !prev)}
-          isSkillLoading={isSkillLoading}
-          skillList={skillList}
-          activePlayers={activePlayersList}
-          onUseSkill={handleUseSkill} 
-        />
+        {/* TENGAH: BOARD GAME (SELALU FIX DI TENGAH) */}
+        <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl z-10 flex justify-center mb-auto lg:mb-0 shrink-0">
+          <GameBoardCanvas boardData={boardData} mapCoords={mapCoords} activePlayers={activePlayersList} />
+        </div>
 
-        <GameBoardCanvas
-          boardData={boardData}
-          mapCoords={mapCoords}
-          activePlayers={activePlayersList}
-        />
+        {/* HUD CONTAINER (Mengambang di Desktop, Flex di Mobile) */}
+        <div className="w-full flex justify-between items-end lg:static z-20 mt-4 lg:mt-0 shrink-0">
+          
+          {/* PLAYER DOCK: Pojok Kiri Bawah */}
+          <div className="lg:absolute lg:bottom-8 lg:left-8 lg:z-30 flex flex-col items-start">
+            <PlayerDock showSkills={showSkills} onToggleSkills={() => setShowSkills((prev) => !prev)} isSkillLoading={isSkillLoading} skillList={skillList} activePlayers={activePlayersList} onUseSkill={handleUseSkill} />
+          </div>
 
-        {/* PROPERTI DISABLED DITAMBAH isRolling AGAR TOMBOL MATI SAAT ANIMASI JALAN */}
-        <DiceControl
-          diceValue={diceValue}
-          disabled={
-            !isMyTurn || isMoving || hasRolled || playerPosition === mapCoords.length - 1 || isRolling
-          }
-          onRoll={handleRollDice}
-        />
+          {/* DADU: Kanan Tengah persis sejajar Board */}
+          <div className="w-[180px] sm:w-[220px] lg:w-[280px] lg:absolute lg:right-8 lg:top-1/2 lg:-translate-y-1/2 lg:z-30">
+            <DiceControl diceValue={diceValue} disabled={!isMyTurn || isMoving || hasRolled || playerPosition === mapCoords.length - 1 || isRolling} onRoll={handleRollDice} />
+          </div>
+
+        </div>
       </div>
 
       {showBoom && <BoomModal />} 
-
-      {/* BARU: efek fullscreen hasil jawaban kuis */}
       {answerResult !== null && <AnswerResultModal isCorrect={answerResult} />}
-
-      {/* BARU: efek fullscreen aktivasi skill (juga dipakai buat perisai menahan bom) */}
       {skillEffect && <SkillEffectModal {...skillEffect} />}
+      {showQuestionModal && currentSoal && <QuestionModal currentSoal={currentSoal} onAnswer={handleAnswer} />}
 
-      {showQuestionModal && currentSoal && (
-        <QuestionModal currentSoal={currentSoal} onAnswer={handleAnswer} />
-      )}
-
-      {/* SETTINGS MODAL SEKARANG DILEMPAR STATE AUDIO */}
       {showSettings && (
         <SettingsModal 
           onClose={() => setShowSettings(false)} 
-          isBgmEnabled={isBgmEnabled}
-          setIsBgmEnabled={setIsBgmEnabled}
-          isSfxEnabled={isSfxEnabled}
-          setIsSfxEnabled={setIsSfxEnabled}
+          isBgmEnabled={isBgmEnabled} setIsBgmEnabled={setIsBgmEnabled}
+          isSfxEnabled={isSfxEnabled} setIsSfxEnabled={setIsSfxEnabled}
         />
       )}
       
