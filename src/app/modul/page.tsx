@@ -11,6 +11,8 @@ type ModulDB = {
   nama_modul: string;
   id_level: number;
   thumbnail_url: string;
+  parameter_nilai: number; // BARU: Tambahan parameter nilai
+  status: boolean; // BARU: Tambahan status aktif/nonaktif
 };
 
 export default function ModulPembelajaran() {
@@ -26,7 +28,10 @@ export default function ModulPembelajaran() {
     async function fetchModul() {
       const { data, error } = await supabase
         .from('modul')
-        .select('id_modul, nama_modul, id_level, thumbnail_url');
+        // Memanggil kolom tambahan: parameter_nilai dan status
+        .select('id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status')
+        // Filter sakti: HANYA mengambil modul yang statusnya TRUE (Aktif)
+        .eq('status', true); 
 
       if (data && !error) {
         setDaftarModul(data);
@@ -101,7 +106,7 @@ export default function ModulPembelajaran() {
         <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
           <div className="text-4xl mb-4">🔍</div>
           <h3 className="text-xl font-bold text-gray-700">Modul tidak ditemukan</h3>
-          <p className="text-gray-500">Coba cari dengan kata kunci lain.</p>
+          <p className="text-gray-500">Coba cari dengan kata kunci lain atau belum ada modul yang aktif.</p>
         </div>
       ) : (
         /* GRID KARTU MODUL */
