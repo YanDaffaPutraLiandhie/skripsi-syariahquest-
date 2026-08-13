@@ -1,8 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-// Mengambil URL dan Key dari file .env.local
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Membuat "jembatan" client Supabase
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Menggunakan createBrowserClient agar tiket login otomatis disimpan di Cookies (bukan LocalStorage)
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
