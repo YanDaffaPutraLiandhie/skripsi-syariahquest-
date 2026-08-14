@@ -60,7 +60,7 @@ function LoginContent() {
     }
     // Cek role Dosen
     else if (userData.id_dosen) {
-      router.push('/dosen')
+      router.push('/Dosen/Dashboard')
     }
     // Cek role Mahasiswa
     else if (userData.id_mahasiswa) {

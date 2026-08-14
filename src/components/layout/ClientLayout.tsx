@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
+import DosenSidebar from "@/components/sidebar";
 import Navbar from "./Navbar";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -23,9 +24,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     return <div className="min-h-screen bg-background">{children}</div>;
   }
 
+  const isDosen = pathname.startsWith('/Dosen');
+
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      {isDosen ? (
+        <DosenSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      ) : (
+        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      )}
 
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? 'ml-20' : 'ml-64'}`}>
         {/* Navbar tidak dirender di Game Mode ATAU Profile Page */}
