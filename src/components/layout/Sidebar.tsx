@@ -39,11 +39,15 @@ export default function Sidebar({
         </svg>
       </button>
 
-      <div className={`p-8 flex items-center transition-all ${isCollapsed ? 'justify-center px-0' : ''}`}>
-        <h1 className="text-xl font-extrabold text-primary tracking-wide whitespace-nowrap overflow-hidden">
-          {isCollapsed ? 'SQ' : 'SYARIAH-QUEST'}
-        </h1>
+      {/* --- BAGIAN LOGO YANG DIPERBARUI UKURANNYA --- */}
+      <div className={`py-8 flex items-center transition-all ${isCollapsed ? 'justify-center px-2' : 'justify-center px-6'}`}>
+        <img 
+          src="/images/logo.svg" 
+          alt="Syariah Quest Logo" 
+          className={`object-contain transition-all duration-300 ${isCollapsed ? 'w-8' : 'w-28'}`}
+        />
       </div>
+      {/* ----------------------------------- */}
 
       <nav className="flex flex-col gap-2 px-3 mt-4">
         
@@ -59,7 +63,6 @@ export default function Sidebar({
 
         <Link href="/modul" className={`flex items-center p-3 rounded-md transition-all ${isCollapsed ? 'justify-center' : 'gap-3'} ${pathname === '/modul' ? 'text-primary font-bold bg-secondary/10' : 'text-gray-400 font-medium hover:text-primary hover:bg-secondary/10'}`} title="Modul Pembelajaran">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-          {/* Ukuran disesuaikan jadi text-sm dan tracking-tight biar dijamin nggak kepotong */}
           {!isCollapsed && <span className="truncate text-sm tracking-tight font-semibold">Modul Pembelajaran</span>}
         </Link>
 
