@@ -316,7 +316,7 @@ export default function TambahModul() {
               fileName={docFile?.name ?? null}
             />
             <UploadBox
-              label="thumbnail Vidio Pembelajaran (Jpg/Png)"
+              label="thumbnail Modul Pembelajaran (Jpg/Png)"
               borderColor="border-amber-400"
               onFile={setThumbnailFile}
               fileName={thumbnailFile?.name ?? null}

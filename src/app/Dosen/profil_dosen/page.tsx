@@ -10,9 +10,9 @@ export default function ProfilDosen() {
       {/* Main */}
       <main className="flex-1 p-8">
         {/* Topbar */}
-        <div className="mb-8 flex justify-end">
+        {/* <div className="mb-8 flex justify-end">
           <MiniProfile />
-        </div>
+        </div> */}
 
         {/* Header: avatar + name + stat */}
         <div className="mb-6 flex items-start gap-8">
