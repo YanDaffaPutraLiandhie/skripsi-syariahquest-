@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar";
-import MiniProfile from "@/components/layout/MiniProfile";
+// import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 
 type KuisCard = {
@@ -70,7 +70,7 @@ export default function KuisPage() {
 
       <main className="flex-1 p-8">
         {/* Topbar */}
-        <div className="mb-8 flex items-center justify-between">
+        {/* <div className="mb-8 flex items-center justify-between">
           <div className="relative w-64">
             <input
               type="text"
@@ -119,7 +119,7 @@ export default function KuisPage() {
 
             <MiniProfile />
           </div>
-        </div>
+        </div> */}
 
         {/* Grid */}
         <div className="grid grid-cols-3 gap-6">

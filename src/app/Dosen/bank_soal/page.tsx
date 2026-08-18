@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar";
-import MiniProfile from "@/components/layout/MiniProfile";
+// import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 
 type ModulCard = {
