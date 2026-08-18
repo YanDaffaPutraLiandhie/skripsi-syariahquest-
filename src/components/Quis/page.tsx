@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
-import { checkAndAwardModulBadges, type EarnedBadge } from "@/lib/badges";
+import { checkAndAwardModulBadges, type EarnedBadge } from "@/constants/badges";
 import { Loader2 } from "lucide-react";
 
 // Tipe Data sesuai Database
