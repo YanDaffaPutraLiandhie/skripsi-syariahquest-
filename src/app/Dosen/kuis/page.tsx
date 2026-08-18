@@ -154,7 +154,11 @@ export default function KuisPage() {
                 </div>
 
                 <div className="mt-auto">
-                  <button className="w-full rounded-lg border border-[#e4e2ee] py-2 text-xs font-semibold hover:bg-[#f7f6fb]">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
+                    className="w-full rounded-lg border border-[#e4e2ee] py-2 text-xs font-semibold hover:bg-[#f7f6fb]"
+                  >
                     Lihat Kuis
                   </button>
                 </div>

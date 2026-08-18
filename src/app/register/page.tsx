@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import "../login/login.css";
 
+type Role = "Mahasiswa" | "Dosen";
+
 export default function RegisterPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"Mahasiswa" | "Dosen">("Mahasiswa");
+  const [role, setRole] = useState<Role>("Mahasiswa");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,20 +25,51 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // ==========================================
+      // Bersihkan nama
+      const cleanName = name.trim();
+
+      // Bersihkan email dari spasi
+      // Contoh:
+      // " dosen123@gmail.com " -> "dosen123@gmail.com"
+      let cleanEmail = email.trim();
+
+      // Jika yang terpaste adalah:
+      // [dosen123@gmail.com](mailto:dosen123@gmail.com)
+      // ambil hanya alamat emailnya
+      const markdownEmailMatch = cleanEmail.match(
+        /^\[([^\]]+)\]\(mailto:[^)]+\)$/i
+      );
+
+      if (markdownEmailMatch) {
+        cleanEmail = markdownEmailMatch[1].trim();
+      }
+
+      // Jika terpaste:
+      // mailto:dosen123@gmail.com
+      cleanEmail = cleanEmail.replace(/^mailto:/i, "");
+
+      // Ubah ke lowercase
+      cleanEmail = cleanEmail.toLowerCase();
+
+      // =========================
       // VALIDASI
-      // ==========================================
+      // =========================
 
-      const trimmedName = name.trim();
-      const trimmedEmail = email.trim();
-
-      if (!trimmedName) {
+      if (!cleanName) {
         setError("Nama wajib diisi.");
         return;
       }
 
-      if (!trimmedEmail) {
+      if (!cleanEmail) {
         setError("Email wajib diisi.");
+        return;
+      }
+
+      // Validasi format email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailRegex.test(cleanEmail)) {
+        setError("Format email tidak valid.");
         return;
       }
 
@@ -45,22 +78,31 @@ export default function RegisterPage() {
         return;
       }
 
-      // ==========================================
+      console.log("Email yang dikirim:", cleanEmail);
+      console.log("Role:", role);
+
+      // =========================
       // REGISTER SUPABASE AUTH
-      // ==========================================
+      // =========================
 
       const { data, error: signError } =
         await supabase.auth.signUp({
-          email: trimmedEmail,
-          password: password,
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              nama: cleanName,
+              role,
+            },
+          },
         });
 
-      // ==========================================
-      // CEK ERROR AUTH
-      // ==========================================
+      // =========================
+      // CEK ERROR
+      // =========================
 
       if (signError) {
-        console.error("Gagal register Auth:", {
+        console.error("Gagal register:", {
           message: signError.message,
           status: signError.status,
           name: signError.name,
@@ -70,221 +112,29 @@ export default function RegisterPage() {
         return;
       }
 
-      // ==========================================
-      // CEK USER
-      // ==========================================
-
-      const user = data.user;
-
-      if (!user) {
-        setError("Gagal membuat akun. Silakan coba lagi.");
+      if (!data.user) {
+        setError("Gagal membuat akun.");
         return;
       }
 
-      console.log("Auth user berhasil dibuat:", user.id);
-
-      // ==========================================
-      // MAHASISWA
-      // ==========================================
-
-      if (role === "Mahasiswa") {
-        console.log("Membuat data mahasiswa...");
-
-        const { data: mhs, error: mhsErr } = await supabase
-          .from("mahasiswa")
-          .insert({
-            nama_mahasiswa: trimmedName,
-          })
-          .select("id_mahasiswa")
-          .single();
-
-        // ------------------------------------------
-        // CEK ERROR MAHASISWA
-        // ------------------------------------------
-
-        if (mhsErr) {
-          console.error("Gagal buat mahasiswa:", {
-            message: mhsErr.message,
-            details: mhsErr.details,
-            hint: mhsErr.hint,
-            code: mhsErr.code,
-          });
-
-          setError(
-            `Gagal membuat profil mahasiswa: ${mhsErr.message}`
-          );
-
-          return;
-        }
-
-        if (!mhs) {
-          console.error("Data mahasiswa kosong.");
-
-          setError("Data mahasiswa gagal dibuat.");
-
-          return;
-        }
-
-        console.log(
-          "Mahasiswa berhasil dibuat:",
-          mhs.id_mahasiswa
-        );
-
-        // ==========================================
-        // BUAT USER UNTUK MAHASISWA
-        // ==========================================
-
-        const { data: userRow, error: userErr } =
-          await supabase
-            .from("user")
-            .insert({
-              auth_user_id: user.id,
-
-              // Relasi mahasiswa
-              id_mahasiswa: mhs.id_mahasiswa,
-
-              // Yang bukan mahasiswa = NULL
-              id_dosen: null,
-              id_admin: null,
-
-              // Status aktif
-              is_aktif: true,
-            })
-            .select()
-            .single();
-
-        // ------------------------------------------
-        // CEK ERROR USER
-        // ------------------------------------------
-
-        if (userErr) {
-          console.error("Gagal buat user row:", {
-            message: userErr.message,
-            details: userErr.details,
-            hint: userErr.hint,
-            code: userErr.code,
-          });
-
-          setError(
-            `Gagal menyimpan data user: ${userErr.message}`
-          );
-
-          return;
-        }
-
-        console.log(
-          "User mahasiswa berhasil dibuat:",
-          userRow
-        );
-      }
-
-      // ==========================================
-      // DOSEN
-      // ==========================================
-
-      else if (role === "Dosen") {
-        console.log("Membuat data dosen...");
-
-        const { data: dosen, error: dosenErr } =
-          await supabase
-            .from("dosen")
-            .insert({
-              nama_dosen: trimmedName,
-            })
-            .select("id_dosen")
-            .single();
-
-        // ------------------------------------------
-        // CEK ERROR DOSEN
-        // ------------------------------------------
-
-        if (dosenErr) {
-          console.error("Gagal buat dosen:", {
-            message: dosenErr.message,
-            details: dosenErr.details,
-            hint: dosenErr.hint,
-            code: dosenErr.code,
-          });
-
-          setError(
-            `Gagal membuat profil dosen: ${dosenErr.message}`
-          );
-
-          return;
-        }
-
-        if (!dosen) {
-          console.error("Data dosen kosong.");
-
-          setError("Data dosen gagal dibuat.");
-
-          return;
-        }
-
-        console.log(
-          "Dosen berhasil dibuat:",
-          dosen.id_dosen
-        );
-
-        // ==========================================
-        // BUAT USER UNTUK DOSEN
-        // ==========================================
-
-        const { data: userRow, error: userErr } =
-          await supabase
-            .from("user")
-            .insert({
-              auth_user_id: user.id,
-
-              // Bukan mahasiswa
-              id_mahasiswa: null,
-
-              // Relasi dosen
-              id_dosen: dosen.id_dosen,
-
-              // Bukan admin
-              id_admin: null,
-
-              // Status aktif
-              is_aktif: true,
-            })
-            .select()
-            .single();
-
-        // ------------------------------------------
-        // CEK ERROR USER
-        // ------------------------------------------
-
-        if (userErr) {
-          console.error("Gagal buat user row:", {
-            message: userErr.message,
-            details: userErr.details,
-            hint: userErr.hint,
-            code: userErr.code,
-          });
-
-          setError(
-            `Gagal menyimpan data user: ${userErr.message}`
-          );
-
-          return;
-        }
-
-        console.log(
-          "User dosen berhasil dibuat:",
-          userRow
-        );
-      }
-
-      // ==========================================
-      // REGISTER BERHASIL
-      // ==========================================
-
-      console.log("Registrasi berhasil.");
-
-      alert(
-        "Registrasi berhasil! Silakan login menggunakan akun yang telah dibuat."
+      console.log(
+        "Registrasi berhasil. Auth User ID:",
+        data.user.id
       );
+
+      // =========================
+      // BERHASIL
+      // =========================
+
+      if (!data.session) {
+        alert(
+          "Registrasi berhasil. Silakan cek email untuk verifikasi akun."
+        );
+      } else {
+        alert(
+          "Registrasi berhasil! Silakan login menggunakan akun Anda."
+        );
+      }
 
       router.push("/login");
     } catch (err: unknown) {
@@ -303,38 +153,22 @@ export default function RegisterPage() {
   return (
     <main className="login-page">
       <div className="login-card">
-
-        {/* ======================================
-            ILUSTRASI
-        ====================================== */}
-
         <div className="login-illustration">
           <img
             src="/images/board-logo.png"
-            alt="logo"
+            alt="Syariah Quest Logo"
             className="illustration-img"
           />
         </div>
 
-        {/* ======================================
-            FORM
-        ====================================== */}
-
         <div className="login-form-side">
-
-          <h1 className="login-title">
-            Register
-          </h1>
+          <h1 className="login-title">Register</h1>
 
           <form
             onSubmit={handleRegister}
             className="login-form"
           >
-
-            {/* ==================================
-                NAMA
-            ================================== */}
-
+            {/* NAMA */}
             <div className="login-field">
               <label htmlFor="name">
                 Nama
@@ -344,18 +178,14 @@ export default function RegisterPage() {
                 id="name"
                 type="text"
                 value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Masukkan nama"
                 required
+                disabled={loading}
               />
             </div>
 
-            {/* ==================================
-                EMAIL
-            ================================== */}
-
+            {/* EMAIL */}
             <div className="login-field">
               <label htmlFor="email">
                 Email
@@ -365,18 +195,18 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
-                placeholder="Masukkan email"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError("");
+                }}
+                placeholder="contoh@gmail.com"
+                autoComplete="email"
                 required
+                disabled={loading}
               />
             </div>
 
-            {/* ==================================
-                PASSWORD
-            ================================== */}
-
+            {/* PASSWORD */}
             <div className="login-field">
               <label htmlFor="password">
                 Password
@@ -386,19 +216,16 @@ export default function RegisterPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimal 6 karakter"
+                autoComplete="new-password"
                 minLength={6}
                 required
+                disabled={loading}
               />
             </div>
 
-            {/* ==================================
-                ROLE
-            ================================== */}
-
+            {/* ROLE */}
             <div className="login-field">
               <label htmlFor="role">
                 Role
@@ -409,12 +236,11 @@ export default function RegisterPage() {
                 value={role}
                 onChange={(e) =>
                   setRole(
-                    e.target.value as
-                      | "Mahasiswa"
-                      | "Dosen"
+                    e.target.value as Role
                   )
                 }
                 className="w-full p-2 border rounded-md"
+                disabled={loading}
               >
                 <option value="Mahasiswa">
                   Mahasiswa
@@ -426,20 +252,14 @@ export default function RegisterPage() {
               </select>
             </div>
 
-            {/* ==================================
-                ERROR
-            ================================== */}
-
+            {/* ERROR */}
             {error && (
               <p className="login-error">
                 {error}
               </p>
             )}
 
-            {/* ==================================
-                BUTTON REGISTER
-            ================================== */}
-
+            {/* BUTTON */}
             <button
               type="submit"
               className="login-submit"
@@ -450,17 +270,9 @@ export default function RegisterPage() {
                 : "Register"}
             </button>
 
-            {/* ==================================
-                DIVIDER
-            ================================== */}
-
             <div className="login-divider">
               <span>atau</span>
             </div>
-
-            {/* ==================================
-                LOGIN LINK
-            ================================== */}
 
             <div className="login-links-row">
               <a
@@ -470,7 +282,6 @@ export default function RegisterPage() {
                 Punya akun? Login
               </a>
             </div>
-
           </form>
         </div>
       </div>

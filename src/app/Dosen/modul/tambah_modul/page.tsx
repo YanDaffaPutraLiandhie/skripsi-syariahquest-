@@ -1,8 +1,8 @@
 "use client";
+
 import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const LEVELS = [
   { key: "easy", label: "Easy", color: "bg-emerald-500" },
@@ -13,83 +13,6 @@ const LEVELS = [
 type LevelKey = (typeof LEVELS)[number]["key"];
 
 const BUCKET = "modul";
-
-const NAV_ITEMS = [
-  { label: "Dashboard", icon: "home", active: false },
-  { label: "Modul Pembelajaran", icon: "book", active: true },
-  { label: "Bank Soal", icon: "help", active: false },
-  { label: "Leaderboard", icon: "chart", active: false },
-  { label: "Profil", icon: "user", active: false },
-];
-
-function NavIcon({ name }: { name: string }) {
-  const common = "h-[18px] w-[18px] shrink-0";
-  switch (name) {
-    case "home":
-      return (
-        <svg
-          className={common}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8z" />
-        </svg>
-      );
-    case "book":
-      return (
-        <svg
-          className={common}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5v-13zM20 5.5A1.5 1.5 0 0 0 18.5 4H12v16h6.5a1.5 1.5 0 0 0 1.5-1.5v-13z" />
-        </svg>
-      );
-    case "chart":
-      return (
-        <svg
-          className={common}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path d="M5 20V10M12 20V4M19 20v-7" />
-        </svg>
-      );
-    case "user":
-      return (
-        <svg
-          className={common}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <circle cx="12" cy="8" r="3.5" />
-          <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
-        </svg>
-      );
-    default:
-      return (
-        <svg
-          className={common}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <circle cx="12" cy="12" r="9" />
-          <path d="M9.5 9.2a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.5" />
-          <circle cx="12" cy="16.5" r=".6" fill="currentColor" stroke="none" />
-        </svg>
-      );
-  }
-}
 
 function UploadBox({
   label,
@@ -107,12 +30,14 @@ function UploadBox({
       <label className="mb-2 block text-sm font-semibold text-white">
         {label}
       </label>
+
       <label
         className={`flex h-[190px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-white text-center ${borderColor}`}
       >
         <span className="px-4 text-sm font-semibold text-[#a3a0b5]">
           {fileName ?? "Unggah File disini"}
         </span>
+
         <input
           type="file"
           className="hidden"
@@ -128,10 +53,17 @@ export default function TambahModul() {
   const [level, setLevel] = useState<LevelKey>("medium");
   const [namaModul, setNamaModul] = useState("");
   const [linkVideo, setLinkVideo] = useState("");
+
   const [docFile, setDocFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Data dosen yang sedang login
+  const [idDosen, setIdDosen] = useState<number | null>(null);
+  const [namaDosen, setNamaDosen] = useState("");
+  const [loadingDosen, setLoadingDosen] = useState(true);
 
   const LEVEL_VALUE: Record<LevelKey, number> = {
     easy: 1,
@@ -139,12 +71,114 @@ export default function TambahModul() {
     hard: 3,
   };
 
+  // =============================================
+  // AMBIL ID DOSEN DAN NAMA DOSEN
+  // =============================================
+  useEffect(() => {
+    async function fetchDosen() {
+      setLoadingDosen(true);
+
+      try {
+        // 1. Ambil user yang sedang login
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          console.error(
+            "Gagal mendapatkan user yang sedang login:",
+            authError
+          );
+
+          setMessage("Gagal mendapatkan data user yang sedang login.");
+          return;
+        }
+
+        console.log("Auth User ID:", user.id);
+
+        // =============================================
+        // 2. AMBIL id_dosen DARI TABEL user
+        // =============================================
+        const { data: userData, error: userError } = await supabase
+          .from("user")
+          .select("id_dosen")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+
+        if (userError) {
+          console.error(
+            "Gagal mendapatkan id_dosen dari tabel user:",
+            userError
+          );
+
+          setMessage("Gagal mengambil data dosen dari akun Anda.");
+          return;
+        }
+
+        if (!userData?.id_dosen) {
+          setMessage(
+            "Akun yang sedang login belum terhubung dengan data dosen."
+          );
+          return;
+        }
+
+        const dosenId = userData.id_dosen;
+        console.log("ID Dosen:", dosenId);
+
+        setIdDosen(dosenId);
+
+        // =============================================
+        // 3. AMBIL nama_dosen DARI TABEL dosen
+        // =============================================
+        const { data: dosenData, error: dosenError } = await supabase
+          .from("dosen")
+          .select("nama_dosen")
+          .eq("id_dosen", dosenId)
+          .maybeSingle();
+
+        if (dosenError) {
+          console.error(
+            "Gagal mendapatkan data dosen:",
+            dosenError
+          );
+
+          setMessage("Data dosen tidak ditemukan.");
+          return;
+        }
+
+        if (!dosenData?.nama_dosen) {
+          setMessage("Nama dosen belum tersedia di database.");
+          return;
+        }
+
+        console.log("Nama Dosen:", dosenData.nama_dosen);
+        setNamaDosen(dosenData.nama_dosen);
+      } catch (error) {
+        console.error(
+          "Terjadi kesalahan saat mengambil data dosen:",
+          error
+        );
+
+        setMessage("Terjadi kesalahan saat mengambil data dosen.");
+      } finally {
+        setLoadingDosen(false);
+      }
+    }
+
+    fetchDosen();
+  }, []);
+
+  // =============================================
+  // UPLOAD FILE KE SUPABASE STORAGE
+  // =============================================
   async function uploadFile(
     file: File,
-    folder: string,
+    folder: string
   ): Promise<string | null> {
     try {
       const filePath = `${folder}/${Date.now()}-${file.name}`;
+
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)
         .upload(filePath, file);
@@ -159,15 +193,27 @@ export default function TambahModul() {
         .getPublicUrl(filePath);
 
       return data?.publicUrl ?? null;
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("Unexpected upload error:", error);
       return null;
     }
   }
 
+  // =============================================
+  // SIMPAN MODUL
+  // =============================================
   async function handleSubmit() {
+    // Validasi nama modul
     if (!namaModul.trim()) {
       setMessage("Nama modul tidak boleh kosong.");
+      return;
+    }
+
+    // Pastikan data dosen sudah ditemukan
+    if (!idDosen) {
+      setMessage(
+        "Data dosen belum ditemukan. Silakan refresh halaman atau login kembali."
+      );
       return;
     }
 
@@ -175,35 +221,109 @@ export default function TambahModul() {
     setMessage("");
 
     try {
-      let thumbnail_url = linkVideo.trim();
-      let dokumen_pendukung = "";
+      // =============================================
+      // CEK USER LOGIN
+      // =============================================
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (thumbnailFile) {
-        const url = await uploadFile(thumbnailFile, "thumbnail");
-        if (url) thumbnail_url = url;
-      }
+      if (userError || !user) {
+        console.error(
+          "Gagal mendapatkan user login:",
+          userError
+        );
 
-      if (docFile) {
-        const url = await uploadFile(docFile, "dokumen");
-        if (url) dokumen_pendukung = url;
-      }
-
-      const { error } = await supabase.from("modul").insert({
-        nama_modul: namaModul.trim(),
-        id_level: LEVEL_VALUE[level],
-        video_url: thumbnail_url,
-        thumbnail_url,
-        dokumen_pendukung,
-      });
-
-      if (error) {
-        console.error("Insert error:", error);
-        setMessage(`Gagal menyimpan: ${error.message}`);
-        setLoading(false);
+        setMessage("Anda belum login.");
         return;
       }
 
-      setMessage("Modul berhasil disimpan!");
+      console.log("User Login:", user.id);
+      console.log("ID Dosen Pembuat:", idDosen);
+      console.log("Nama Dosen Pembuat:", namaDosen);
+
+      // =============================================
+      // UPLOAD THUMBNAIL
+      // =============================================
+      let thumbnail_url = "";
+
+      if (thumbnailFile) {
+        const url = await uploadFile(
+          thumbnailFile,
+          "thumbnail"
+        );
+
+        if (!url) {
+          setMessage("Gagal mengunggah thumbnail.");
+          return;
+        }
+
+        thumbnail_url = url;
+      }
+
+      // =============================================
+      // UPLOAD DOKUMEN
+      // =============================================
+      let dokumen_pendukung = "";
+
+      if (docFile) {
+        const url = await uploadFile(
+          docFile,
+          "dokumen"
+        );
+
+        if (!url) {
+          setMessage("Gagal mengunggah dokumen.");
+          return;
+        }
+
+        dokumen_pendukung = url;
+      }
+
+      // =============================================
+      // INSERT MODUL
+      // dibuat_oleh = id_dosen
+      // =============================================
+      const { data, error } = await supabase
+        .from("modul")
+        .insert({
+          nama_modul: namaModul.trim(),
+
+          id_level: LEVEL_VALUE[level],
+
+          video_url: linkVideo.trim() || null,
+
+          thumbnail_url: thumbnail_url || null,
+
+          dokumen_pendukung:
+            dokumen_pendukung || null,
+
+          // SIMPAN ID DOSEN
+          dibuat_oleh: namaDosen,
+
+          status: true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Insert modul error:", error);
+
+        setMessage(
+          `Gagal menyimpan modul: ${error.message}`
+        );
+
+        return;
+      }
+
+      console.log("Modul berhasil dibuat:", data);
+
+      setMessage(
+        `Modul berhasil disimpan oleh ${namaDosen}!`
+      );
+
+      // Reset form
       setTimeout(() => {
         setNamaModul("");
         setLinkVideo("");
@@ -211,9 +331,14 @@ export default function TambahModul() {
         setThumbnailFile(null);
         setNilai(80);
         setLevel("medium");
+        setMessage("");
       }, 1500);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(
+        "Terjadi kesalahan saat menyimpan modul:",
+        error
+      );
+
       setMessage("Terjadi kesalahan, coba lagi.");
     } finally {
       setLoading(false);
@@ -224,15 +349,28 @@ export default function TambahModul() {
     <div className="flex min-h-screen bg-white text-[#2b2540]">
       <Sidebar activeLabel="Modul Pembelajaran" />
 
-      {/* Main */}
       <main className="flex-1 p-8">
-        {/* Topbar */}
-      
-
-        {/* Purple panel */}
         <div className="rounded-[24px] bg-[#4a3f7a] p-8">
-          {/* Top row: Set Parameter Nilai + Level Modul */}
+
+          {/* =============================================
+              TAMPILKAN NAMA DOSEN
+          ============================================= */}
+          <div className="mb-4 text-sm font-semibold text-white">
+            {loadingDosen ? (
+              "Memuat data dosen..."
+            ) : namaDosen ? (
+              <>Dibuat oleh: {namaDosen}</>
+            ) : (
+              "Data dosen tidak ditemukan."
+            )}
+          </div>
+
+          {/* =============================================
+              PARAMETER NILAI DAN LEVEL
+          ============================================= */}
           <div className="mb-8 flex items-start gap-6">
+
+            {/* Parameter Nilai */}
             <div className="rounded-2xl bg-white px-8 py-4">
               <label className="mb-2 block text-center text-sm font-bold text-[#2b2540]">
                 Set Parameter Nilai
@@ -253,20 +391,28 @@ export default function TambahModul() {
                   }}
                   className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center text-lg font-bold text-[#2b2540] outline-none focus:border-emerald-500"
                 />
-                <span className="text-lg font-bold text-[#2b2540]">%</span>
+
+                <span className="text-lg font-bold text-[#2b2540]">
+                  %
+                </span>
               </div>
             </div>
+
+            {/* Level Modul */}
             <div className="flex-1 rounded-2xl bg-white px-8 py-4">
               <p className="mb-3 text-center text-sm font-bold text-[#2b2540]">
                 Level Modul
               </p>
+
               <div className="flex justify-center gap-3">
                 {LEVELS.map((lvl) => (
                   <button
                     key={lvl.key}
                     type="button"
                     onClick={() => setLevel(lvl.key)}
-                    className={`rounded-full px-6 py-2 text-sm font-bold text-white transition-opacity ${lvl.color} ${
+                    className={`rounded-full px-6 py-2 text-sm font-bold text-white transition-opacity ${
+                      lvl.color
+                    } ${
                       level === lvl.key
                         ? "opacity-100"
                         : "opacity-50 hover:opacity-80"
@@ -279,58 +425,78 @@ export default function TambahModul() {
             </div>
           </div>
 
-          {/* Nama Modul */}
+          {/* =============================================
+              NAMA MODUL
+          ============================================= */}
           <div className="mb-5">
             <label className="mb-2 block text-sm font-semibold text-white">
               Nama Modul
             </label>
-<input
+
+            <input
               type="text"
               value={namaModul}
-              onChange={(e) => setNamaModul(e.target.value)}
+              onChange={(e) =>
+                setNamaModul(e.target.value)
+              }
               placeholder="Tulis nama modul"
               className="h-11 w-full rounded-full border-2 border-emerald-400 bg-white px-4 text-sm text-[#2b2540] outline-none placeholder:text-[#c9c6d6]"
             />
           </div>
 
-          {/* Link Vidio Pembelajaran */}
+          {/* =============================================
+              LINK VIDEO
+          ============================================= */}
           <div className="mb-6">
             <label className="mb-2 block text-sm font-semibold text-white">
-              Link Vidio Pembelajaran
+              Link Video Pembelajaran
             </label>
+
             <input
               type="text"
               value={linkVideo}
-              onChange={(e) => setLinkVideo(e.target.value)}
+              onChange={(e) =>
+                setLinkVideo(e.target.value)
+              }
               placeholder="Tempel link video"
               className="h-11 w-full rounded-full border-2 border-orange-400 bg-white px-4 text-sm text-[#2b2540] outline-none placeholder:text-[#c9c6d6]"
             />
           </div>
 
-          {/* Upload boxes */}
+          {/* =============================================
+              UPLOAD FILE
+          ============================================= */}
           <div className="mb-8 grid grid-cols-2 gap-6">
+
             <UploadBox
               label="Dokumen Pembelajaran (Doc/Pdf)"
               borderColor="border-sky-400"
               onFile={setDocFile}
               fileName={docFile?.name ?? null}
             />
+
             <UploadBox
-              label="thumbnail Modul Pembelajaran (Jpg/Png)"
+              label="Thumbnail Modul Pembelajaran (Jpg/Png)"
               borderColor="border-amber-400"
               onFile={setThumbnailFile}
               fileName={thumbnailFile?.name ?? null}
             />
           </div>
 
+          {/* =============================================
+              PESAN
+          ============================================= */}
           {message && (
             <p className="mb-4 text-center text-sm font-semibold text-white">
               {message}
             </p>
           )}
 
-          {/* Actions */}
+          {/* =============================================
+              TOMBOL
+          ============================================= */}
           <div className="flex justify-end gap-3">
+
             <button
               type="button"
               onClick={() => {
@@ -346,14 +512,20 @@ export default function TambahModul() {
             >
               Batal
             </button>
+
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || loadingDosen || !idDosen}
               className="rounded-full bg-emerald-400 px-6 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 disabled:opacity-50"
             >
-              {loading ? "Menyimpan..." : "Selesai"}
+              {loading
+                ? "Menyimpan..."
+                : loadingDosen
+                ? "Memuat..."
+                : "Selesai"}
             </button>
+
           </div>
         </div>
       </main>

@@ -11,6 +11,7 @@ type ModulCard = {
   badge: string;
   badgeColor: string;
   thumbnailUrl: string;
+  dibuat_oleh: string;
 };
 
 export default function ModulPembelajaranGrid() {
