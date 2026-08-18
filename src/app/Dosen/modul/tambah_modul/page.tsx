@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const LEVELS = [
@@ -49,6 +50,10 @@ function UploadBox({
 }
 
 export default function TambahModul() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = Number(searchParams.get("id") ?? 0);
+
   const [nilai, setNilai] = useState(80);
   const [level, setLevel] = useState<LevelKey>("medium");
   const [namaModul, setNamaModul] = useState("");
@@ -56,9 +61,13 @@ export default function TambahModul() {
 
   const [docFile, setDocFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [docLabel, setDocLabel] = useState<string | null>(null);
+  const [thumbnailLabel, setThumbnailLabel] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingModuleId, setEditingModuleId] = useState<number | null>(null);
 
   // Data dosen yang sedang login
   const [idDosen, setIdDosen] = useState<number | null>(null);
@@ -70,6 +79,61 @@ export default function TambahModul() {
     medium: 2,
     hard: 3,
   };
+
+  function getLevelKeyFromId(idLevel: number | null): LevelKey {
+    switch (idLevel) {
+      case 1:
+        return "easy";
+      case 3:
+        return "hard";
+      case 2:
+      default:
+        return "medium";
+    }
+  }
+
+  async function loadExistingModule() {
+    if (!editId) {
+      setIsEditMode(false);
+      setEditingModuleId(null);
+      return;
+    }
+
+    setIsEditMode(true);
+    setEditingModuleId(editId);
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("modul")
+        .select(
+          "id_modul, nama_modul, id_level, video_url, thumbnail_url, dokumen_pendukung, parameter_nilai"
+        )
+        .eq("id_modul", editId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        setMessage("Modul yang dipilih tidak ditemukan.");
+        return;
+      }
+
+      setNamaModul(data.nama_modul ?? "");
+      setLevel(getLevelKeyFromId(data.id_level));
+      setLinkVideo(data.video_url ?? "");
+      setNilai(data.parameter_nilai ?? 80);
+      setThumbnailLabel(data.thumbnail_url ? "File thumbnail sudah ada" : null);
+      setDocLabel(data.dokumen_pendukung ? "File dokumen sudah ada" : null);
+    } catch (error) {
+      console.error("Gagal memuat modul untuk edit:", error);
+      setMessage("Gagal memuat data modul yang akan diedit.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // =============================================
   // AMBIL ID DOSEN DAN NAMA DOSEN
@@ -169,6 +233,12 @@ export default function TambahModul() {
     fetchDosen();
   }, []);
 
+  useEffect(() => {
+    if (editId) {
+      loadExistingModule();
+    }
+  }, [editId]);
+
   // =============================================
   // UPLOAD FILE KE SUPABASE STORAGE
   // =============================================
@@ -203,13 +273,11 @@ export default function TambahModul() {
   // SIMPAN MODUL
   // =============================================
   async function handleSubmit() {
-    // Validasi nama modul
     if (!namaModul.trim()) {
       setMessage("Nama modul tidak boleh kosong.");
       return;
     }
 
-    // Pastikan data dosen sudah ditemukan
     if (!idDosen) {
       setMessage(
         "Data dosen belum ditemukan. Silakan refresh halaman atau login kembali."
@@ -221,87 +289,92 @@ export default function TambahModul() {
     setMessage("");
 
     try {
-      // =============================================
-      // CEK USER LOGIN
-      // =============================================
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.error(
-          "Gagal mendapatkan user login:",
-          userError
-        );
-
+        console.error("Gagal mendapatkan user login:", userError);
         setMessage("Anda belum login.");
         return;
       }
 
-      console.log("User Login:", user.id);
-      console.log("ID Dosen Pembuat:", idDosen);
-      console.log("Nama Dosen Pembuat:", namaDosen);
-
-      // =============================================
-      // UPLOAD THUMBNAIL
-      // =============================================
       let thumbnail_url = "";
+      let dokumen_pendukung = "";
 
       if (thumbnailFile) {
-        const url = await uploadFile(
-          thumbnailFile,
-          "thumbnail"
-        );
-
+        const url = await uploadFile(thumbnailFile, "thumbnail");
         if (!url) {
           setMessage("Gagal mengunggah thumbnail.");
           return;
         }
-
         thumbnail_url = url;
+      } else if (isEditMode && editingModuleId) {
+        const { data: existing, error: existingError } = await supabase
+          .from("modul")
+          .select("thumbnail_url")
+          .eq("id_modul", editingModuleId)
+          .maybeSingle();
+
+        if (!existingError) {
+          thumbnail_url = existing?.thumbnail_url ?? "";
+        }
       }
 
-      // =============================================
-      // UPLOAD DOKUMEN
-      // =============================================
-      let dokumen_pendukung = "";
-
       if (docFile) {
-        const url = await uploadFile(
-          docFile,
-          "dokumen"
-        );
-
+        const url = await uploadFile(docFile, "dokumen");
         if (!url) {
           setMessage("Gagal mengunggah dokumen.");
           return;
         }
-
         dokumen_pendukung = url;
+      } else if (isEditMode && editingModuleId) {
+        const { data: existing, error: existingError } = await supabase
+          .from("modul")
+          .select("dokumen_pendukung")
+          .eq("id_modul", editingModuleId)
+          .maybeSingle();
+
+        if (!existingError) {
+          dokumen_pendukung = existing?.dokumen_pendukung ?? "";
+        }
       }
 
-      // =============================================
-      // INSERT MODUL
-      // dibuat_oleh = id_dosen
-      // =============================================
+      const payload = {
+        nama_modul: namaModul.trim(),
+        id_level: LEVEL_VALUE[level],
+        video_url: linkVideo.trim() || null,
+        thumbnail_url: thumbnail_url || null,
+        dokumen_pendukung: dokumen_pendukung || null,
+        parameter_nilai: nilai,
+      };
+
+      if (isEditMode && editingModuleId) {
+        const { error } = await supabase
+          .from("modul")
+          .update(payload)
+          .eq("id_modul", editingModuleId);
+
+        if (error) {
+          console.error("Update modul error:", error);
+          setMessage(`Gagal memperbarui modul: ${error.message}`);
+          return;
+        }
+
+        setMessage("Modul berhasil diperbarui.");
+
+        setTimeout(() => {
+          router.push("/Dosen/modul");
+        }, 800);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("modul")
         .insert({
-          nama_modul: namaModul.trim(),
-
-          id_level: LEVEL_VALUE[level],
-
-          video_url: linkVideo.trim() || null,
-
-          thumbnail_url: thumbnail_url || null,
-
-          dokumen_pendukung:
-            dokumen_pendukung || null,
-
-          // SIMPAN ID DOSEN
-          dibuat_oleh: namaDosen,
-
+          ...payload,
+          dibuat_oleh: idDosen,
           status: true,
         })
         .select()
@@ -309,36 +382,26 @@ export default function TambahModul() {
 
       if (error) {
         console.error("Insert modul error:", error);
-
-        setMessage(
-          `Gagal menyimpan modul: ${error.message}`
-        );
-
+        setMessage(`Gagal menyimpan modul: ${error.message}`);
         return;
       }
 
       console.log("Modul berhasil dibuat:", data);
+      setMessage(`Modul berhasil disimpan oleh ${namaDosen}!`);
 
-      setMessage(
-        `Modul berhasil disimpan oleh ${namaDosen}!`
-      );
-
-      // Reset form
       setTimeout(() => {
         setNamaModul("");
         setLinkVideo("");
         setDocFile(null);
         setThumbnailFile(null);
+        setDocLabel(null);
+        setThumbnailLabel(null);
         setNilai(80);
         setLevel("medium");
         setMessage("");
       }, 1500);
     } catch (error) {
-      console.error(
-        "Terjadi kesalahan saat menyimpan modul:",
-        error
-      );
-
+      console.error("Terjadi kesalahan saat menyimpan modul:", error);
       setMessage("Terjadi kesalahan, coba lagi.");
     } finally {
       setLoading(false);
@@ -358,6 +421,8 @@ export default function TambahModul() {
           <div className="mb-4 text-sm font-semibold text-white">
             {loadingDosen ? (
               "Memuat data dosen..."
+            ) : isEditMode ? (
+              <>Edit modul: {namaDosen || "Dosen"}</>
             ) : namaDosen ? (
               <>Dibuat oleh: {namaDosen}</>
             ) : (
@@ -472,14 +537,14 @@ export default function TambahModul() {
               label="Dokumen Pembelajaran (Doc/Pdf)"
               borderColor="border-sky-400"
               onFile={setDocFile}
-              fileName={docFile?.name ?? null}
+              fileName={docFile?.name ?? docLabel}
             />
 
             <UploadBox
               label="Thumbnail Modul Pembelajaran (Jpg/Png)"
               borderColor="border-amber-400"
               onFile={setThumbnailFile}
-              fileName={thumbnailFile?.name ?? null}
+              fileName={thumbnailFile?.name ?? thumbnailLabel}
             />
           </div>
 
@@ -500,17 +565,24 @@ export default function TambahModul() {
             <button
               type="button"
               onClick={() => {
+                if (isEditMode) {
+                  router.push("/Dosen/modul");
+                  return;
+                }
+
                 setNamaModul("");
                 setLinkVideo("");
                 setDocFile(null);
                 setThumbnailFile(null);
+                setDocLabel(null);
+                setThumbnailLabel(null);
                 setNilai(80);
                 setLevel("medium");
                 setMessage("");
               }}
               className="rounded-full bg-[#3d3466] px-6 py-2 text-sm font-semibold text-white hover:bg-[#342c58]"
             >
-              Batal
+              {isEditMode ? "Kembali" : "Batal"}
             </button>
 
             <button
@@ -523,6 +595,8 @@ export default function TambahModul() {
                 ? "Menyimpan..."
                 : loadingDosen
                 ? "Memuat..."
+                : isEditMode
+                ? "Selesai"
                 : "Selesai"}
             </button>
 

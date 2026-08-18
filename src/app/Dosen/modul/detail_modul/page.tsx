@@ -147,8 +147,8 @@ export default function ModulDetailVideo() {
                 onClick={() =>
                   router.push(
                     modul?.id_modul
-                      ? `/Dosen/modul/tambah_modul?id=${modul.id_modul}`
-                      : "/Dosen/modul/tambah_modul"
+                      ? `/Dosen/modul/edit_modul?id=${modul.id_modul}`
+                      : "/Dosen/modul/edit_modul"
                   )
                 }
                 className="inline-flex h-12 items-center justify-center rounded-full bg-emerald-400 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-300"
