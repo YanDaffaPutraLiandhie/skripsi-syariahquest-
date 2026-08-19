@@ -16,6 +16,21 @@ function getAdminClient() {
   })
 }
 
+function getAnonClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error(
+      'Konfigurasi server belum lengkap: cek NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY di .env.local'
+    )
+  }
+
+  return createClient(supabaseUrl, publishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
 // POST /api/admin/impersonate
 // Body: { userId: number, role: 'Mahasiswa' | 'Dosen' }
 //
@@ -88,12 +103,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Tukar hashed_token jadi session token asli (access_token & refresh_token)
-    //    Pakai client anon biasa (bukan admin) untuk verifyOtp ini.
-    const supabaseAnon = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const supabaseAnon = getAnonClient()
 
     const { data: verifyData, error: verifyError } =
       await supabaseAnon.auth.verifyOtp({
