@@ -57,6 +57,7 @@ const cards: ModulCard[] = (data ?? []).map((item: any) => {
             badge,
             badgeColor,
             thumbnailUrl: item.thumbnail_url ?? "",
+            dibuat_oleh: item.dibuat_oleh ?? "Admin",
           };
         });
 
