@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient } from '@supabase/ssr'
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -73,9 +72,8 @@ export async function POST(req: NextRequest) {
     const redirectPath =
       role === 'Dosen' ? '/Dosen/Dashboard' : role === 'Mahasiswa' ? '/dashboard' : '/'
 
-    // 4. Generate magic link HANYA untuk mendapatkan hashed_token.
-    //    Link ini TIDAK dibuka langsung oleh browser — kita tukar
-    //    tokennya jadi sesi login di server, di bawah ini.
+    // 4. Generate magic link HANYA untuk mendapatkan hashed_token,
+    //    lalu ditukar jadi access_token + refresh_token asli.
     const { data: linkData, error: linkError } =
       await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
@@ -89,45 +87,38 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 5. Siapkan response lebih dulu, supaya cookie sesi yang dihasilkan
-    //    verifyOtp() di bawah bisa langsung ditempel ke response ini.
-    const response = NextResponse.json({ link: redirectPath })
-
-    const supabaseServer = createServerClient(
+    // 5. Tukar hashed_token jadi session token asli (access_token & refresh_token)
+    //    Pakai client anon biasa (bukan admin) untuk verifyOtp ini.
+    const supabaseAnon = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return req.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
+      { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // 6. Tukar hashed_token jadi sesi login SUNGGUHAN.
-    //    Cookie sesi otomatis ditempel ke `response` lewat setAll() di atas.
-    const { error: verifyError } = await supabaseServer.auth.verifyOtp({
-      type: 'magiclink',
-      token_hash: linkData.properties.hashed_token,
-    })
+    const { data: verifyData, error: verifyError } =
+      await supabaseAnon.auth.verifyOtp({
+        type: 'magiclink',
+        token_hash: linkData.properties.hashed_token,
+      })
 
-    if (verifyError) {
+    if (verifyError || !verifyData?.session) {
       return NextResponse.json(
-        { message: verifyError.message || 'Gagal membuat sesi login' },
+        { message: verifyError?.message || 'Gagal membuat sesi login' },
         { status: 400 }
       )
     }
 
-    // 7. Response ini (beserta Set-Cookie sesi barunya) dikirim ke browser.
-    //    Karena request POST ini same-origin, browser otomatis menyimpan
-    //    cookie sesi tersebut sebelum tab baru dibuka oleh client.
-    return response
+    // 6. Kirim token asli ke frontend. Frontend akan membuka tab baru
+    //    ke halaman "jembatan" (/auth/session-bridge) yang memanggil
+    //    supabase.auth.setSession() dengan token ini, baru redirect
+    //    ke dashboard tujuan.
+    const bridgeUrl =
+      `/auth/session-bridge` +
+      `?access_token=${encodeURIComponent(verifyData.session.access_token)}` +
+      `&refresh_token=${encodeURIComponent(verifyData.session.refresh_token)}` +
+      `&redirect=${encodeURIComponent(redirectPath)}`
+
+    return NextResponse.json({ link: bridgeUrl })
   } catch (error: any) {
     console.error('IMPERSONATE ERROR:', error)
     return NextResponse.json(
