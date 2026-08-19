@@ -144,7 +144,6 @@ else if (userData.id_dosen) {
           </div>
 
           <div className="login-links-row">
-            <a href="/register" className="login-link">Register?</a>
             <a href="/forgot-password" className="login-link forgot">forgot password?</a>
           </div>
 
