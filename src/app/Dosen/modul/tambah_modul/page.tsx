@@ -4,6 +4,7 @@ import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { logActivity } from "@/lib/logActivity";
 
 const LEVELS = [
   { key: "easy", label: "Easy", color: "bg-emerald-500" },
@@ -387,7 +388,28 @@ export default function TambahModul() {
       }
 
       console.log("Modul berhasil dibuat:", data);
-      setMessage(`Modul berhasil disimpan oleh ${namaDosen}!`);
+
+      setMessage(
+        `Modul berhasil disimpan oleh ${namaDosen}!`
+      );
+
+      try {
+  await logActivity({
+    fitur: "Modul",
+    jenis_aktivitas: "Tambah",
+    keterangan: `Dosen ${namaDosen} menambahkan modul "${namaModul.trim()}"`,
+  });
+} catch (logError) {
+  // Jika log gagal, modul tetap dianggap berhasil dibuat
+  console.error(
+    "Gagal mencatat aktivitas tambah modul:",
+    logError
+  );
+}
+
+setMessage(
+  `Modul berhasil disimpan oleh ${namaDosen}!`
+);
 
       setTimeout(() => {
         setNamaModul("");

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/logActivity";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
 
@@ -605,6 +606,12 @@ export default function BankSoalPage() {
           jawabanData,
         );
       }
+
+      await logActivity({
+  fitur: "Bank Soal",
+  jenis_aktivitas: "Tambah",
+  keterangan: `Menambahkan ${soalEntries.length} soal ke modul "${modulCheck.nama_modul}"`,
+});
 
       /*
        * =====================================================

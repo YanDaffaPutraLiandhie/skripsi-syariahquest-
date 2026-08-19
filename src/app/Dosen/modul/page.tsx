@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/logActivity";
 type ModulCard = {
   id: number;
   title: string;
@@ -72,25 +73,57 @@ setModulCards(cards);
   }, []);
 
   const toggleActive = async (index: number) => {
-    const card = modulCards[index];
-    if (!card) return;
+  const card = modulCards[index];
 
-    const newActive = !(activeStates[index] ?? true);
+  if (!card) return;
 
-    const { error } = await supabase
-      .from("modul")
-      .update({ status: newActive })
-      .eq("id_modul", card.id);
+  const newActive = !(activeStates[index] ?? true);
 
-    if (error) {
-      console.error("Supabase update error:", error);
-      return;
-    }
+  // ============================================
+  // 1. Update status modul
+  // ============================================
+  const { error } = await supabase
+    .from("modul")
+    .update({ status: newActive })
+    .eq("id_modul", card.id);
 
-    setActiveStates((prev) =>
-      prev.map((item, i) => (i === index ? newActive : item)),
-    );
-  };
+  if (error) {
+    console.error("Supabase update error:", error);
+    return;
+  }
+
+  // ============================================
+  // 2. Ambil user yang sedang login
+  // ============================================
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.error("User login tidak ditemukan");
+    return;
+  }
+
+  // ============================================
+  // 3. Catat aktivitas
+  // ============================================
+  await logActivity({
+    fitur: "Modul",
+    jenis_aktivitas: newActive
+      ? "Aktifkan Modul"
+      : "Nonaktifkan Modul",
+    keterangan: `${newActive ? "Mengaktifkan" : "Menonaktifkan"} modul "${card.title}"`,
+  });
+
+  // ============================================
+  // 4. Update tampilan
+  // ============================================
+  setActiveStates((prev) =>
+    prev.map((item, i) =>
+      i === index ? newActive : item
+    ),
+  );
+};
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">

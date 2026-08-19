@@ -3,6 +3,7 @@
 import { FormEvent, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { logActivity } from '../../lib/logActivity'
 import './login.css'
 
 // PISAHKAN FORM KE KOMPONEN SENDIRI AGAR BISA DIBUNGKUS SUSPENSE
@@ -43,7 +44,7 @@ function LoginContent() {
     // Cari data user berdasarkan auth_user_id
     const { data: userData, error: userError } = await supabase
       .from('user')
-      .select('id_user, id_mahasiswa, id_dosen, id_admin')
+      .select('id_user, id_mahasiswa, id_dosen, id_admin, is_aktif')
       .eq('auth_user_id', data.user.id)
       .single()
 
@@ -54,14 +55,28 @@ function LoginContent() {
       return
     }
 
+    if (!userData.is_aktif) {
+  await supabase.auth.signOut()
+  setError('Akun Anda sedang dinonaktifkan. Silakan hubungi administrator.')
+  setLoading(false)
+  return
+}
+
     // Cek role Admin
     if (userData.id_admin) {
       router.push('/admin')
     }
     // Cek role Dosen
-    else if (userData.id_dosen) {
-      router.push('/Dosen/Dashboard')
-    }
+    // Cek role Dosen
+else if (userData.id_dosen) {
+  await logActivity({
+    fitur: 'Login',
+    jenis_aktivitas: 'Login',
+    keterangan: 'Berhasil login ke dashboard dosen',
+  })
+
+  router.push('/Dosen/Dashboard')
+}
     // Cek role Mahasiswa
     else if (userData.id_mahasiswa) {
       // LOGIKA REDIRECT YANG BENAR:

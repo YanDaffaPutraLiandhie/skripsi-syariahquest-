@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
 import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/logActivity";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
 
@@ -345,6 +346,14 @@ try {
       setSuccessMessage(
         `Kuis "${kuisName}" berhasil dibuat dengan id ${idQuis} (${soalEntries.length} soal).`,
       );
+
+      
+await logActivity({
+  fitur: "Kuis",
+  jenis_aktivitas: "Tambah",
+  keterangan: `Menambahkan kuis "${kuisName}" secara manual dengan ${soalEntries.length} soal`,
+});
+
       setSoalEntries([makeEmptyEntry()]);
       setNamaKuis("");
     } catch (err: any) {

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 // import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/logActivity";
 
 type ModulCard = {
   id: number;
@@ -48,6 +49,10 @@ export default function BankSoalGrid() {
         setLoading(false);
         return;
       }
+
+      
+
+      
 
       const cards: ModulCard[] = (data ?? [])
         .filter((item) => item.id_modul !== null)

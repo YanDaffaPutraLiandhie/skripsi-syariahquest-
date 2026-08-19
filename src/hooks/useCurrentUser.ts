@@ -40,11 +40,11 @@ export function useCurrentUser() {
       return;
     }
 
-    const { data: userRow, error: userError } = await supabase
-      .from("user")
-      .select("id_mahasiswa, id_dosen, id_admin")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
+  const { data: userRow, error: userError } = await supabase
+  .from("user")
+  .select("id_mahasiswa, id_dosen, id_admin")
+  .eq("auth_user_id", user.id)
+  .single();
 
     if (userError) {
       console.error("Gagal membaca data user login:", userError);
@@ -58,6 +58,20 @@ export function useCurrentUser() {
       setIsLoading(false);
       return;
     }
+if (userError) {
+  console.error("Gagal mengambil data user:", userError);
+  setProfile(null);
+  setIsLoading(false);
+  return;
+}
+
+// Hook ini khusus untuk mahasiswa.
+// Jika yang login Admin atau Dosen, tidak perlu mengambil profil mahasiswa.
+if (!userRow?.id_mahasiswa) {
+  setProfile(null);
+  setIsLoading(false);
+  return;
+}
 
     if (userRow.id_mahasiswa) {
       const { data: mhs, error: mhsError } = await supabase

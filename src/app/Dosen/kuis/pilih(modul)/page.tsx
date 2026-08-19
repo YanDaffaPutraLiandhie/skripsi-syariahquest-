@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 // import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/logActivity";
 
 type ModulRow = {
   id: number;
@@ -203,6 +204,13 @@ try {
         }
         totalSoal += 1;
       }
+
+    
+await logActivity({
+  fitur: "Kuis",
+  jenis_aktivitas: "Tambah Kuis",
+  keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal`,
+});
 
       setSuccessMessage(
         `Kuis "${kuisName}" berhasil dibuat dengan id ${idQuis} (${totalSoal} soal).`,

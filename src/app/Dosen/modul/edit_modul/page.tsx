@@ -4,6 +4,7 @@ import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { logActivity } from "@/lib/logActivity";
 
 const LEVELS = [
   { key: "easy", label: "Easy", color: "bg-emerald-500" },
@@ -365,6 +366,15 @@ function TambahModulContent() {
         console.log("Modul berhasil diupdate:", data);
         setMessage("Modul berhasil diperbarui.");
 
+        // BARU: catat aktivitas "Edit Modul" -- taruh SETELAH update
+        // berhasil, jadi kalau update gagal (return duluan di atas),
+        // tidak ada log yang tercatat.
+        await logActivity({
+          fitur: "Modul Pembelajaran",
+          jenis_aktivitas: "Edit Modul",
+          keterangan: `Memperbarui modul "${namaModul.trim()}"`,
+        });
+
         setTimeout(() => {
           router.push("/Dosen/modul");
         }, 800);
@@ -392,6 +402,14 @@ function TambahModulContent() {
 
       console.log("Modul berhasil dibuat:", data);
       setMessage(`Modul berhasil disimpan oleh ${namaDosen}!`);
+
+      // BARU: catat aktivitas "Tambah Modul" -- taruh SETELAH insert
+      // berhasil (kalau insert gagal, sudah return duluan di atas).
+      await logActivity({
+        fitur: "Modul Pembelajaran",
+        jenis_aktivitas: "Tambah Modul",
+        keterangan: `Menambahkan modul "${namaModul.trim()}"`,
+      });
 
       setTimeout(() => {
         setNamaModul("");
