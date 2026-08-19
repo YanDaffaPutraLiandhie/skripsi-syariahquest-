@@ -3,8 +3,9 @@
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Play, CheckCircle2, ArrowLeft, BookOpen } from "lucide-react";
-import Quiz from "@/components/Quis/page"; // Pastikan path ini benar
-import { supabase } from "@/lib/supabase"; 
+import Quiz from "@/components/Quis/page"; 
+import { supabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 type DetailModulDB = {
   id_modul: number;
@@ -13,18 +14,14 @@ type DetailModulDB = {
   teks_materi: string;
 };
 
-// Fungsi sakti untuk ngerubah link YouTube biasa jadi link Embed
 function getYouTubeEmbedUrl(url: string) {
   if (!url) return null;
-  // Kalau udah embed, biarin
   if (url.includes("youtube.com/embed/")) return url;
   
   let videoId = "";
-  // Cek kalau formatnya youtu.be/XXXXX
   if (url.includes("youtu.be/")) {
     videoId = url.split("youtu.be/")[1]?.split("?")[0];
   } 
-  // Cek kalau formatnya youtube.com/watch?v=XXXXX
   else if (url.includes("youtube.com/watch")) {
     videoId = new URL(url).searchParams.get("v") || "";
   }
@@ -36,6 +33,8 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);        
   const router = useRouter();
   
+  const { profile } = useCurrentUser();
+  
   const [course, setCourse] = useState<DetailModulDB | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -43,20 +42,81 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   const [quizScore, setQuizScore] = useState<number | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchDetail() {
-      const { data, error } = await supabase
+      const { data: modulData } = await supabase
         .from('modul')
         .select('*')
         .eq('id_modul', id)
         .single();
 
-      if (data && !error) {
-        setCourse(data);
+      if (modulData && isMounted) {
+        setCourse(modulData);
       }
-      setIsLoading(false);
+
+      if (profile?.idMahasiswa && isMounted) {
+        const { data: progData } = await supabase
+          .from('progress_modul')
+          .select('nilai, selesai')
+          .eq('id_modul', id)
+          .eq('id_mahasiswa', profile.idMahasiswa)
+          .single();
+
+        if (progData && progData.selesai && isMounted) {
+          setQuizScore(progData.nilai);
+        }
+      }
+
+      if (isMounted) setIsLoading(false);
     }
+
     fetchDetail();
-  }, [id]);
+
+    return () => { isMounted = false; };
+  }, [id, profile?.idMahasiswa]);
+
+  // PENGAMAN SUPER KETAT ANTI MODUL KOSONG
+  useEffect(() => {
+    async function markMateriViewed() {
+      if (course && profile?.idMahasiswa && activeTab === "materi") {
+        
+        // Bersihkan tag HTML (seperti <p><br></p>) jika dari Rich Text
+        const teksMateriBersih = course.teks_materi ? course.teks_materi.replace(/<[^>]*>?/gm, '').trim() : '';
+        const adaVideo = course.video_url && course.video_url.trim() !== '';
+        const adaTeks = teksMateriBersih !== '';
+        
+        const adaIsiMateri = adaVideo || adaTeks;
+
+        // Kalau kosong melompong, JANGAN berikan nilai 40%
+        if (!adaIsiMateri) return; 
+
+        // Kalau ada isinya, baru catat ke database
+        const { data: existingProgress } = await supabase
+          .from('progress_modul')
+          .select('id_modul')
+          .eq('id_mahasiswa', profile.idMahasiswa)
+          .eq('id_modul', course.id_modul)
+          .single();
+
+        if (!existingProgress) {
+          await supabase.from('progress_modul').insert({
+            id_mahasiswa: profile.idMahasiswa,
+            id_modul: course.id_modul,
+            materi_dilihat: true,
+            kuis_dicoba: false,
+            selesai: false,
+            nilai: 0
+          });
+        } else {
+          await supabase.from('progress_modul').update({
+            materi_dilihat: true
+          }).eq('id_mahasiswa', profile.idMahasiswa).eq('id_modul', course.id_modul);
+        }
+      }
+    }
+    markMateriViewed();
+  }, [course, profile?.idMahasiswa, activeTab]);
 
   function handleClaimXP(score: number) {
     setQuizScore(score);
@@ -79,8 +139,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   const paragraphs = course.teks_materi ? course.teks_materi.split('\n').filter(p => p.trim() !== '') : [];
-  
-  // Dapatkan URL embed yang benar
   const embedUrl = course.video_url ? getYouTubeEmbedUrl(course.video_url) : null;
 
   return (
@@ -95,16 +153,14 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
 
         {activeTab === "kuis" ? (
           <div className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#5B5288]/50 bg-white p-8 min-h-[600px]">
-            {/* DI SINI LETAK YANG BENAR: Menambahkan idModul ke komponen Quiz */}
             <Quiz 
               onClaimXP={(score: number) => handleClaimXP(score)} 
               idModul={course.id_modul} 
+              initialScore={quizScore}
             />
           </div>
         ) : (
           <div className="flex flex-col gap-5">
-            
-            {/* AREA VIDEO */}
             <div className="relative overflow-hidden rounded-xl bg-black">
               {embedUrl ? (
                 <iframe 
@@ -122,7 +178,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
               )}
             </div>
 
-            {/* AREA TEKS */}
             {paragraphs.length > 0 ? (
               <div className="rounded-xl border border-gray-200 bg-white p-5">
                 <h2 className="mb-4 text-xl font-bold text-[#5B5288]">Penjelasan Materi</h2>
