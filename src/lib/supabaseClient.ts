@@ -1,17 +1,56 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-console.log("SUPABASE_URL:", url);
-console.log("SUPABASE_KEY:", key);
+const supabasePublishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-if (!url) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL tidak ditemukan");
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Validasi Supabase URL
+if (!supabaseUrl) {
+  throw new Error(
+    "NEXT_PUBLIC_SUPABASE_URL tidak ditemukan"
+  );
 }
 
-if (!key) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY tidak ditemukan");
+// Validasi Publishable Key
+if (!supabasePublishableKey) {
+  throw new Error(
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY tidak ditemukan"
+  );
 }
 
-export const supabase = createClient(url, key);
+// Validasi Service Role Key
+if (!supabaseServiceRoleKey) {
+  throw new Error(
+    "SUPABASE_SERVICE_ROLE_KEY tidak ditemukan"
+  );
+}
+
+// ========================================
+// CLIENT SUPABASE BIASA
+// Digunakan di halaman / component
+// ========================================
+export const supabase = createClient(
+  supabaseUrl,
+  supabasePublishableKey
+);
+
+// ========================================
+// CLIENT SUPABASE ADMIN
+// Digunakan di API Route / Server
+// ========================================
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  supabaseServiceRoleKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
+);
+
+export default supabase;

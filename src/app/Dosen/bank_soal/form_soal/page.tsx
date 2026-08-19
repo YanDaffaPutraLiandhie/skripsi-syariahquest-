@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -42,7 +42,10 @@ function makeEmptyEntry(): SoalEntry {
   };
 }
 
-export default function BankSoalPage() {
+// =============================================
+// KOMPONEN UTAMA (dipisah dari default export)
+// =============================================
+function BankSoalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -81,9 +84,6 @@ export default function BankSoalPage() {
       setLoadingModul(true);
       setFormError("");
 
-      /*
-       * Jika tidak ada ?id_modul=
-       */
       if (!idModulParam) {
         setFormError(
           "ID modul tidak ditemukan. Silakan kembali dan pilih modul terlebih dahulu.",
@@ -94,18 +94,12 @@ export default function BankSoalPage() {
 
       const parsedId = Number(idModulParam);
 
-      /*
-       * Pastikan ID berupa angka
-       */
       if (!Number.isInteger(parsedId) || parsedId <= 0) {
         setFormError("ID modul tidak valid.");
         setLoadingModul(false);
         return;
       }
 
-      /*
-       * Cari modul berdasarkan ID
-       */
       const { data, error } = await supabase
         .from("modul")
         .select("id_modul, nama_modul")
@@ -114,30 +108,19 @@ export default function BankSoalPage() {
 
       if (error) {
         console.error("Gagal mengambil modul:", error);
-
-        setFormError(
-          `Gagal mengambil data modul: ${error.message}`,
-        );
-
+        setFormError(`Gagal mengambil data modul: ${error.message}`);
         setLoadingModul(false);
         return;
       }
 
-      /*
-       * ID modul tidak ditemukan
-       */
       if (!data) {
         setFormError(
           `Modul dengan ID ${parsedId} tidak ditemukan di database.`,
         );
-
         setLoadingModul(false);
         return;
       }
 
-      /*
-       * Modul valid
-       */
       setIdModul(Number(data.id_modul));
       setNamaModul(data.nama_modul ?? "");
 
@@ -152,56 +135,27 @@ export default function BankSoalPage() {
     loadModul();
   }, [idModulParam]);
 
-  /*
-   * =========================================================
-   * UPDATE SOAL
-   * =========================================================
-   */
   function updateEntry(id: string, patch: Partial<SoalEntry>) {
     setSoalEntries((prev) =>
       prev.map((entry) =>
-        entry.id === id
-          ? {
-              ...entry,
-              ...patch,
-            }
-          : entry,
+        entry.id === id ? { ...entry, ...patch } : entry,
       ),
     );
   }
 
-  /*
-   * =========================================================
-   * TAMBAH SOAL
-   * =========================================================
-   */
   function addEntry() {
-    setSoalEntries((prev) => [
-      ...prev,
-      makeEmptyEntry(),
-    ]);
+    setSoalEntries((prev) => [...prev, makeEmptyEntry()]);
   }
 
-  /*
-   * =========================================================
-   * HAPUS SOAL
-   * =========================================================
-   */
   function removeEntry(id: string) {
     setSoalEntries((prev) => {
       if (prev.length <= 1) {
         return prev;
       }
-
       return prev.filter((entry) => entry.id !== id);
     });
   }
 
-  /*
-   * =========================================================
-   * DOWNLOAD TEMPLATE CSV
-   * =========================================================
-   */
   function handleDownloadTemplate() {
     const headers = [
       "soal",
@@ -236,46 +190,28 @@ export default function BankSoalPage() {
       data: exampleRows,
     });
 
-    const blob = new Blob(
-      ["\uFEFF" + csv],
-      {
-        type: "text/csv;charset=utf-8;",
-      },
-    );
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
 
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
 
     link.href = url;
     link.download = "template_bank_soal.csv";
 
     document.body.appendChild(link);
-
     link.click();
-
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
   }
 
-  /*
-   * =========================================================
-   * BUKA FILE IMPORT
-   * =========================================================
-   */
   function handleImportClick() {
     importInputRef.current?.click();
   }
 
-  /*
-   * =========================================================
-   * IMPORT CSV
-   * =========================================================
-   */
-  function handleImportFile(
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) {
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
 
     if (!file) {
@@ -302,48 +238,29 @@ export default function BankSoalPage() {
 
           const parsed: SoalEntry[] = rows.map((row) => {
             const normalizedKunci = (
-              row.kunci_jawaban ||
-              row.kunci ||
-              ""
+              row.kunci_jawaban || row.kunci || ""
             )
               .trim()
               .toUpperCase();
 
-            const validKunci: AnswerKey | null =
-              ANSWER_KEYS.includes(
-                normalizedKunci as AnswerKey,
-              )
-                ? (normalizedKunci as AnswerKey)
-                : null;
+            const validKunci: AnswerKey | null = ANSWER_KEYS.includes(
+              normalizedKunci as AnswerKey,
+            )
+              ? (normalizedKunci as AnswerKey)
+              : null;
 
             return {
               id: crypto.randomUUID(),
-
               soal: (row.soal || "").trim(),
-
-              jawabanA: (
-                row.jawaban_a || ""
-              ).trim(),
-
-              jawabanB: (
-                row.jawaban_b || ""
-              ).trim(),
-
-              jawabanC: (
-                row.jawaban_c || ""
-              ).trim(),
-
-              jawabanD: (
-                row.jawaban_d || ""
-              ).trim(),
-
+              jawabanA: (row.jawaban_a || "").trim(),
+              jawabanB: (row.jawaban_b || "").trim(),
+              jawabanC: (row.jawaban_c || "").trim(),
+              jawabanD: (row.jawaban_d || "").trim(),
               kunciJawaban: validKunci,
             };
           });
 
-          const validRows = parsed.filter(
-            (entry) => entry.soal,
-          );
+          const validRows = parsed.filter((entry) => entry.soal);
 
           if (validRows.length === 0) {
             throw new Error(
@@ -357,10 +274,7 @@ export default function BankSoalPage() {
             `${validRows.length} soal berhasil diimpor dari CSV.`,
           );
         } catch (err: any) {
-          setFormError(
-            err?.message ||
-              "Gagal memproses file CSV.",
-          );
+          setFormError(err?.message || "Gagal memproses file CSV.");
         } finally {
           setImporting(false);
 
@@ -371,11 +285,7 @@ export default function BankSoalPage() {
       },
 
       error: (err) => {
-        setFormError(
-          err.message ||
-            "Gagal membaca file CSV.",
-        );
-
+        setFormError(err.message || "Gagal membaca file CSV.");
         setImporting(false);
 
         if (importInputRef.current) {
@@ -385,14 +295,7 @@ export default function BankSoalPage() {
     });
   }
 
-  /*
-   * =========================================================
-   * SIMPAN SOAL
-   * =========================================================
-   */
-  async function handleSubmit(
-    e: React.FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     setSaving(true);
@@ -400,39 +303,24 @@ export default function BankSoalPage() {
     setSuccessMessage("");
 
     try {
-      /*
-       * =====================================================
-       * VALIDASI MODUL
-       * =====================================================
-       */
       if (!idModul) {
         throw new Error(
           "ID modul tidak ditemukan. Silakan kembali dan pilih modul.",
         );
       }
 
-      /*
-       * =====================================================
-       * CEK MODUL SEKALI LAGI
-       * =====================================================
-       */
-      const { data: modulCheck, error: modulError } =
-        await supabase
-          .from("modul")
-          .select("id_modul, nama_modul")
-          .eq("id_modul", idModul)
-          .maybeSingle();
+      const { data: modulCheck, error: modulError } = await supabase
+        .from("modul")
+        .select("id_modul, nama_modul")
+        .eq("id_modul", idModul)
+        .maybeSingle();
 
       if (modulError) {
-        throw new Error(
-          `Gagal mengecek modul: ${modulError.message}`,
-        );
+        throw new Error(`Gagal mengecek modul: ${modulError.message}`);
       }
 
       if (!modulCheck) {
-        throw new Error(
-          `Modul dengan ID ${idModul} tidak ditemukan.`,
-        );
+        throw new Error(`Modul dengan ID ${idModul} tidak ditemukan.`);
       }
 
       console.log("================================");
@@ -442,18 +330,11 @@ export default function BankSoalPage() {
       console.log("JUMLAH SOAL:", soalEntries.length);
       console.log("================================");
 
-      /*
-       * =====================================================
-       * VALIDASI SEMUA SOAL DULU
-       * =====================================================
-       */
       for (const [index, entry] of soalEntries.entries()) {
         const nomor = index + 1;
 
         if (!entry.soal.trim()) {
-          throw new Error(
-            `Soal ke-${nomor} belum diisi.`,
-          );
+          throw new Error(`Soal ke-${nomor} belum diisi.`);
         }
 
         if (
@@ -468,62 +349,28 @@ export default function BankSoalPage() {
         }
 
         if (!entry.kunciJawaban) {
-          throw new Error(
-            `Pilih kunci jawaban untuk soal ke-${nomor}.`,
-          );
+          throw new Error(`Pilih kunci jawaban untuk soal ke-${nomor}.`);
         }
       }
 
-      /*
-       * =====================================================
-       * INSERT SEMUA SOAL
-       * =====================================================
-       */
-      for (const [
-        index,
-        entry,
-      ] of soalEntries.entries()) {
+      for (const [index, entry] of soalEntries.entries()) {
         const nomor = index + 1;
 
-        console.log(
-          `Menyimpan soal ${nomor} ke modul ${idModul}`,
-        );
+        console.log(`Menyimpan soal ${nomor} ke modul ${idModul}`);
 
-        /*
-         * PENTING:
-         *
-         * Jangan lagi menggunakan:
-         *
-         * id_modul: 8
-         *
-         * Sekarang menggunakan:
-         *
-         * id_modul: idModul
-         */
-        const { data: soalBaru, error: soalError } =
-          await supabase
-            .from("soal")
-            .insert({
-              id_modul: idModul,
-              soal: entry.soal.trim(),
-            })
-            .select("id_soal, id_modul, soal")
-            .single();
+        const { data: soalBaru, error: soalError } = await supabase
+          .from("soal")
+          .insert({
+            id_modul: idModul,
+            soal: entry.soal.trim(),
+          })
+          .select("id_soal, id_modul, soal")
+          .single();
 
         if (soalError) {
-          console.error(
-            "===== ERROR INSERT SOAL =====",
-          );
-
+          console.error("===== ERROR INSERT SOAL =====");
           console.error(soalError);
-
-          console.error(
-            JSON.stringify(
-              soalError,
-              null,
-              2,
-            ),
-          );
+          console.error(JSON.stringify(soalError, null, 2));
 
           throw new Error(
             `Gagal menyimpan soal ke-${nomor}: ${soalError.message}`,
@@ -531,80 +378,50 @@ export default function BankSoalPage() {
         }
 
         if (!soalBaru) {
-          throw new Error(
-            `Soal ke-${nomor} gagal dibuat.`,
-          );
+          throw new Error(`Soal ke-${nomor} gagal dibuat.`);
         }
 
-        console.log(
-          "SOAL BERHASIL:",
-          soalBaru,
-        );
+        console.log("SOAL BERHASIL:", soalBaru);
 
-        /*
-         * ===================================================
-         * INSERT JAWABAN
-         * ===================================================
-         */
         const jawaban = [
           {
             id_soal: soalBaru.id_soal,
             jawaban: entry.jawabanA.trim(),
-            jawaban_benar:
-              entry.kunciJawaban === "A",
+            jawaban_benar: entry.kunciJawaban === "A",
           },
           {
             id_soal: soalBaru.id_soal,
             jawaban: entry.jawabanB.trim(),
-            jawaban_benar:
-              entry.kunciJawaban === "B",
+            jawaban_benar: entry.kunciJawaban === "B",
           },
           {
             id_soal: soalBaru.id_soal,
             jawaban: entry.jawabanC.trim(),
-            jawaban_benar:
-              entry.kunciJawaban === "C",
+            jawaban_benar: entry.kunciJawaban === "C",
           },
           {
             id_soal: soalBaru.id_soal,
             jawaban: entry.jawabanD.trim(),
-            jawaban_benar:
-              entry.kunciJawaban === "D",
+            jawaban_benar: entry.kunciJawaban === "D",
           },
         ];
 
-        const {
-          data: jawabanData,
-          error: jawabanError,
-        } = await supabase
+        const { data: jawabanData, error: jawabanError } = await supabase
           .from("jawaban")
           .insert(jawaban)
           .select();
 
         if (jawabanError) {
-          console.error(
-            "===== ERROR INSERT JAWABAN =====",
-          );
-
+          console.error("===== ERROR INSERT JAWABAN =====");
           console.error(jawabanError);
-
-          console.error(
-            JSON.stringify(
-              jawabanError,
-              null,
-              2,
-            ),
-          );
+          console.error(JSON.stringify(jawabanError, null, 2));
 
           throw new Error(
             `Soal berhasil dibuat, tetapi jawaban soal ke-${nomor} gagal disimpan: ${jawabanError.message}`,
           );
         }
 
-        console.log(
-          "JAWABAN BERHASIL:",
-          jawabanData,
-        );
+        console.log("JAWABAN BERHASIL:", jawabanData);
       }
 
       await logActivity({
@@ -622,14 +439,9 @@ export default function BankSoalPage() {
         `${soalEntries.length} soal berhasil disimpan ke modul "${modulCheck.nama_modul}".`,
       );
 
-      setSoalEntries([
-        makeEmptyEntry(),
-      ]);
+      setSoalEntries([makeEmptyEntry()]);
     } catch (err: any) {
-      console.error(
-        "===== ERROR SIMPAN =====",
-      );
-
+      console.error("===== ERROR SIMPAN =====");
       console.error(err);
 
       setFormError(
@@ -643,11 +455,6 @@ export default function BankSoalPage() {
     }
   }
 
-  /*
-   * =========================================================
-   * LOADING MODUL
-   * =========================================================
-   */
   if (loadingModul) {
     return (
       <div className="flex min-h-screen bg-[#f8f7ff]">
@@ -655,20 +462,13 @@ export default function BankSoalPage() {
 
         <main className="flex flex-1 items-center justify-center p-8">
           <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
-            <p className="text-sm text-[#6e6a85]">
-              Memuat modul...
-            </p>
+            <p className="text-sm text-[#6e6a85]">Memuat modul...</p>
           </div>
         </main>
       </div>
     );
   }
 
-  /*
-   * =========================================================
-   * JIKA MODUL TIDAK VALID
-   * =========================================================
-   */
   if (!idModul) {
     return (
       <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
@@ -680,15 +480,11 @@ export default function BankSoalPage() {
               Modul Tidak Ditemukan
             </h1>
 
-            <p className="mt-3 text-sm text-red-500">
-              {formError}
-            </p>
+            <p className="mt-3 text-sm text-red-500">{formError}</p>
 
             <button
               type="button"
-              onClick={() =>
-                router.push("/Dosen/bank_soal")
-              }
+              onClick={() => router.push("/Dosen/bank_soal")}
               className="mt-6 rounded-full bg-[#4a3f7a] px-6 py-3 text-sm font-semibold text-white"
             >
               Kembali ke Bank Soal
@@ -699,24 +495,15 @@ export default function BankSoalPage() {
     );
   }
 
-  /*
-   * =========================================================
-   * HALAMAN UTAMA
-   * =========================================================
-   */
   return (
     <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
       <Sidebar activeLabel="Bank Soal" />
 
       <main className="flex-1 p-8">
-
         {/* HEADER */}
         <div className="mb-6 rounded-[32px] bg-white p-8 shadow-sm">
-
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
             <div>
-
               <p className="text-sm uppercase tracking-[0.24em] text-[#8b84a5]">
                 Bank Soal
               </p>
@@ -726,14 +513,11 @@ export default function BankSoalPage() {
               </h1>
 
               <p className="mt-3 text-sm text-[#6e6a85]">
-                Tambahkan soal pilihan ganda,
-                pilih kunci jawaban, atau impor
+                Tambahkan soal pilihan ganda, pilih kunci jawaban, atau impor
                 CSV untuk mempercepat proses.
               </p>
 
-              {/* MODUL TERPILIH */}
               <div className="mt-5 inline-flex items-center gap-3 rounded-full bg-[#f1eff8] px-5 py-3">
-
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#8b84a5]">
                   Modul
                 </span>
@@ -745,22 +529,17 @@ export default function BankSoalPage() {
                 <span className="rounded-full bg-[#4a3f7a] px-3 py-1 text-xs font-bold text-white">
                   ID: {idModul}
                 </span>
-
               </div>
-
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-
               <button
                 type="button"
                 onClick={handleImportClick}
                 disabled={importing}
                 className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:opacity-60"
               >
-                {importing
-                  ? "Mengimpor..."
-                  : "Impor Dokumen"}
+                {importing ? "Mengimpor..." : "Impor Dokumen"}
               </button>
 
               <button
@@ -771,19 +550,14 @@ export default function BankSoalPage() {
                 <Download size={16} />
                 Download Template
               </button>
-
             </div>
-
           </div>
         </div>
 
         {/* INFO */}
         <section className="mb-8 rounded-[32px] bg-[#4a3f7a] p-8 shadow-[0_28px_80px_rgba(74,63,122,0.14)]">
-
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-
             <div>
-
               <p className="text-sm uppercase tracking-[0.24em] text-[#c9c6d6]">
                 Kunci Jawaban
               </p>
@@ -791,11 +565,9 @@ export default function BankSoalPage() {
               <h2 className="mt-3 text-2xl font-semibold text-white">
                 Sistem Pilih Jawaban
               </h2>
-
             </div>
 
             <div className="flex flex-wrap gap-3">
-
               {ANSWER_KEYS.map((key) => (
                 <span
                   key={key}
@@ -804,234 +576,133 @@ export default function BankSoalPage() {
                   {key}
                 </span>
               ))}
-
             </div>
-
           </div>
 
           <p className="mt-6 max-w-2xl text-sm leading-6 text-[#e7defd]">
-            Semua soal yang disimpan pada halaman
-            ini akan dimasukkan ke modul:
-            <strong className="ml-1 text-white">
-              {namaModul}
-            </strong>
+            Semua soal yang disimpan pada halaman ini akan dimasukkan ke
+            modul:
+            <strong className="ml-1 text-white">{namaModul}</strong>
           </p>
-
         </section>
 
         {/* FORM */}
         <form onSubmit={handleSubmit}>
-
           <div className="grid gap-6">
+            {soalEntries.map((entry, index) => (
+              <section
+                key={entry.id}
+                className="overflow-hidden rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-[#e5e1f2]"
+              >
+                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#7b7397]">
+                      Soal {index + 1}
+                    </p>
 
-            {soalEntries.map(
-              (entry, index) => (
-                <section
-                  key={entry.id}
-                  className="overflow-hidden rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-[#e5e1f2]"
-                >
-
-                  <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-                    <div>
-
-                      <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#7b7397]">
-                        Soal {index + 1}
-                      </p>
-
-                      <h3 className="mt-2 text-xl font-semibold text-[#2b2540]">
-                        Detail Soal
-                      </h3>
-
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-
-                      {ANSWER_KEYS.map(
-                        (key) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() =>
-                              updateEntry(
-                                entry.id,
-                                {
-                                  kunciJawaban:
-                                    key,
-                                },
-                              )
-                            }
-                            className={`h-10 min-w-[44px] rounded-full px-3 text-sm font-semibold transition ${
-                              entry.kunciJawaban ===
-                              key
-                                ? "bg-emerald-400 text-emerald-950"
-                                : "bg-[#f1eff8] text-[#4a3f7a] hover:bg-[#e5e0f4]"
-                            }`}
-                          >
-                            {key}
-                          </button>
-                        ),
-                      )}
-
-                      {soalEntries.length >
-                        1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeEntry(
-                              entry.id,
-                            )
-                          }
-                          className="inline-flex items-center gap-2 rounded-full border border-[#e4e2ee] bg-[#fbfbfd] px-4 py-2 text-sm font-semibold text-[#8f86a8] hover:bg-[#f3f1f9]"
-                        >
-                          <Trash2 size={14} />
-                          Hapus
-                        </button>
-                      )}
-
-                    </div>
-
+                    <h3 className="mt-2 text-xl font-semibold text-[#2b2540]">
+                      Detail Soal
+                    </h3>
                   </div>
 
-                  <div className="grid gap-5">
-
-                    {/* SOAL */}
-                    <div>
-
-                      <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
-                        Soal
-                      </label>
-
-                      <input
-                        type="text"
-                        value={entry.soal}
-                        onChange={(e) =>
-                          updateEntry(
-                            entry.id,
-                            {
-                              soal:
-                                e.target.value,
-                            },
-                          )
+                  <div className="flex flex-wrap items-center gap-2">
+                    {ANSWER_KEYS.map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          updateEntry(entry.id, { kunciJawaban: key })
                         }
-                        placeholder="Tulis soal di sini"
-                        className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
-                      />
+                        className={`h-10 min-w-[44px] rounded-full px-3 text-sm font-semibold transition ${
+                          entry.kunciJawaban === key
+                            ? "bg-emerald-400 text-emerald-950"
+                            : "bg-[#f1eff8] text-[#4a3f7a] hover:bg-[#e5e0f4]"
+                        }`}
+                      >
+                        {key}
+                      </button>
+                    ))}
 
-                    </div>
-
-                    {/* JAWABAN */}
-                    {OPTION_FIELDS.map(
-                      (field) => {
-
-                        const value =
-                          field.key ===
-                          "A"
-                            ? entry.jawabanA
-                            : field.key ===
-                                "B"
-                              ? entry.jawabanB
-                              : field.key ===
-                                  "C"
-                                ? entry.jawabanC
-                                : entry.jawabanD;
-
-                        return (
-                          <div
-                            key={
-                              field.key
-                            }
-                          >
-
-                            <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
-                              {
-                                field.label
-                              }
-                            </label>
-
-                            <input
-                              type="text"
-                              value={value}
-                              onChange={(
-                                e,
-                              ) => {
-
-                                const newValue =
-                                  e.target
-                                    .value;
-
-                                if (
-                                  field.key ===
-                                  "A"
-                                ) {
-                                  updateEntry(
-                                    entry.id,
-                                    {
-                                      jawabanA:
-                                        newValue,
-                                    },
-                                  );
-                                }
-
-                                if (
-                                  field.key ===
-                                  "B"
-                                ) {
-                                  updateEntry(
-                                    entry.id,
-                                    {
-                                      jawabanB:
-                                        newValue,
-                                    },
-                                  );
-                                }
-
-                                if (
-                                  field.key ===
-                                  "C"
-                                ) {
-                                  updateEntry(
-                                    entry.id,
-                                    {
-                                      jawabanC:
-                                        newValue,
-                                    },
-                                  );
-                                }
-
-                                if (
-                                  field.key ===
-                                  "D"
-                                ) {
-                                  updateEntry(
-                                    entry.id,
-                                    {
-                                      jawabanD:
-                                        newValue,
-                                    },
-                                  );
-                                }
-                              }}
-                              placeholder={`Tulis jawaban pilihan ${field.key} di sini`}
-                              className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
-                            />
-
-                          </div>
-                        );
-                      },
+                    {soalEntries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeEntry(entry.id)}
+                        className="inline-flex items-center gap-2 rounded-full border border-[#e4e2ee] bg-[#fbfbfd] px-4 py-2 text-sm font-semibold text-[#8f86a8] hover:bg-[#f3f1f9]"
+                      >
+                        <Trash2 size={14} />
+                        Hapus
+                      </button>
                     )}
+                  </div>
+                </div>
 
+                <div className="grid gap-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
+                      Soal
+                    </label>
+
+                    <input
+                      type="text"
+                      value={entry.soal}
+                      onChange={(e) =>
+                        updateEntry(entry.id, { soal: e.target.value })
+                      }
+                      placeholder="Tulis soal di sini"
+                      className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
+                    />
                   </div>
 
-                </section>
-              ),
-            )}
+                  {OPTION_FIELDS.map((field) => {
+                    const value =
+                      field.key === "A"
+                        ? entry.jawabanA
+                        : field.key === "B"
+                          ? entry.jawabanB
+                          : field.key === "C"
+                            ? entry.jawabanC
+                            : entry.jawabanD;
 
+                    return (
+                      <div key={field.key}>
+                        <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
+                          {field.label}
+                        </label>
+
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => {
+                            const newValue = e.target.value;
+
+                            if (field.key === "A") {
+                              updateEntry(entry.id, { jawabanA: newValue });
+                            }
+
+                            if (field.key === "B") {
+                              updateEntry(entry.id, { jawabanB: newValue });
+                            }
+
+                            if (field.key === "C") {
+                              updateEntry(entry.id, { jawabanC: newValue });
+                            }
+
+                            if (field.key === "D") {
+                              updateEntry(entry.id, { jawabanD: newValue });
+                            }
+                          }}
+                          placeholder={`Tulis jawaban pilihan ${field.key} di sini`}
+                          className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
 
-          {/* BUTTON TAMBAH */}
           <div className="mt-6 flex flex-wrap gap-3">
-
             <button
               type="button"
               onClick={addEntry}
@@ -1049,33 +720,24 @@ export default function BankSoalPage() {
               <Download size={16} />
               Download Template
             </button>
-
           </div>
 
-          {/* ERROR */}
           {formError && (
             <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-500">
               {formError}
             </div>
           )}
 
-          {/* SUCCESS */}
           {successMessage && (
             <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-600">
               {successMessage}
             </div>
           )}
 
-          {/* BOTTOM BUTTON */}
           <div className="mt-8 flex flex-wrap justify-end gap-3">
-
             <button
               type="button"
-              onClick={() =>
-                router.push(
-                  "/Dosen/bank_soal",
-                )
-              }
+              onClick={() => router.push("/Dosen/bank_soal")}
               className="rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-sm font-semibold text-[#4a3f7a] hover:bg-[#f8f7ff]"
             >
               Batal
@@ -1086,16 +748,11 @@ export default function BankSoalPage() {
               disabled={saving}
               className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {saving
-                ? "Menyimpan..."
-                : "Simpan"}
+              {saving ? "Menyimpan..." : "Simpan"}
             </button>
-
           </div>
-
         </form>
 
-        {/* FILE INPUT */}
         <input
           ref={importInputRef}
           type="file"
@@ -1103,8 +760,25 @@ export default function BankSoalPage() {
           hidden
           onChange={handleImportFile}
         />
-
       </main>
     </div>
+  );
+}
+
+// =============================================
+// WAJIB dibungkus Suspense karena pakai useSearchParams()
+// (syarat Next.js App Router untuk production build)
+// =============================================
+export default function BankSoalPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#f8f7ff] text-[#2b2540]">
+          Memuat halaman...
+        </div>
+      }
+    >
+      <BankSoalPageContent />
+    </Suspense>
   );
 }

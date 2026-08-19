@@ -1,88 +1,206 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase"; // Sesuaikan path ini
+import { supabase } from "@/lib/supabase";
 
-// Sesuaikan dengan kolom di tabel "modul" Supabase-mu
 type ModulDB = {
   id_modul: number;
   nama_modul: string;
   id_level: number;
-  thumbnail_url: string;
+  thumbnail_url: string | null;
 };
 
-export default function ModulPembelajaran() {
+function ModulPembelajaranContent() {
   const [filter, setFilter] = useState("all");
   const [daftarModul, setDaftarModul] = useState<ModulDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const searchParams = useSearchParams();
-  const searchQuery = searchParams.get("q")?.toLowerCase() || "";
 
-  // 1. Fetch Data dari Supabase
+  const searchQuery =
+    searchParams.get("q")?.toLowerCase().trim() || "";
+
+  // =========================================================
+  // AMBIL DATA MODUL
+  // =========================================================
   useEffect(() => {
-    async function fetchModul() {
-      const { data, error } = await supabase
-        .from('modul')
-        .select('id_modul, nama_modul, id_level, thumbnail_url');
+    let mounted = true;
 
-      if (data && !error) {
-        setDaftarModul(data);
-      } else {
-        console.error("Gagal menarik data modul:", error);
+    async function fetchModul() {
+      try {
+        setIsLoading(true);
+
+        const { data, error } = await supabase
+          .from("modul")
+          .select(
+            "id_modul, nama_modul, id_level, thumbnail_url"
+          )
+          // Hanya tampilkan modul yang aktif
+          .eq("status", true)
+          .order("id_modul", {
+            ascending: true,
+          });
+
+        if (error) {
+          console.error(
+            "Gagal menarik data modul:",
+            error
+          );
+
+          return;
+        }
+
+        if (!mounted) return;
+
+        setDaftarModul(data ?? []);
+      } catch (error) {
+        console.error(
+          "Terjadi kesalahan saat mengambil modul:",
+          error
+        );
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-      setIsLoading(false);
     }
+
     fetchModul();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Fungsi helper untuk mapping id_level ke string E/M/H dan perhitungan XP
+  // =========================================================
+  // LEVEL / DIFFICULTY
+  // =========================================================
   const getDifficulty = (level: number) => {
-    if (level === 1) return { label: "E", color: "bg-green-500", xp: 50 };
-    if (level === 2) return { label: "M", color: "bg-yellow-500", xp: 100 };
-    return { label: "H", color: "bg-red-500", xp: 150 };
+    switch (Number(level)) {
+      case 1:
+        return {
+          label: "E",
+          name: "Easy",
+          color: "bg-green-500",
+          xp: 50,
+        };
+
+      case 2:
+        return {
+          label: "M",
+          name: "Medium",
+          color: "bg-yellow-500",
+          xp: 100,
+        };
+
+      case 3:
+        return {
+          label: "H",
+          name: "Hard",
+          color: "bg-red-500",
+          xp: 150,
+        };
+
+      default:
+        return {
+          label: "?",
+          name: "Unknown",
+          color: "bg-gray-500",
+          xp: 0,
+        };
+    }
   };
 
-  // Logika Filter
+  // =========================================================
+  // FILTER MODUL
+  // =========================================================
   const filteredModul = daftarModul.filter((modul) => {
-    const diff = getDifficulty(modul.id_level).label;
-    const matchCategory = filter === "all" || diff === filter;
-    const matchSearch = modul.nama_modul.toLowerCase().includes(searchQuery);
+    const diff = getDifficulty(modul.id_level);
+
+    const matchCategory =
+      filter === "all" ||
+      diff.label === filter;
+
+    const matchSearch =
+      modul.nama_modul
+        .toLowerCase()
+        .includes(searchQuery);
+
     return matchCategory && matchSearch;
   });
 
+  // =========================================================
+  // LOADING
+  // =========================================================
+  if (isLoading) {
+    return (
+      <div className="text-center py-20 text-gray-500 font-bold">
+        Memuat Modul... ⏳
+      </div>
+    );
+  }
+
+  // =========================================================
+  // HALAMAN
+  // =========================================================
   return (
     <div className="space-y-8">
-      {/* HEADER & FILTER BUTTONS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
         <div>
           <h1 className="text-3xl font-bold text-[#5B5288]">
             Modul Pembelajaran 📚
           </h1>
+
           {searchQuery ? (
-            <p className="text-gray-500 mt-1">
-              Menampilkan hasil untuk pencarian: <span className="font-bold text-[#5B5288]">"{searchQuery}"</span>
+            <p className="mt-1 text-gray-500">
+              Menampilkan hasil untuk pencarian:{" "}
+              <span className="font-bold text-[#5B5288]">
+                "{searchQuery}"
+              </span>
             </p>
           ) : (
-            <p className="text-gray-500 mt-1">
-              Pilih modul yang ingin kamu kuasai dan kumpulkan XP-nya!
+            <p className="mt-1 text-gray-500">
+              Pilih modul yang ingin kamu kuasai
+              dan kumpulkan XP-nya!
             </p>
           )}
         </div>
 
-        <div className="flex gap-2 bg-white p-1.5 rounded-xl border border-gray-100 shadow-sm">
+        {/* ===================================================
+            FILTER
+        =================================================== */}
+        <div className="flex gap-2 rounded-xl border border-gray-100 bg-white p-1.5 shadow-sm">
+
           {[
-            { key: "all", label: "Semua" },
-            { key: "E", label: "Easy" },
-            { key: "M", label: "Medium" },
-            { key: "H", label: "Hard" },
+            {
+              key: "all",
+              label: "Semua",
+            },
+            {
+              key: "E",
+              label: "Easy",
+            },
+            {
+              key: "M",
+              label: "Medium",
+            },
+            {
+              key: "H",
+              label: "Hard",
+            },
           ].map((f) => (
             <button
               key={f.key}
+              type="button"
               onClick={() => setFilter(f.key)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${
                 filter === f.key
                   ? "bg-[#5B5288] text-white shadow-sm"
                   : "text-gray-500 hover:bg-gray-50"
@@ -91,63 +209,141 @@ export default function ModulPembelajaran() {
               {f.label}
             </button>
           ))}
+
         </div>
       </div>
 
-      {/* TAMPILAN JIKA MODUL LOADING ATAU TIDAK DITEMUKAN */}
-      {isLoading ? (
-        <div className="text-center py-20 text-gray-500 font-bold">Memuat Modul... ⏳</div>
-      ) : filteredModul.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-          <div className="text-4xl mb-4">🔍</div>
-          <h3 className="text-xl font-bold text-gray-700">Modul tidak ditemukan</h3>
-          <p className="text-gray-500">Coba cari dengan kata kunci lain.</p>
+      {/* =====================================================
+          TIDAK ADA MODUL
+      ===================================================== */}
+      {filteredModul.length === 0 ? (
+        <div className="rounded-3xl border border-gray-100 bg-white py-20 text-center shadow-sm">
+
+          <div className="mb-4 text-4xl">
+            🔍
+          </div>
+
+          <h3 className="text-xl font-bold text-gray-700">
+            Modul tidak ditemukan
+          </h3>
+
+          <p className="text-gray-500">
+            {searchQuery
+              ? `Tidak ada modul yang cocok dengan "${searchQuery}".`
+              : "Belum ada modul pembelajaran yang aktif."}
+          </p>
+
         </div>
       ) : (
-        /* GRID KARTU MODUL */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+        /* ===================================================
+           GRID MODUL
+        =================================================== */
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+
           {filteredModul.map((modul) => {
-            const diffInfo = getDifficulty(modul.id_level);
-            
+
+            const diffInfo =
+              getDifficulty(modul.id_level);
+
             return (
               <div
                 key={modul.id_modul}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col overflow-hidden"
+                className="flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-md"
               >
-                <div className="relative h-48 w-full">
-                  <img
-                    src={modul.thumbnail_url || "/images/placeholder.png"}
-                    alt={modul.nama_modul}
-                    className="w-full h-full object-cover"
-                  />
+
+                {/* =================================================
+                    THUMBNAIL
+                ================================================= */}
+                <div className="relative h-48 w-full bg-[#eceaf3]">
+
+                  {modul.thumbnail_url ? (
+                    <img
+                      src={modul.thumbnail_url}
+                      alt={modul.nama_modul}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-[#5B5288]">
+                      <span className="text-sm font-semibold text-white/70">
+                        Tidak ada thumbnail
+                      </span>
+                    </div>
+                  )}
+
+                  {/* BADGE LEVEL */}
                   <div
-                    className={`absolute -bottom-5 left-4 w-11 h-11 ${diffInfo.color} rounded-full flex items-center justify-center font-bold text-white text-xl border-4 border-white shadow-sm`}
+                    className={`absolute -bottom-5 left-4 flex h-11 w-11 items-center justify-center rounded-full border-4 border-white text-xl font-bold text-white shadow-sm ${diffInfo.color}`}
                   >
                     {diffInfo.label}
                   </div>
+
                 </div>
 
-                <div className="p-5 pt-8 flex flex-col flex-1">
+                {/* =================================================
+                    CONTENT
+                ================================================= */}
+                <div className="flex flex-1 flex-col p-5 pt-8">
+
+                  {/* NAMA MODUL */}
                   <h3 className="text-xl font-bold text-[#5B5288]">
                     {modul.nama_modul}
                   </h3>
 
-                  <div className="flex items-center gap-1 mt-1 text-[#D97706] font-bold text-sm mb-4">
-                    <span>⚡ +{diffInfo.xp} XP</span>
+                  {/* LEVEL */}
+                  <p className="mt-1 text-xs font-semibold text-gray-400">
+                    Level: {diffInfo.name}
+                  </p>
+
+                  {/* XP */}
+                  <div className="mb-4 mt-2 flex items-center gap-1 text-sm font-bold text-[#D97706]">
+                    <span>
+                      ⚡ +{diffInfo.xp} XP
+                    </span>
                   </div>
 
+                  {/* BUTTON */}
                   <Link
                     href={`/modul/${modul.id_modul}`}
-                    className="mt-auto w-full py-2.5 rounded-lg border border-[#5B5288]/50 text-[#5B5288] hover:bg-[#5B5288]/10 flex items-center justify-center gap-2 font-bold text-sm transition-all"
+                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-[#5B5288]/50 py-2.5 text-sm font-bold text-[#5B5288] transition-all hover:bg-[#5B5288]/10"
                   >
                     Lihat Modul
                   </Link>
+
                 </div>
               </div>
             );
           })}
+
         </div>
       )}
+
     </div>
+  );
+}
+
+// =============================================================
+// FALLBACK SUSPENSE
+// =============================================================
+function ModulLoading() {
+  return (
+    <div className="flex min-h-[400px] items-center justify-center">
+      <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
+        <p className="font-semibold text-gray-500">
+          Memuat Modul... ⏳
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================
+// PAGE
+// =============================================================
+export default function ModulPembelajaran() {
+  return (
+    <Suspense fallback={<ModulLoading />}>
+      <ModulPembelajaranContent />
+    </Suspense>
   );
 }
