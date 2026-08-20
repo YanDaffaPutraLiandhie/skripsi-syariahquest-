@@ -30,14 +30,42 @@ import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 const SKILL_EFFECTS: Record<number, SkillEffectConfig> = {
-  1: { emoji: "⚔️", title: "LEMPARAN GANDA!", subtitle: "Dadu akan dilempar 2 kali!", colorClass: "text-yellow-400" },
-  2: { emoji: "🛡️", title: "PERISAI AKTIF!", subtitle: "Kamu kebal dari 1 bom!", colorClass: "text-blue-400" },
-  3: { emoji: "❄️", title: "RAMUAN WAKTU!", subtitle: "Kamu dapat 1 giliran ekstra!", colorClass: "text-cyan-400" },
-  4: { emoji: "🔀", title: "TELEPORTASI!", subtitle: "Posisi disalin ke musuh terdepan!", colorClass: "text-purple-400" },
+  1: {
+    animationPath: "/animations/dice-skill.json",
+    title: "LEMPARAN GANDA!",
+    subtitle: "Dadu akan dilempar 2 kali!",
+    colorClass: "text-white",
+    customStyle: "w-64 h-64 md:w-[350px] md:h-[350px] scale-125 translate-y-6",
+  },
+  2: {
+    animationPath: "/animations/shield-skill.json",
+    title: "PERISAI AKTIF!",
+    subtitle: "Kamu kebal dari 1 bom!",
+    colorClass: "text-blue-400",
+  },
+  3: {
+    animationPath: "/animations/potion-skill.json",
+    title: "RAMUAN WAKTU!",
+    subtitle: "Kamu dapat 1 giliran ekstra!",
+    colorClass: "text-cyan-400",
+    customStyle: "w-64 h-64 md:w-[300px] md:h-[300px]", // <-- Dibesarin dikit dari yang sebelumnya 250px
+  },
+  4: {
+    animationPath: "/animations/teleport-skill.json",
+    title: "TELEPORTASI!",
+    subtitle: "Posisi disalin ke musuh terdepan!",
+    colorClass: "text-purple-400",
+    customStyle: "w-64 h-64 md:w-80 md:h-80 scale-125",
+  },
 };
 
-const SHIELD_BLOCK_EFFECT: SkillEffectConfig = { emoji: "🛡️", title: "PERISAI MENAHAN!", subtitle: "Ledakan bom berhasil ditahan!", colorClass: "text-blue-400" };
-
+const SHIELD_BLOCK_EFFECT: SkillEffectConfig = {
+  animationPath: "/animations/shield-skill.json",
+  title: "PERISAI MENAHAN!",
+  subtitle: "Ledakan bom berhasil ditahan!",
+  colorClass: "text-blue-400",
+  customStyle: "w-64 h-64 md:w-80 md:h-80 scale-110",
+};
 export default function BoardGameArena({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
 

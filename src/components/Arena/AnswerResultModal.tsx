@@ -1,12 +1,26 @@
+"use client";
+
+import dynamic from "next/dynamic";
+
+// Memaksa Lottie HANYA jalan di Browser (Anti 'document is not defined')
+const Player = dynamic(() => import("@lottiefiles/react-lottie-player").then((mod) => mod.Player), { ssr: false });
+
 export default function AnswerResultModal({ isCorrect }: { isCorrect: boolean }) {
+  const path = isCorrect ? "/animations/correct.json" : "/animations/incorrect.json";
+
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-      <div className="text-center animate-bounce">
-        <div className="text-9xl mb-2 drop-shadow-2xl">
-          {isCorrect ? "🎉" : "💢"}
+      <div className="text-center">
+        <div className="w-64 h-64 md:w-80 md:h-80 mx-auto drop-shadow-2xl">
+          <Player
+            autoplay
+            loop
+            src={path}
+            style={{ height: '100%', width: '100%' }}
+          />
         </div>
         <h2
-          className={`text-6xl font-black text-white text-stroke drop-shadow-2xl animate-pulse italic tracking-wider uppercase ${
+          className={`text-6xl font-black text-white text-stroke drop-shadow-2xl animate-pulse italic tracking-wider uppercase -mt-6 ${
             isCorrect ? "text-green-500" : "text-red-500"
           }`}
         >

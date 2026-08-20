@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Trophy, Frown } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const Player = dynamic(() => import("@lottiefiles/react-lottie-player").then((mod) => mod.Player), { ssr: false });
 
 type GameOverModalProps = {
   isWinner: boolean;
@@ -13,20 +15,25 @@ type GameOverModalProps = {
 
 export default function GameOverModal({ isWinner, earnedBadge }: GameOverModalProps) {
   const router = useRouter();
+  const path = isWinner ? "/animations/victory-trophy.json" : "/animations/game-over.json";
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-[420px] rounded-3xl p-8 shadow-2xl text-center flex flex-col items-center gap-4 relative overflow-hidden">
         
-        {/* Ornamen Confetti/Cahaya di background modal jika menang */}
         {isWinner && (
           <div className="absolute -top-20 -left-20 w-48 h-48 bg-yellow-300/30 rounded-full blur-3xl"></div>
         )}
 
         {isWinner ? (
           <>
-            <div className="w-20 h-20 rounded-full bg-yellow-100 flex items-center justify-center relative z-10 border-4 border-yellow-50">
-              <Trophy className="w-10 h-10 text-yellow-500" />
+            <div className="w-40 h-40 relative z-10 -mb-2">
+              <Player
+                autoplay
+                loop
+                src={path}
+                style={{ height: '100%', width: '100%' }}
+              />
             </div>
             <h2 className="text-3xl font-extrabold text-[#5B5288] relative z-10">
               Kamu Menang! 🎉
@@ -35,7 +42,6 @@ export default function GameOverModal({ isWinner, earnedBadge }: GameOverModalPr
               Kerja bagus! Kamu berhasil mencapai garis finish lebih dulu.
             </p>
 
-            {/* JIKA DIA MENDAPATKAN BADGE BARU */}
             {earnedBadge && (
               <div className="w-full bg-purple-50 rounded-2xl p-4 mt-2 border border-purple-100 relative z-10 animate-in zoom-in-75 duration-500 delay-300">
                 <p className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-2">Pencapaian Baru Dibuka!</p>
@@ -50,8 +56,14 @@ export default function GameOverModal({ isWinner, earnedBadge }: GameOverModalPr
           </>
         ) : (
           <>
-            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-50">
-              <Frown className="w-10 h-10 text-gray-400" />
+
+            <div className="w-40 h-40 relative z-10 -mb-2">
+              <Player
+                autoplay
+                loop={true} // <-- UBAH INI JADI TRUE
+                src={path}
+                style={{ height: '100%', width: '100%' }}
+              />
             </div>
             <h2 className="text-3xl font-extrabold text-[#5B5288]">
               Permainan Selesai
