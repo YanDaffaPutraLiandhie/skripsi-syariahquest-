@@ -82,7 +82,7 @@ export default function MiniProfile() {
         <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="p-4 bg-gray-50 border-b border-gray-100">
             <p className="font-bold text-[#5B5288] truncate">
-              {profile.displayName || "Pengguna"}
+              {profile.namaMahasiswa || "Pengguna"}
             </p>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
               {subLabel}
