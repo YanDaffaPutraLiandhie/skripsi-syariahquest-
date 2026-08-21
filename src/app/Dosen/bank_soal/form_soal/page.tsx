@@ -496,7 +496,7 @@ function BankSoalPageContent() {
 
   return (
     <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
-      <Sidebar activeLabel="Bank Soal" />
+  
 
       <main className="flex-1 p-8">
         {/* HEADER */}

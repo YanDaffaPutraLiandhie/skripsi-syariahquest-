@@ -9,7 +9,7 @@ export type CurrentUserProfile = {
   idDosen: number | null;
   idAdmin: number | null;
   role: "mahasiswa" | "dosen" | "admin" | "unknown";
-  displayName: string; // dipakai sebagai nama tampilan untuk semua role
+  namaMahasiswa: string; // dipakai sebagai nama tampilan untuk semua role
   deskripsi: string | null;
   avatarUrl: string | null;
   totalXp: number;
@@ -28,10 +28,6 @@ export type CurrentUserProfile = {
   lokasi: string | null;
 };
 
-/**
- * Ambil profil user yang SEDANG LOGIN.
- * Hook ini menangani ketiga role: Mahasiswa, Dosen, dan Admin.
- */
 export function useCurrentUser() {
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,7 +86,7 @@ export function useCurrentUser() {
         idDosen: null,
         idAdmin: null,
         role: "mahasiswa",
-        displayName: mhs.nama_mahasiswa,
+        namaMahasiswa: mhs.nama_mahasiswa,
         deskripsi: mhs.deskripsi,
         avatarUrl: mhs.avatar_url,
         totalXp: mhs.total_xp ?? 0,
@@ -126,9 +122,9 @@ export function useCurrentUser() {
         idDosen: userRow.id_dosen,
         idAdmin: null,
         role: "dosen",
-        displayName: dosen?.nama_dosen ?? "Dosen",
+        namaMahasiswa: dosen?.nama_dosen ?? "Dosen",
         deskripsi: null,
-        avatarUrl: null, // tabel dosen belum punya kolom avatar_url
+        avatarUrl: null,
         totalXp: 0,
         nilai: 0,
         modulSelesai: 0,
@@ -162,7 +158,7 @@ export function useCurrentUser() {
         idDosen: null,
         idAdmin: userRow.id_admin,
         role: "admin",
-        displayName: admin?.nama_admin ?? "Admin",
+        namaMahasiswa: admin?.nama_admin ?? "Admin",
         deskripsi: null,
         avatarUrl: admin?.avatar_url ?? null,
         totalXp: 0,
@@ -180,7 +176,6 @@ export function useCurrentUser() {
       return;
     }
 
-    // Tidak ada FK yang cocok
     setProfile(null);
     setIsLoading(false);
   }, []);
