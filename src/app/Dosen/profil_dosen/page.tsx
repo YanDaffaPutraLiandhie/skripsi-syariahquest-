@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 
 type Dosen = {
@@ -243,7 +242,6 @@ export default function ProfilDosen() {
   if (loading) {
     return (
       <div className="flex min-h-screen bg-white text-[#2b2540]">
-        <Sidebar activeLabel="Profil" />
 
         <main className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3">
@@ -265,7 +263,6 @@ export default function ProfilDosen() {
   if (!dosen) {
     return (
       <div className="flex min-h-screen bg-white text-[#2b2540]">
-        <Sidebar activeLabel="Profil" />
 
         <main className="flex flex-1 items-center justify-center p-8">
           <div className="w-full max-w-lg rounded-2xl bg-red-50 p-6 text-center">
@@ -337,7 +334,6 @@ export default function ProfilDosen() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Profil" />
 
       <main className="flex-1 p-8">
 

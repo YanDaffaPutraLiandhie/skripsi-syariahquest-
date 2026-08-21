@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
 
@@ -371,7 +370,6 @@ await logActivity({
 
   return (
 <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
-      <Sidebar activeLabel="Bank Soal" />
       <main className="flex-1 p-8">
         <div className="mb-6 rounded-[32px] bg-white p-8 shadow-sm">
           <button

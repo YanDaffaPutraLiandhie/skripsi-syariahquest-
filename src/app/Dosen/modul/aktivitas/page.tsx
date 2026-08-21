@@ -3,7 +3,6 @@
 import {useRouter} from "next/navigation";
 
 import { useEffect, useState } from "react";
-import Sidebar from "@/components/sidebar";
 import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 
@@ -53,8 +52,6 @@ const { data, error } = await supabase
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Modul Pembelajaran" />
-
       {/* Main */}
       <main className="flex-1 p-8">
         {/* Topbar */}

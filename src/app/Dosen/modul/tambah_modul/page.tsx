@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { logActivity } from "@/lib/logActivity";
@@ -833,7 +832,6 @@ function TambahModulContent() {
    */
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Modul Pembelajaran" />
 
       <main className="flex-1 p-8">
         <div className="rounded-[24px] bg-[#4a3f7a] p-8">
@@ -1081,7 +1079,6 @@ export default function TambahModulPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen bg-white">
-          <Sidebar activeLabel="Modul Pembelajaran" />
 
           <main className="flex flex-1 items-center justify-center p-8">
             <div className="rounded-2xl bg-[#f8f7ff] px-8 py-6 shadow-sm">

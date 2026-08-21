@@ -7,8 +7,9 @@ export type CurrentUserProfile = {
   authUserId: string;
   idMahasiswa: number | null;
   idDosen: number | null;
+  idAdmin: number | null;
   role: "mahasiswa" | "dosen" | "admin" | "unknown";
-  namaMahasiswa: string;
+  displayName: string; // dipakai sebagai nama tampilan untuk semua role
   deskripsi: string | null;
   avatarUrl: string | null;
   totalXp: number;
@@ -16,12 +17,20 @@ export type CurrentUserProfile = {
   modulSelesai: number;
   totalPoin: number;
   peringkat: number;
+
+  // khusus dosen
+  email: string | null;
+  modul: number | null;
+  riwayatPendidikan: string | null;
+
+  // khusus admin
+  username: string | null;
+  lokasi: string | null;
 };
 
 /**
  * Ambil profil user yang SEDANG LOGIN.
- * Hook ini aman untuk Mahasiswa, Dosen, dan Admin.
- * Jika user bukan Mahasiswa, tidak akan memanggil query mahasiswa yang gagal.
+ * Hook ini menangani ketiga role: Mahasiswa, Dosen, dan Admin.
  */
 export function useCurrentUser() {
   const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
@@ -40,39 +49,20 @@ export function useCurrentUser() {
       return;
     }
 
-  const { data: userRow, error: userError } = await supabase
-  .from("user")
-  .select("id_mahasiswa, id_dosen, id_admin")
-  .eq("auth_user_id", user.id)
-  .single();
+    const { data: userRow, error: userError } = await supabase
+      .from("user")
+      .select("id_mahasiswa, id_dosen, id_admin")
+      .eq("auth_user_id", user.id)
+      .single();
 
-    if (userError) {
+    if (userError || !userRow) {
       console.error("Gagal membaca data user login:", userError);
       setProfile(null);
       setIsLoading(false);
       return;
     }
 
-    if (!userRow) {
-      setProfile(null);
-      setIsLoading(false);
-      return;
-    }
-if (userError) {
-  console.error("Gagal mengambil data user:", userError);
-  setProfile(null);
-  setIsLoading(false);
-  return;
-}
-
-// Hook ini khusus untuk mahasiswa.
-// Jika yang login Admin atau Dosen, tidak perlu mengambil profil mahasiswa.
-if (!userRow?.id_mahasiswa) {
-  setProfile(null);
-  setIsLoading(false);
-  return;
-}
-
+    // ---------- MAHASISWA ----------
     if (userRow.id_mahasiswa) {
       const { data: mhs, error: mhsError } = await supabase
         .from("mahasiswa")
@@ -98,8 +88,9 @@ if (!userRow?.id_mahasiswa) {
         authUserId: user.id,
         idMahasiswa: mhs.id_mahasiswa,
         idDosen: null,
+        idAdmin: null,
         role: "mahasiswa",
-        namaMahasiswa: mhs.nama_mahasiswa,
+        displayName: mhs.nama_mahasiswa,
         deskripsi: mhs.deskripsi,
         avatarUrl: mhs.avatar_url,
         totalXp: mhs.total_xp ?? 0,
@@ -107,15 +98,21 @@ if (!userRow?.id_mahasiswa) {
         modulSelesai: mhs.modul_selesai ?? 0,
         totalPoin: mhs.total_poin ?? 0,
         peringkat: (count ?? 0) + 1,
+        email: null,
+        modul: null,
+        riwayatPendidikan: null,
+        username: null,
+        lokasi: null,
       });
       setIsLoading(false);
       return;
     }
 
+    // ---------- DOSEN ----------
     if (userRow.id_dosen) {
       const { data: dosen, error: dosenError } = await supabase
         .from("dosen")
-        .select("id_dosen, nama_dosen")
+        .select("id_dosen, nama_dosen, email, modul, riwayat_pendidikan")
         .eq("id_dosen", userRow.id_dosen)
         .maybeSingle();
 
@@ -127,39 +124,63 @@ if (!userRow?.id_mahasiswa) {
         authUserId: user.id,
         idMahasiswa: null,
         idDosen: userRow.id_dosen,
+        idAdmin: null,
         role: "dosen",
-        namaMahasiswa: dosen?.nama_dosen ?? "Dosen",
+        displayName: dosen?.nama_dosen ?? "Dosen",
         deskripsi: null,
-        avatarUrl: null,
+        avatarUrl: null, // tabel dosen belum punya kolom avatar_url
         totalXp: 0,
         nilai: 0,
         modulSelesai: 0,
         totalPoin: 0,
         peringkat: 0,
+        email: dosen?.email ?? null,
+        modul: dosen?.modul ?? null,
+        riwayatPendidikan: dosen?.riwayat_pendidikan ?? null,
+        username: null,
+        lokasi: null,
       });
       setIsLoading(false);
       return;
     }
 
+    // ---------- ADMIN ----------
     if (userRow.id_admin) {
+      const { data: admin, error: adminError } = await supabase
+        .from("admin")
+        .select("id_admin, nama_admin, username, avatar_url, lokasi")
+        .eq("id_admin", userRow.id_admin)
+        .maybeSingle();
+
+      if (adminError) {
+        console.error("Gagal fetch data admin:", adminError);
+      }
+
       setProfile({
         authUserId: user.id,
         idMahasiswa: null,
         idDosen: null,
+        idAdmin: userRow.id_admin,
         role: "admin",
-        namaMahasiswa: "Admin",
+        displayName: admin?.nama_admin ?? "Admin",
         deskripsi: null,
-        avatarUrl: null,
+        avatarUrl: admin?.avatar_url ?? null,
         totalXp: 0,
         nilai: 0,
         modulSelesai: 0,
         totalPoin: 0,
         peringkat: 0,
+        email: null,
+        modul: null,
+        riwayatPendidikan: null,
+        username: admin?.username ?? null,
+        lokasi: admin?.lokasi ?? null,
       });
       setIsLoading(false);
       return;
     }
 
+    // Tidak ada FK yang cocok
     setProfile(null);
     setIsLoading(false);
   }, []);

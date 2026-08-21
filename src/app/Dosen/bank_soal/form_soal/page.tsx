@@ -5,7 +5,7 @@ import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import Sidebar from "@/components/sidebar";
+
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
 
@@ -458,7 +458,7 @@ function BankSoalPageContent() {
   if (loadingModul) {
     return (
       <div className="flex min-h-screen bg-[#f8f7ff]">
-        <Sidebar activeLabel="Bank Soal" />
+        
 
         <main className="flex flex-1 items-center justify-center p-8">
           <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
@@ -472,7 +472,6 @@ function BankSoalPageContent() {
   if (!idModul) {
     return (
       <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
-        <Sidebar activeLabel="Bank Soal" />
 
         <main className="flex flex-1 items-center justify-center p-8">
           <div className="w-full max-w-lg rounded-[32px] bg-white p-8 text-center shadow-sm">

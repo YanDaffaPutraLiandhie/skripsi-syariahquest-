@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 
 type LessonItem = {
@@ -275,7 +274,7 @@ function ModulDetailContent() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Modul Pembelajaran" />
+      
 
       <main className="flex-1 p-8">
         {/* =====================================================

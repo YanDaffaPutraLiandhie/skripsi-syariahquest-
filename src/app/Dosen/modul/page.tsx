@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
 
@@ -202,7 +201,6 @@ function ModulPembelajaranContent() {
   if (loading) {
     return (
       <div className="flex min-h-screen bg-white">
-        <Sidebar activeLabel="Modul Pembelajaran" />
 
         <main className="flex flex-1 items-center justify-center">
           <div className="rounded-2xl bg-[#f7f6fb] px-8 py-6">
@@ -220,7 +218,6 @@ function ModulPembelajaranContent() {
   // =========================================================
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Modul Pembelajaran" />
 
       <main className="flex-1 p-8">
 

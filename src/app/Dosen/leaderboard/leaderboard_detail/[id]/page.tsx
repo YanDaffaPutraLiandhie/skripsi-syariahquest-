@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Sidebar from "@/components/sidebar";
+
 import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 
@@ -86,7 +86,7 @@ export default function Profil() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-<Sidebar activeLabel="Leaderboard" />
+
 
       {/* Main */}
       <main className="flex-1 p-8">

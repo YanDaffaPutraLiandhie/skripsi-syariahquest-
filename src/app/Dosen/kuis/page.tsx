@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
 // import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 
@@ -66,7 +65,7 @@ export default function KuisPage() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Kuis" />
+      
 
       <main className="flex-1 p-8">
         {/* Topbar */}

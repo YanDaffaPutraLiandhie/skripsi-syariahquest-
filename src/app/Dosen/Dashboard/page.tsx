@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
+// import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 
 type Modul = {
@@ -252,7 +252,7 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
 
-      <Sidebar activeLabel="Dashboard" />
+      {/* <Sidebar activeLabel="Dashboard" /> */}
 
       {/* =====================================================
           MAIN

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 
 type QuestionItem = {
@@ -156,8 +155,6 @@ export default function DetailKuisPage() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Kuis" />
-
       <main className="flex-1 p-8">
         <div className="mb-6 flex items-center justify-between gap-4">
           <button

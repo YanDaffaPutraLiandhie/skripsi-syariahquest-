@@ -1,6 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -432,7 +431,6 @@ function TambahModulContent() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Modul Pembelajaran" />
 
       <main className="flex-1 p-8">
         <div className="rounded-[24px] bg-[#4a3f7a] p-8">

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
+
 // import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
@@ -106,7 +106,7 @@ export default function BankSoalGrid() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Bank Soal" />
+      
 
       <main className="flex-1 p-8">
 

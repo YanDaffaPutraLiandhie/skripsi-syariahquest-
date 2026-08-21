@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 
 type LeaderboardRow = {
@@ -70,7 +69,7 @@ export default function Leaderboard() {
 
   return (
     <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Leaderboard" />
+    
 
       <main className="flex-1 p-8">
         <div className="rounded-[24px] bg-[#4a3f7a] px-10 pb-8 pt-10 text-white">
