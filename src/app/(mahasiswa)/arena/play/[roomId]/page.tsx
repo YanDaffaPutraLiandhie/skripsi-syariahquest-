@@ -212,15 +212,29 @@ export default function BoardGameArena({ params }: { params: Promise<{ roomId: s
 
   const handleStartGame = async () => {
     if (mapCoords.length === 0) return;
-    const max = mapCoords.length - 1;
-    const newTraps = new Set<number>();
-    const jumlahJebakan = Math.min(6, Math.max(0, max - 2));
+    
+    const max = mapCoords.length - 1; // Petak terakhir (Finish)
+    const totalPetakBermain = max - 1; // Total petak yang bisa dikasih bom (selain Start & Finish)
+    
+    if (totalPetakBermain <= 0) return;
 
+    // RUMUS DINAMIS: Jebakan = 15% dari total petak (silakan ganti 0.15 kalau mau lebih banyak/sedikit)
+    // Pake Math.ceil biar kalau hasilnya 4.2 dibuletin jadi 5 jebakan.
+    let jumlahJebakan = Math.ceil(totalPetakBermain * 0.25);
+    
+    // Pastikan jebakannya minimal ada 1, dan maksimal ya setengah dari arena aja biar nggak stress puyeng pemainnya wkwk
+    jumlahJebakan = Math.max(1, Math.min(jumlahJebakan, Math.floor(totalPetakBermain * 0.5)));
+
+    const newTraps = new Set<number>();
+
+    // Generate posisi bom secara acak
     while (newTraps.size < jumlahJebakan) {
-      const randomTile = Math.floor(Math.random() * (max - 2)) + 1;
+      // randomTile = antara 1 sampai (max - 1)
+      const randomTile = Math.floor(Math.random() * totalPetakBermain) + 1;
       newTraps.add(randomTile);
     }
     
+    console.log(`Arena ini punya ${mapCoords.length} petak. Total jebakan yang dipasang: ${jumlahJebakan}`);
     await startGame(Array.from(newTraps));
   };
 
