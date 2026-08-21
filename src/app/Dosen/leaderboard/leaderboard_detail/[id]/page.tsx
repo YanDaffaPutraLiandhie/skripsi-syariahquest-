@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-
-import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 
 type Student = {
@@ -91,10 +89,7 @@ export default function Profil() {
       {/* Main */}
       <main className="flex-1 p-8">
         {/* Topbar */}
-        <div className="mb-8 flex justify-end">
-          <MiniProfile />
-        </div>
-
+       
         {/* Header: avatar + name + stats */}
         <div className="mb-6 flex items-start gap-8">
           <div className="flex h-[178px] w-[178px] items-center justify-center rounded-2xl bg-[#4a3f7a]">
