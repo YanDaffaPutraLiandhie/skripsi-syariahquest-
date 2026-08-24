@@ -31,19 +31,19 @@ function ModulPembelajaranContent() {
     let mounted = true;
 
     async function fetchModul() {
-      const { data, error } = await supabase
-        .from('modul')
-        // Memanggil kolom tambahan: parameter_nilai dan status
-        .select('id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status')
-        // Filter sakti: HANYA mengambil modul yang statusnya TRUE (Aktif)
-        .eq('status', true); 
+      try {
+        const { data, error } = await supabase
+          .from('modul')
+          // Memanggil kolom tambahan: parameter_nilai dan status
+          .select('id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status')
+          // Filter sakti: HANYA mengambil modul yang statusnya TRUE (Aktif)
+          .eq('status', true); 
 
         if (error) {
           console.error(
             "Gagal menarik data modul:",
             error
           );
-
           return;
         }
 
@@ -220,7 +220,7 @@ function ModulPembelajaranContent() {
       ) : (
 
         /* ===================================================
-           GRID MODUL
+            GRID MODUL
         =================================================== */
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
 

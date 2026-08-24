@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -11,7 +11,7 @@ type QuizDB = {
   nama_kuis: string; // Mengikuti kolom di tabel databasemu
 };
 
-export default function DaftarKuisPage() {
+function DaftarKuisContent() {
   const [daftarKuis, setDaftarKuis] = useState<QuizDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -122,5 +122,24 @@ export default function DaftarKuisPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Fallback tampilan saat memuat search params
+function KuisLoadingFallback() {
+  return (
+    <div className="text-center py-20 text-gray-500 font-bold flex flex-col items-center gap-3">
+      <Loader2 className="w-10 h-10 text-[#5B5288] animate-spin" />
+      Memuat Halaman Kuis...
+    </div>
+  );
+}
+
+// Export utama yang dibungkus Suspense Boundary
+export default function DaftarKuisPage() {
+  return (
+    <Suspense fallback={<KuisLoadingFallback />}>
+      <DaftarKuisContent />
+    </Suspense>
   );
 }
