@@ -9,7 +9,9 @@ type ModulDB = {
   id_modul: number;
   nama_modul: string;
   id_level: number;
-  thumbnail_url: string | null;
+  thumbnail_url: string;
+  parameter_nilai: number; // BARU: Tambahan parameter nilai
+  status: boolean; // BARU: Tambahan status aktif/nonaktif
 };
 
 function ModulPembelajaranContent() {
@@ -29,19 +31,12 @@ function ModulPembelajaranContent() {
     let mounted = true;
 
     async function fetchModul() {
-      try {
-        setIsLoading(true);
-
-        const { data, error } = await supabase
-          .from("modul")
-          .select(
-            "id_modul, nama_modul, id_level, thumbnail_url"
-          )
-          // Hanya tampilkan modul yang aktif
-          .eq("status", true)
-          .order("id_modul", {
-            ascending: true,
-          });
+      const { data, error } = await supabase
+        .from('modul')
+        // Memanggil kolom tambahan: parameter_nilai dan status
+        .select('id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status')
+        // Filter sakti: HANYA mengambil modul yang statusnya TRUE (Aktif)
+        .eq('status', true); 
 
         if (error) {
           console.error(
@@ -155,7 +150,7 @@ function ModulPembelajaranContent() {
 
         <div>
           <h1 className="text-3xl font-bold text-[#5B5288]">
-            Modul Pembelajaran 📚
+            Modul Pembelajaran 
           </h1>
 
           {searchQuery ? (
@@ -213,26 +208,14 @@ function ModulPembelajaranContent() {
         </div>
       </div>
 
-      {/* =====================================================
-          TIDAK ADA MODUL
-      ===================================================== */}
-      {filteredModul.length === 0 ? (
-        <div className="rounded-3xl border border-gray-100 bg-white py-20 text-center shadow-sm">
-
-          <div className="mb-4 text-4xl">
-            🔍
-          </div>
-
-          <h3 className="text-xl font-bold text-gray-700">
-            Modul tidak ditemukan
-          </h3>
-
-          <p className="text-gray-500">
-            {searchQuery
-              ? `Tidak ada modul yang cocok dengan "${searchQuery}".`
-              : "Belum ada modul pembelajaran yang aktif."}
-          </p>
-
+      {/* TAMPILAN JIKA MODUL LOADING ATAU TIDAK DITEMUKAN */}
+      {isLoading ? (
+        <div className="text-center py-20 text-gray-500 font-bold">Memuat Modul... ⏳</div>
+      ) : filteredModul.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+          <div className="text-4xl mb-4">🔍</div>
+          <h3 className="text-xl font-bold text-gray-700">Modul tidak ditemukan</h3>
+          <p className="text-gray-500">Coba cari dengan kata kunci lain atau belum ada modul yang aktif.</p>
         </div>
       ) : (
 

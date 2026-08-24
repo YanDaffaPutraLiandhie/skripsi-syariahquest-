@@ -19,6 +19,8 @@ type ProgressDB = {
   id_modul: number;
   nilai: number;
   selesai: boolean;
+  materi_dilihat: boolean; 
+  kuis_dicoba: boolean;    
   modul: {
     nama_modul: string;
     id_level: number;
@@ -45,8 +47,7 @@ export default function Dashboard() {
 
       const { data: dataModul } = await supabase
         .from("modul")
-        .select("id_modul, nama_modul, id_level")
-        .limit(4);
+        .select("id_modul, nama_modul, id_level");
 
       if (dataModul) setModulTersedia(dataModul);
 
@@ -56,6 +57,8 @@ export default function Dashboard() {
           id_modul,
           nilai,
           selesai,
+          materi_dilihat,
+          kuis_dicoba,
           modul (
             nama_modul,
             id_level
@@ -118,7 +121,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Gambar Ilustrasi Banner - Diperbaiki posisinya */}
         <div className="absolute right-0 bottom-[-20px] z-0 h-[110%] flex items-end pointer-events-none">
           <img
             src="/images/hero-dashboard.svg" 
@@ -135,14 +137,15 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4">
           <h3 className="text-xl font-bold text-[#5B5288]">Modul Tersedia</h3>
           
-          <div className="flex flex-col gap-4">
+          {/* PERBAIKAN: Tinggi mutlak h-[384px] ngepas untuk 4 modul */}
+          <div className="flex flex-col gap-4 h-[384px] overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {isModulLoading ? (
               <p className="text-[#5B5288] font-semibold text-sm">Memuat data...</p>
             ) : modulTersedia.length > 0 ? (
               modulTersedia.map((modul) => {
                 const lvl = getLevelInfo(modul.id_level);
                 return (
-                  <div key={modul.id_modul} className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white hover:bg-purple-50 transition-colors">
+                  <div key={modul.id_modul} className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white hover:bg-purple-50 transition-colors shrink-0">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 ${lvl.color} rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm`}>
                         {lvl.label}
@@ -168,16 +171,29 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4">
           <h3 className="text-xl font-bold text-[#5B5288]">Progress</h3>
           
-          <div className="flex flex-col gap-4">
+          {/* PERBAIKAN: Tinggi mutlak h-[272px] ngepas untuk 3 modul */}
+          <div className="flex flex-col gap-4 h-[272px] overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {isModulLoading ? (
               <p className="text-[#5B5288] font-semibold text-sm">Memuat data...</p>
             ) : progressList.length > 0 ? (
-              progressList.slice(0, 3).map((prog, idx) => {
+              progressList.map((prog, idx) => {
                 const lvl = getLevelInfo(prog.modul.id_level);
-                const persentase = prog.selesai ? 100 : (prog.nilai || 0);
+                
+                let persentase = 0;
+                if (prog.selesai) {
+                  persentase = 100;
+                } else if (prog.kuis_dicoba) {
+                  persentase = 40 + Math.round(((prog.nilai || 0) / 100) * 60);
+                } else if (prog.materi_dilihat) {
+                  persentase = 40;
+                }
 
                 return (
-                  <div key={idx} className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white">
+                  <div 
+                    key={idx} 
+                    onClick={() => router.push(`/modul/${prog.id_modul}`)}
+                    className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white cursor-pointer hover:bg-purple-50 hover:shadow-md hover:border-purple-400 transition-all shrink-0"
+                  >
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 ${lvl.color} rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm`}>
                         {lvl.label}
@@ -215,42 +231,68 @@ export default function Dashboard() {
         </div>
 
         {/* KOLOM 3: LEADERBOARD */}
-        <div className="bg-[#5B5288] rounded-[30px] p-6 lg:p-8 shadow-sm flex flex-col">
-          <h3 className="text-xl font-bold text-white mb-6">Leaderboard</h3>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-[#5B5288]">Leaderboard</h3>
+            <button 
+              onClick={() => router.push('/leaderboard')}
+              className="text-xs font-bold text-gray-500 hover:text-[#5B5288] transition-colors flex items-center gap-1"
+            >
+              Lihat Semua
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
           
-          {/* Scrollbar dihilangkan dengan custom class "no-scrollbar" */}
-          <div className="flex flex-col gap-3 flex-1 max-h-[320px] overflow-y-auto pr-2 no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="bg-white rounded-3xl p-5 border border-gray-200 shadow-sm flex flex-col gap-1 h-fit">
             {isLeaderboardLoading ? (
-              <div className="flex items-center justify-center h-full">
-                 <Loader2 className="w-8 h-8 text-white animate-spin" />
+              <div className="flex items-center justify-center py-10">
+                 <Loader2 className="w-8 h-8 text-[#5B5288] animate-spin" />
               </div>
             ) : leaderboard.length > 0 ? (
-              leaderboard.map((player) => {
+              leaderboard.slice(0, 5).map((player) => {
                 const isMe = player.id_mahasiswa === profile?.idMahasiswa;
-                
-                const getRankIcon = (rank: number) => {
-                  if (rank === 1) return "🥇";
-                  if (rank === 2) return "🥈";
-                  if (rank === 3) return "🥉";
-                  return <span className="text-[#5B5288] font-bold text-sm px-1">#{rank}</span>;
-                };
+                const avatarSrc = player.avatar_url || `https://api.dicebear.com/7.x/micah/svg?seed=${player.nama_mahasiswa}&backgroundColor=transparent`;
 
                 return (
-                  <div key={player.id_mahasiswa} className={`flex items-center justify-between p-3 lg:p-4 rounded-2xl transition-all ${isMe ? 'bg-easy/20 border-2 border-easy/50' : 'bg-white'}`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl w-6 text-center">{getRankIcon(player.rank)}</span>
-                      <span className={`font-bold text-sm ${isMe ? 'text-white' : 'text-[#5B5288]'}`}>
-                        {player.nama_mahasiswa} {isMe && "(Kamu)"}
-                      </span>
+                  <div 
+                    key={player.id_mahasiswa} 
+                    className={`flex items-center justify-between py-3 border-b border-gray-100 last:border-0 ${isMe ? 'bg-green-50/50 -mx-3 px-3 rounded-xl' : ''}`}
+                  >
+                    <div className="flex items-center gap-4 overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
+                        <img src={avatarSrc} alt={player.nama_mahasiswa} className="w-full h-full object-cover" />
+                      </div>
+                      
+                      <div className="flex flex-col overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-[#5B5288] truncate max-w-[90px] lg:max-w-[120px]">
+                            {player.nama_mahasiswa} 
+                          </span>
+                          {isMe && (
+                            <span className="text-[10px] bg-[#39C936] text-white px-1.5 py-0.5 rounded font-black shrink-0">
+                              KAMU
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1 mt-0.5">
+                          {player.rank === 1 && <span className="text-[#FFC107]">🏆</span>}
+                          {player.rank === 2 && <span className="text-gray-400">🥈</span>}
+                          {player.rank === 3 && <span className="text-[#CD7F32]">🥉</span>}
+                          Peringkat {player.rank}
+                        </span>
+                      </div>
                     </div>
-                    <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${isMe ? 'bg-easy text-white' : 'bg-[#E6E4F0] text-[#5B5288]'}`}>
-                      {player.total_xp} XP
+                    
+                    <span className="text-sm font-black text-[#F4A261] shrink-0 ml-2">
+                      {player.total_xp} <span className="text-[10px] text-gray-400">XP</span>
                     </span>
                   </div>
                 );
               })
             ) : (
-              <p className="text-white/70 text-sm text-center pt-10">Belum ada klasemen.</p>
+              <p className="text-gray-400 text-sm text-center pt-8 pb-8">Belum ada data klasemen.</p>
             )}
           </div>
         </div>
@@ -258,4 +300,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
+} 

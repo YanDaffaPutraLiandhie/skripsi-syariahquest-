@@ -6,6 +6,7 @@ export type LeaderboardEntry = {
   nama_mahasiswa: string;
   total_xp: number;
   rank: number;
+  avatar_url?: string; // BARU: Tambahan untuk nyimpen foto profil
 };
 
 export function useLeaderboard() {
@@ -19,19 +20,21 @@ export function useLeaderboard() {
       try {
         const { data, error } = await supabase
           .from('mahasiswa')
-          .select('id_mahasiswa, nama_mahasiswa, total_xp')
+          // BARU: select avatar_url juga
+          .select('id_mahasiswa, nama_mahasiswa, total_xp, avatar_url')
           .order('total_xp', { ascending: false })
-          .limit(10); // Menampilkan maksimal 10 pemain
+          .limit(10); 
 
         if (error) {
           console.error("Gagal fetch leaderboard:", error);
-          setLeaderboard([]); // Pastikan state di-reset kalau error
+          setLeaderboard([]); 
         } else if (data) {
           const formatted = data.map((item, index) => ({
             id_mahasiswa: item.id_mahasiswa,
             nama_mahasiswa: item.nama_mahasiswa || 'Pemain Tanpa Nama',
             total_xp: item.total_xp || 0,
-            rank: index + 1
+            rank: index + 1,
+            avatar_url: item.avatar_url
           }));
           setLeaderboard(formatted);
         } else {
@@ -40,7 +43,7 @@ export function useLeaderboard() {
       } catch (err) {
         console.error("Error tidak terduga di leaderboard:", err);
       } finally {
-        setIsLoading(false); // Memastikan loading PASTI berhenti
+        setIsLoading(false); 
       }
     }
 

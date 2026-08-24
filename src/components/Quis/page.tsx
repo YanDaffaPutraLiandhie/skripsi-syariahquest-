@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
-import { checkAndAwardModulBadges, type EarnedBadge } from "@/constants/badges";
-import { Loader2 } from "lucide-react";
+import { checkAndAwardModulBadges, type EarnedBadge } from "@/lib/badges";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
-// Tipe Data sesuai Database
 type JawabanDB = {
   id_jawaban: number;
   id_soal: number;
@@ -22,41 +21,56 @@ type SoalDB = {
   jawaban: JawabanDB[];
 };
 
-export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: number) => void, idModul: number }) {
+export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?: (score: number) => void, idModul: number, initialScore?: number | null }) {
   const { profile } = useCurrentUser();
   
   const [questions, setQuestions] = useState<SoalDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // BARU: Menyimpan informasi level modul untuk perhitungan XP dinamis
+  const [levelModul, setLevelModul] = useState<number>(1);
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({}); // Menyimpan index dari jawaban yang dipilih
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
   const [isFinished, setIsFinished] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // BARU: badge yang baru saja didapat setelah menyelesaikan kuis ini
+  const [isRetaking, setIsRetaking] = useState(false);
   const [newBadges, setNewBadges] = useState<EarnedBadge[]>([]);
 
   const PASSING_GRADE = 70;
 
-  // 1. FETCH SOAL DARI DATABASE
+  // 1. FETCH SOAL & LEVEL MODUL DARI DATABASE
   useEffect(() => {
-    async function fetchSoal() {
+    async function fetchData() {
       setIsLoading(true);
-      // Supabase otomatis melakukan JOIN ke tabel jawaban berdasarkan Foreign Key id_soal
-      const { data, error } = await supabase
+      
+      // Fetch Soal
+      const { data: dataSoal, error: errSoal } = await supabase
         .from('soal')
         .select('*, jawaban(*)')
         .eq('id_modul', idModul);
 
-      if (data && !error) {
-        setQuestions(data);
+      if (dataSoal && !errSoal) {
+        setQuestions(dataSoal);
       } else {
-        console.error("Gagal memuat soal:", error);
+        console.error("Gagal memuat soal:", errSoal);
       }
+
+      // Fetch Level Modul
+      const { data: dataModul } = await supabase
+        .from('modul')
+        .select('id_level')
+        .eq('id_modul', idModul)
+        .single();
+      
+      if (dataModul) {
+        setLevelModul(dataModul.id_level);
+      }
+
       setIsLoading(false);
     }
 
-    if (idModul) fetchSoal();
+    if (idModul) fetchData();
   }, [idModul]);
 
   const handleSelectOption = (optionIndex: number) => {
@@ -83,7 +97,6 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
     questions.forEach((q, index) => {
       const selectedJawabanIndex = selectedAnswers[index];
       if (selectedJawabanIndex !== undefined) {
-        // Cek apakah jawaban di index tersebut memiliki jawaban_benar = true
         if (q.jawaban[selectedJawabanIndex].jawaban_benar) {
           correctCount++;
         }
@@ -91,23 +104,28 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
     });
 
     const scorePercentage = Math.round((correctCount / questions.length) * 100);
-    const earnedPoints = correctCount * 15;
     const isPassed = scorePercentage >= PASSING_GRADE;
 
-    // Jika Mahasiswa sudah login, simpan progressnya!
+    // BARU: Penentuan XP berdasarkan tingkat kesulitan (Level)
+    let xpMultiplier = 10; // Default (Level 1 / Easy)
+    if (levelModul === 2) xpMultiplier = 20; // Level 2 (Medium)
+    if (levelModul === 3) xpMultiplier = 30; // Level 3 (Hard)
+
+    const earnedPoints = correctCount * xpMultiplier;
+
     if (profile?.idMahasiswa) {
       try {
-        // A. Simpan/Update ke progress_modul
         await supabase.from('progress_modul').upsert({
           id_mahasiswa: profile.idMahasiswa,
           id_modul: idModul,
           nilai: scorePercentage,
           selesai: isPassed,
+          kuis_dicoba: true,      
+          materi_dilihat: true,   
           tanggal_selesai: new Date().toISOString()
         }, { onConflict: 'id_mahasiswa, id_modul' });
 
-        // B. Jika lulus, tambahkan total XP di tabel mahasiswa
-        if (isPassed) {
+        if (isPassed && !initialScore) {
           const { data: mhsData } = await supabase
             .from('mahasiswa')
             .select('total_xp')
@@ -120,8 +138,6 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
             .update({ total_xp: currentXp + earnedPoints })
             .eq('id_mahasiswa', profile.idMahasiswa);
 
-          // C. BARU: cek & kasih badge modul (jumlah_modul, level_modul, semua_modul)
-          //    -- hanya relevan dicek kalau modul ini beneran baru "selesai" (lulus)
           const earned = await checkAndAwardModulBadges(profile.idMahasiswa);
           if (earned.length > 0) {
             setNewBadges(earned);
@@ -135,7 +151,6 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
     setIsSaving(false);
     setIsFinished(true);
   };
-
 
   // --- TAMPILAN LOADING SOAL ---
   if (isLoading) {
@@ -157,6 +172,27 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
     );
   }
 
+  // --- TAMPILAN JIKA SUDAH PERNAH LULUS TAPI BELUM KLIK "RETAKE" ---
+  if (initialScore !== null && initialScore !== undefined && !isRetaking && !isFinished) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-6 text-center w-full max-w-md mx-auto">
+        <div className="w-24 h-24 bg-green-100 text-[#39C936] rounded-full flex items-center justify-center mb-2 shadow-inner">
+          <CheckCircle2 className="w-12 h-12" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-[#5B5288] mb-2">Kuis Telah Diselesaikan</h2>
+          <p className="text-gray-500 text-sm">Kamu sudah lulus kuis evaluasi ini sebelumnya dengan nilai:</p>
+          <div className="text-5xl font-black text-[#39C936] mt-4">{initialScore}%</div>
+        </div>
+        <button
+          onClick={() => setIsRetaking(true)}
+          className="mt-8 w-full py-3.5 px-6 bg-[#E6E4F0] text-[#5B5288] font-bold rounded-xl hover:bg-[#D6D2E7] transition-all border-2 border-transparent hover:border-[#5B5288]/20 shadow-sm"
+        >
+          Ulangi Kuis
+        </button>
+      </div>
+    );
+  }
 
   // --- TAMPILAN JIKA KUIS SELESAI ---
   if (isFinished) {
@@ -172,8 +208,12 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
 
     const wrongCount = totalQuestions - correctCount;
     const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
-    const earnedPoints = correctCount * 15;
     const isPassed = scorePercentage >= PASSING_GRADE;
+
+    let xpMultiplier = 10;
+    if (levelModul === 2) xpMultiplier = 20;
+    if (levelModul === 3) xpMultiplier = 30;
+    const earnedPoints = correctCount * xpMultiplier;
 
     const displayAvatar = profile?.avatarUrl || "https://api.dicebear.com/7.x/micah/svg?seed=Pemain&backgroundColor=transparent";
     const displayName = profile?.namaMahasiswa || "Pemain Misterius";
@@ -182,10 +222,11 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
       <div className="flex flex-col bg-black/60 bg-[url('/images/bg-login.jpg')] bg-cover bg-center bg-blend-overlay w-full min-h-[650px] rounded-3xl p-8 relative text-white shadow-xl overflow-hidden -m-4 md:m-0">
         
         <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 mt-4 drop-shadow-md">
-          {isPassed ? `Selamat! Kamu Meraih +${earnedPoints} Poin` : "Yah, Nilaimu Belum Cukup :("}
+          {isPassed 
+            ? (initialScore ? "Skor Kuis Berhasil Diperbarui!" : `Selamat! Kamu Meraih +${earnedPoints} XP`) 
+            : "Yah, Nilaimu Belum Cukup :("}
         </h1>
 
-        {/* BARU: Popup badge baru, muncul kalau ada badge modul yang baru didapat */}
         {newBadges.length > 0 && (
           <div className="flex flex-wrap justify-center gap-4 mb-6 max-w-xl mx-auto w-full">
             {newBadges.map((badge, i) => (
@@ -263,7 +304,7 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
              </div>
           )}
           <button 
-            onClick={() => { setIsFinished(false); setCurrentQuestion(0); setSelectedAnswers({}); }}
+            onClick={() => { setIsFinished(false); setCurrentQuestion(0); setSelectedAnswers({}); setIsRetaking(true); }}
             className="bg-[#DDE225] text-[#5B5288] font-extrabold py-3 px-8 rounded-xl shadow-xl border border-white/20 hover:scale-105 transition-all text-center w-40"
           >
             Ulangi
@@ -273,7 +314,7 @@ export default function Quiz({ onClaimXP, idModul }: { onClaimXP?: (score: numbe
               onClick={() => onClaimXP && onClaimXP(scorePercentage)}
               className="bg-[#39C936] text-white font-extrabold py-3 px-8 rounded-xl shadow-xl border border-white/20 hover:scale-105 transition-all text-center w-40"
             >
-              Klaim XP
+              {initialScore ? "Kembali" : "Klaim XP"}
             </button>
           )}
         </div>

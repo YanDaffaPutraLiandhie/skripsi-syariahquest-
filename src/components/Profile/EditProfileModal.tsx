@@ -27,7 +27,7 @@ export default function EditProfileModal({ mahasiswaId, initialName, initialDesc
     setMounted(true);
   }, []);
 
-  const avatars = Array.from({ length: 9 }, (_, i) => `/images/avatars/avatar${i + 1}.svg`);
+  const avatars = Array.from({ length: 14 }, (_, i) => `/images/avatars/avatar${i + 1}.svg`);
 
   const handleSave = async () => {
     if (!nama.trim()) return alert("Nama tidak boleh kosong!");

@@ -15,6 +15,12 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     setMounted(true);
+    // Auto-focus ke kotak pertama saat modal terbuka
+    setTimeout(() => {
+      if (inputRefs.current[0]) {
+        inputRefs.current[0].focus();
+      }
+    }, 100);
   }, []);
 
   const handlePinChange = (index: number, value: string) => {
@@ -24,8 +30,18 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
     newPin[index] = value;
     setPin(newPin);
 
+    // Otomatis pindah ke kotak berikutnya jika diisi
     if (value !== "" && index < 3) {
       inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  // UX Tambahan: Enter untuk submit & Backspace untuk mundur
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleGabung();
+    } else if (e.key === "Backspace" && pin[index] === "" && index > 0) {
+      inputRefs.current[index - 1]?.focus();
     }
   };
 
@@ -39,11 +55,6 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
     setIsJoining(true);
     setErrorMsg("");
 
-    // 1. Cek login DULUAN -- WAJIB sebelum query room, karena RLS SELECT
-    //    di table "room" cuma mengizinkan role "authenticated". Kalau
-    //    dicek belakangan, query room bisa ditolak RLS duluan (kelihatan
-    //    seperti "PIN salah" padahal PIN-nya benar, cuma karena browser
-    //    ini belum login).
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -54,10 +65,6 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    // 2. Baru cari room berdasarkan PIN. Diizinkan join/rejoin selama room
-    //    belum "finished" -- termasuk room yang statusnya sudah "playing"
-    //    (misal host sempat keluar & mau gabung lagi ke game yang sedang
-    //    berjalan). Cuma room yang sudah selesai yang ditolak.
     const { data: room, error: roomError } = await supabase
       .from("room")
       .select("id_room, id_game, status")
@@ -71,7 +78,6 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    // 3. Daftarkan user ke room_player (aman dipanggil berkali-kali karena upsert)
     const { error: joinError } = await supabase.from("room_player").upsert(
       {
         id_room: room.id_room,
@@ -89,8 +95,6 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    // 4. Redirect ke halaman arena -- gameId TIDAK perlu dikirim lewat query
-    //    lagi, karena halaman arena sekarang ambil id_game dari room itu sendiri.
     router.push(`/arena/play/${room.id_room}`);
   };
 
@@ -118,6 +122,7 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
               inputMode="numeric"
               value={digit}
               onChange={(e) => handlePinChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
               className="w-14 h-14 bg-white rounded-xl text-center text-2xl font-black text-[#5B5288] shadow-inner focus:outline-none focus:ring-4 focus:ring-[#39C936]/50 transition-all placeholder-gray-300"
               placeholder="X"
             />
