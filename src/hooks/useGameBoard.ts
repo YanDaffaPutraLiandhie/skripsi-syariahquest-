@@ -21,18 +21,18 @@ export type GameBoard = {
 
 /**
  * Fetch 1 row data papan dari table `game` berdasarkan gameId.
- * gameId boleh `null` (misal masih nunggu room selesai loading dulu
- * buat tahu id_game-nya) -- selama null, hook ini tidak melakukan
+ * gameId boleh `null` atau `undefined` (misal masih nunggu room selesai loading dulu
+ * buat tahu id_game-nya) -- selama kosong, hook ini tidak melakukan
  * fetch apapun dan tetap dalam kondisi isLoading = true.
  */
-export function useGameBoard(gameId: number | null) {
+export function useGameBoard(gameId: number | null | undefined) {
   const [boardData, setBoardData] = useState<GameBoard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (gameId === null) {
-      // Belum ada gameId yang valid, jangan fetch dulu, tetap loading
+    // PERBAIKAN 1: Pakai !gameId biar null & undefined langsung dicegat
+    if (!gameId) {
       setIsLoading(true);
       return;
     }
@@ -55,7 +55,8 @@ export function useGameBoard(gameId: number | null) {
       if (isCancelled) return;
 
       if (error) {
-        console.error("Gagal menarik data papan:", error);
+        // PERBAIKAN 2: Pakai console.warn biar Next.js Turbopack gak ngamuk ngeluarin layar merah
+        console.warn("Info: Papan belum tersedia atau id tidak valid.", error);
         setError("Papan tidak ditemukan atau sedang tidak aktif.");
       } else if (data) {
         setBoardData(data as GameBoard);
