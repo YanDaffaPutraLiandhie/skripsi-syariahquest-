@@ -22,7 +22,7 @@ export type RoomInfo = {
   is_private: boolean;
   pin: string | null;
   turn_started_at: string | null;
-  trap_tiles: number[]; // <-- DITAMBAHKAN
+  trap_tiles: number[];
 };
 
 export function useRoom(roomId: string) {
@@ -30,6 +30,8 @@ export function useRoom(roomId: string) {
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // BARU: dipakai buat redirect kalau room ternyata sudah dihapus
+  const [roomDeleted, setRoomDeleted] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
@@ -45,14 +47,13 @@ export function useRoom(roomId: string) {
       const { data: roomData } = await supabase
         .from("room")
         .select(
-          "id_room, id_game, host_user_id, status, current_turn_user_id, winner_user_id, is_private, pin, turn_started_at, trap_tiles" // <-- DITAMBAHKAN
+          "id_room, id_game, host_user_id, status, current_turn_user_id, winner_user_id, is_private, pin, turn_started_at, trap_tiles"
         )
         .eq("id_room", roomId)
         .single();
 
       if (!isCancelled && roomData) setRoom(roomData as RoomInfo);
 
-      // Urutkan berdasarkan joined_at -- ini yang menentukan urutan giliran
       const { data: playerData } = await supabase
         .from("room_player")
         .select("id_room_player, id_room, id_user, posisi, is_host, joined_at")
@@ -89,7 +90,6 @@ export function useRoom(roomId: string) {
               if (prev.some((p) => p.id_room_player === newRow.id_room_player)) {
                 return prev;
               }
-              // Tetap urut berdasarkan joined_at setiap ada pemain baru
               return [...prev, newRow].sort(
                 (a, b) =>
                   new Date(a.joined_at).getTime() -
@@ -115,13 +115,21 @@ export function useRoom(roomId: string) {
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "room",
           filter: `id_room=eq.${roomId}`,
         },
         (payload) => {
-          setRoom(payload.new as RoomInfo);
+          // BARU: tangani DELETE juga, sebelumnya cuma UPDATE
+          if (payload.eventType === "DELETE") {
+            setRoomDeleted(true);
+            setRoom(null);
+            return;
+          }
+          if (payload.eventType === "UPDATE") {
+            setRoom(payload.new as RoomInfo);
+          }
         }
       )
       .subscribe();
@@ -141,7 +149,6 @@ export function useRoom(roomId: string) {
     room.current_turn_user_id === currentUserId
   );
 
-  // Mulai permainan: DITAMBAHKAN parameter trapTiles
   const startGame = useCallback(async (trapTiles: number[]) => {
     const firstPlayer = players[0];
     await supabase
@@ -150,7 +157,7 @@ export function useRoom(roomId: string) {
         status: "playing",
         current_turn_user_id: firstPlayer?.id_user ?? null,
         turn_started_at: new Date().toISOString(),
-        trap_tiles: trapTiles // <-- Simpan posisi bom/jebakan ke database
+        trap_tiles: trapTiles
       })
       .eq("id_room", roomId);
   }, [roomId, players]);
@@ -195,6 +202,47 @@ export function useRoom(roomId: string) {
     [roomId]
   );
 
+  // =====================================================
+  // BARU: leaveRoom -- dipanggil dari WaitingRoom.tsx
+  // Kalau host yang keluar -> host dipindah ke pemain berikutnya
+  // Kalau pemain terakhir yang keluar -> room ikut dihapus
+  // =====================================================
+  const leaveRoom = useCallback(async () => {
+    if (!currentUserId) return;
+
+    const remainingPlayers = players.filter(
+      (p) => p.id_user !== currentUserId
+    );
+
+    // Kasus: ini pemain terakhir di room -> hapus room sekalian
+    if (remainingPlayers.length === 0) {
+      await supabase.from("room").delete().eq("id_room", roomId);
+      return;
+    }
+
+    // Kasus: yang keluar adalah host -> transfer host ke pemain berikutnya
+    if (isHost) {
+      const nextHost = remainingPlayers[0];
+
+      await supabase
+        .from("room")
+        .update({ host_user_id: nextHost.id_user })
+        .eq("id_room", roomId);
+
+      await supabase
+        .from("room_player")
+        .update({ is_host: true })
+        .eq("id_room_player", nextHost.id_room_player);
+    }
+
+    // Hapus baris room_player milik user yang keluar
+    await supabase
+      .from("room_player")
+      .delete()
+      .eq("id_room", roomId)
+      .eq("id_user", currentUserId);
+  }, [roomId, currentUserId, players, isHost]);
+
   return {
     room,
     players,
@@ -202,9 +250,11 @@ export function useRoom(roomId: string) {
     isHost,
     isMyTurn,
     isLoading,
+    roomDeleted,
     startGame,
     updateMyPosisi,
     passTurnToNext,
     finishGame,
+    leaveRoom,
   };
 }

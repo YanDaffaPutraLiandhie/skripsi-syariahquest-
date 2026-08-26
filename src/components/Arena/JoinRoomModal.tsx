@@ -78,14 +78,19 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // PERBAIKAN: ignoreDuplicates diubah ke false + is_inRoom: true, supaya
+    // user yang pernah join lalu keluar (row sudah ada, is_inRoom=false)
+    // tetap bisa gabung ulang -- upsert akan meng-UPDATE row itu, bukan
+    // diabaikan seperti sebelumnya.
     const { error: joinError } = await supabase.from("room_player").upsert(
       {
         id_room: room.id_room,
         id_user: user.id,
         posisi: 0,
         is_host: false,
+        is_inRoom: true,
       },
-      { onConflict: "id_room,id_user", ignoreDuplicates: true }
+      { onConflict: "id_room,id_user", ignoreDuplicates: false }
     );
 
     if (joinError) {

@@ -6,6 +6,7 @@ export type MahasiswaSearchItem = {
   id_mahasiswa: number;
   nama_mahasiswa: string;
   avatar_url: string | null;
+  inRoom: boolean; // BARU: status global, true = sedang di room manapun
 };
 
 export function useSearchMahasiswa() {
@@ -27,6 +28,7 @@ export function useSearchMahasiswa() {
           id_mahasiswa, 
           nama_mahasiswa, 
           avatar_url,
+          "inRoom",
           user!inner(auth_user_id)
         `)
         .ilike("nama_mahasiswa", `%${keyword}%`)
@@ -46,6 +48,7 @@ export function useSearchMahasiswa() {
             id_mahasiswa: item.id_mahasiswa,
             nama_mahasiswa: item.nama_mahasiswa,
             avatar_url: item.avatar_url,
+            inRoom: item.inRoom ?? false, // BARU
           };
         });
         setResults(formatted);

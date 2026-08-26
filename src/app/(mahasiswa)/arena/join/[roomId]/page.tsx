@@ -22,7 +22,9 @@ export default function JoinByLinkPage({
 
       if (!user) {
         // Belum login -> lempar ke login, lalu balik lagi ke sini setelah login
-        router.push(`/login/redirect=/arena/join/${roomId}`);
+        // PERBAIKAN: pakai '?redirect=' bukan '/redirect=' supaya kebaca
+        // oleh searchParams.get('redirect') di halaman login
+        router.push(`/login?redirect=/arena/join/${roomId}`);
         return;
       }
 
@@ -43,15 +45,19 @@ export default function JoinByLinkPage({
         return;
       }
 
-      // 3. Daftarkan user ke room_player (aman dipanggil berkali-kali karena upsert)
+      // 3. Daftarkan user ke room_player.
+      // PERBAIKAN: ignoreDuplicates diubah ke false supaya kalau row sudah ada
+      // (misal user pernah join lalu keluar, is_inRoom=false), upsert ini akan
+      // meng-UPDATE row tersebut jadi is_inRoom=true lagi -- bukan diabaikan.
       const { error: joinError } = await supabase.from("room_player").upsert(
         {
           id_room: room.id_room,
           id_user: user.id,
           posisi: 0,
           is_host: false,
+          is_inRoom: true, // BARU
         },
-        { onConflict: "id_room,id_user", ignoreDuplicates: true }
+        { onConflict: "id_room,id_user", ignoreDuplicates: false }
       );
 
       if (joinError) {
@@ -61,7 +67,7 @@ export default function JoinByLinkPage({
       }
 
       // 4. Masuk ke halaman arena
-      router.replace(`/arena/play/${room.id_room}`); // ?gameId= sudah tidak dipakai
+      router.replace(`/arena/play/${room.id_room}`);
     }
 
     joinRoom();

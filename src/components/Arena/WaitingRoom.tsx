@@ -17,6 +17,7 @@ type WaitingRoomProps = {
   isPrivate: boolean;
   pin: string | null;
   profiles?: Record<string, PlayerProfile>;
+  leaveRoom: () => Promise<void>;
 };
 
 export default function WaitingRoom({
@@ -28,6 +29,7 @@ export default function WaitingRoom({
   isPrivate,
   pin,
   profiles,
+  leaveRoom,
 }: WaitingRoomProps) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
@@ -59,16 +61,10 @@ export default function WaitingRoom({
   // Fungsi Keluar Ruangan Manual (Paling Aman!)
   const handleLeaveRoom = async () => {
     if (!currentUserId) return;
-    
+
     setIsLeaving(true);
     try {
-      // 1. Hapus diri sendiri dari room_player
-      await supabase
-        .from("room_player")
-        .delete()
-        .match({ id_room: roomId, id_user: currentUserId });
-      
-      // 2. Lempar kembali ke dashboard
+      await leaveRoom();
       router.push('/dashboard');
     } catch (err) {
       console.error("Gagal keluar dari ruangan:", err);
@@ -114,11 +110,14 @@ export default function WaitingRoom({
 
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/room_player?id_room=eq.${roomId}&id_user=eq.${currentUserId}`;
       fetch(url, {
-        method: 'DELETE',
+        method: 'PATCH',
         headers: {
           'apikey': process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
         },
+        body: JSON.stringify({ is_inRoom: false, is_host: false }),
         keepalive: true 
       });
     };
@@ -304,7 +303,13 @@ export default function WaitingRoom({
               ) : results.length > 0 ? (
                 results.map((mhs) => {
                   const isInvited = invitedIds.includes(mhs.id_user);
-                  const isAlreadyInRoom = players.some(p => p.id_user === mhs.id_user);
+
+                  // BARU: gabungkan status "di room ini" (dari props players)
+                  // dengan status global "inRoom" dari tabel mahasiswa.
+                  // Kalau salah satu true, mahasiswa dianggap sudah tidak
+                  // bisa diundang.
+                  const isAlreadyInThisRoom = players.some(p => p.id_user === mhs.id_user);
+                  const isUnavailable = mhs.inRoom || isAlreadyInThisRoom;
 
                   return (
                     <div key={mhs.id_mahasiswa} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
@@ -317,7 +322,7 @@ export default function WaitingRoom({
                         </span>
                       </div>
 
-                      {isAlreadyInRoom ? (
+                      {isUnavailable ? (
                         <span className="text-xs font-bold text-gray-400 bg-gray-200 px-3 py-1.5 rounded-lg">Di Ruangan</span>
                       ) : isInvited ? (
                         <span className="text-xs font-bold text-green-600 bg-green-100 px-3 py-1.5 rounded-lg">Terkirim</span>
