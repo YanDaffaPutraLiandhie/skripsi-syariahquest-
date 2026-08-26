@@ -22,7 +22,7 @@ export default function JoinByLinkPage({
 
       if (!user) {
         // Belum login -> lempar ke login, lalu balik lagi ke sini setelah login
-        router.push(`/login?redirect=/arena/join/${roomId}`);
+        router.push(`/login/redirect=/arena/join/${roomId}`);
         return;
       }
 

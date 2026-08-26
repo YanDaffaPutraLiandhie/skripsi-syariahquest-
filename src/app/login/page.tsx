@@ -1,206 +1,594 @@
 'use client'
 
-import { FormEvent, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import {
+  FormEvent,
+  useState,
+  Suspense,
+} from 'react'
+
+import {
+  useRouter,
+  useSearchParams,
+} from 'next/navigation'
+
 import { supabase } from '../../lib/supabase'
 import { logActivity } from '../../lib/logActivity'
+
 import './login.css'
 
-// PISAHKAN FORM KE KOMPONEN SENDIRI AGAR BISA DIBUNGKUS SUSPENSE
+// =====================================================
+// LOGIN CONTENT
+// =====================================================
+
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectUrl = searchParams.get('redirect') // <-- Mengambil ?redirect= dari URL
+
+  // Contoh:
+  //
+  // /login?redirect=%2Fadmin
+  //
+  // redirectUrl = /admin
+
+  const redirectUrl =
+    searchParams.get('redirect')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleLogin(e: FormEvent<HTMLFormElement>) {
+  // ===================================================
+  // HANDLE LOGIN
+  // ===================================================
+
+  async function handleLogin(
+    e: FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault()
+
+    if (loading) {
+      return
+    }
 
     setError('')
     setLoading(true)
 
-    // Login ke Supabase Auth
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      // =================================================
+      // 1. LOGIN SUPABASE
+      // =================================================
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
+      console.log('================================')
+      console.log('MEMULAI LOGIN')
+      console.log('EMAIL:', email)
+      console.log('================================')
 
-    if (!data.user) {
-      setError('User tidak ditemukan')
-      setLoading(false)
-      return
-    }
+      const {
+        data,
+        error: loginError,
+      } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
 
-    // Cari data user berdasarkan auth_user_id
-    const { data: userData, error: userError } = await supabase
-      .from('user')
-      .select('id_user, id_mahasiswa, id_dosen, id_admin, is_aktif')
-      .eq('auth_user_id', data.user.id)
-      .single()
+      // =================================================
+      // LOGIN ERROR
+      // =================================================
 
-    if (userError) {
-      console.error('USER QUERY ERROR:', userError)
-      setError(`Error: ${userError.message}`)
-      setLoading(false)
-      return
-    }
+      if (loginError) {
+        console.error(
+          'LOGIN ERROR:',
+          loginError
+        )
 
-    if (!userData.is_aktif) {
-  await supabase.auth.signOut()
-  setError('Akun Anda sedang dinonaktifkan. Silakan hubungi administrator.')
-  setLoading(false)
-  return
-}
+        setError(
+          loginError.message
+        )
 
-    // Cek role Admin
-    if (userData.id_admin) {
-      router.push('/admin')
-    }
-    // Cek role Dosen
-    // Cek role Dosen
-else if (userData.id_dosen) {
-  await logActivity({
-    fitur: 'Login',
-    jenis_aktivitas: 'Login',
-    keterangan: 'Berhasil login ke dashboard dosen',
-  })
+        setLoading(false)
 
-  router.push('/Dosen/Dashboard')
-}
-    // Cek role Mahasiswa
-    else if (userData.id_mahasiswa) {
-      // LOGIKA REDIRECT YANG BENAR:
-      if (redirectUrl) {
-        router.push(redirectUrl) // Masuk ke arena/join/...
-      } else {
-        router.push('/dashboard') // Default kalau login manual
+        return
       }
-    }
-    // Jika role belum ditentukan
-    else {
-      setError('Role user belum ditentukan')
-    }
 
-    setLoading(false)
+      // =================================================
+      // USER TIDAK DITEMUKAN
+      // =================================================
+
+      if (!data.user) {
+        console.error(
+          'USER AUTH TIDAK DITEMUKAN'
+        )
+
+        setError(
+          'User tidak ditemukan.'
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      console.log(
+        'LOGIN SUPABASE BERHASIL'
+      )
+
+      console.log(
+        'AUTH USER ID:',
+        data.user.id
+      )
+
+      // =================================================
+      // 2. CEK SESSION
+      // =================================================
+
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        console.error(
+          'SESSION ERROR:',
+          sessionError
+        )
+
+        setError(
+          `Gagal mendapatkan session: ${sessionError.message}`
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      if (!sessionData.session) {
+        console.error(
+          'SESSION TIDAK TERSEDIA'
+        )
+
+        setError(
+          'Login berhasil tetapi session belum tersedia.'
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      console.log(
+        'SESSION BERHASIL DIDAPATKAN'
+      )
+
+      console.log(
+        'SESSION USER:',
+        sessionData.session.user.id
+      )
+
+      // =================================================
+      // 3. AMBIL DATA USER
+      // =================================================
+
+      const {
+        data: userData,
+        error: userError,
+      } = await supabase
+        .from('user')
+        .select(
+          `
+          id_user,
+          id_mahasiswa,
+          id_dosen,
+          id_admin,
+          is_aktif
+          `
+        )
+        .eq(
+          'auth_user_id',
+          data.user.id
+        )
+        .maybeSingle()
+
+      if (userError) {
+        console.error(
+          'USER QUERY ERROR:',
+          userError
+        )
+
+        setError(
+          `Gagal membaca data user: ${userError.message}`
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      // =================================================
+      // DATA USER TIDAK ADA
+      // =================================================
+
+      if (!userData) {
+        console.error(
+          'DATA USER TIDAK DITEMUKAN'
+        )
+
+        await supabase.auth.signOut()
+
+        setError(
+          'Data user tidak ditemukan. Pastikan akun sudah terdaftar di sistem.'
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      console.log(
+        '================================'
+      )
+
+      console.log(
+        'DATA USER:',
+        userData
+      )
+
+      console.log(
+        '================================'
+      )
+
+      // =================================================
+      // 4. CEK STATUS AKUN
+      // =================================================
+
+      if (!userData.is_aktif) {
+        console.log(
+          'AKUN TIDAK AKTIF'
+        )
+
+        await supabase.auth.signOut()
+
+        setError(
+          'Akun Anda sedang dinonaktifkan. Silakan hubungi administrator.'
+        )
+
+        setLoading(false)
+
+        return
+      }
+
+      // =================================================
+      // 5. ADMIN
+      // =================================================
+
+      if (userData.id_admin) {
+        console.log(
+          '================================'
+        )
+
+        console.log(
+          'ROLE: ADMIN'
+        )
+
+        console.log(
+          'TARGET: /admin'
+        )
+
+        console.log(
+          '================================'
+        )
+
+        /*
+         * ADMIN TIDAK MEMANGGIL logActivity().
+         *
+         * Karena log_activity hanya untuk Dosen.
+         */
+
+        setLoading(false)
+
+        /*
+         * Gunakan window.location.href sementara
+         * untuk memastikan browser benar-benar
+         * melakukan request baru ke /admin.
+         */
+
+        window.location.href = '/admin'
+
+        return
+      }
+
+      // =================================================
+      // 6. DOSEN
+      // =================================================
+
+      if (userData.id_dosen) {
+        console.log(
+          '================================'
+        )
+
+        console.log(
+          'ROLE: DOSEN'
+        )
+
+        console.log(
+          'TARGET: /Dosen/Dashboard'
+        )
+
+        console.log(
+          '================================'
+        )
+
+        /*
+         * HANYA DOSEN yang dicatat ke
+         * log_activity.
+         */
+
+        try {
+          await logActivity({
+            fitur: 'Login',
+            jenis_aktivitas: 'Login',
+            keterangan:
+              'Berhasil login ke dashboard dosen',
+          })
+
+          console.log(
+            'LOG ACTIVITY DOSEN BERHASIL'
+          )
+        } catch (logError) {
+          /*
+           * Kalau logging gagal, login Dosen
+           * tetap dilanjutkan.
+           */
+
+          console.warn(
+            'LOG ACTIVITY DOSEN GAGAL:',
+            logError
+          )
+        }
+
+        setLoading(false)
+
+        window.location.href =
+          '/Dosen/Dashboard'
+
+        return
+      }
+
+      // =================================================
+      // 7. MAHASISWA
+      // =================================================
+
+      if (userData.id_mahasiswa) {
+        console.log(
+          '================================'
+        )
+
+        console.log(
+          'ROLE: MAHASISWA'
+        )
+
+        // ===============================================
+        // VALIDASI REDIRECT
+        // ===============================================
+
+        let destination = '/dashboard'
+
+        if (
+          redirectUrl &&
+          redirectUrl.startsWith('/') &&
+          !redirectUrl.startsWith('//')
+        ) {
+          destination = redirectUrl
+        }
+
+        console.log(
+          'TARGET:',
+          destination
+        )
+
+        console.log(
+          '================================'
+        )
+
+        /*
+         * MAHASISWA TIDAK MEMANGGIL
+         * logActivity().
+         */
+
+        setLoading(false)
+
+        window.location.href =
+          destination
+
+        return
+      }
+
+      // =================================================
+      // 8. ROLE TIDAK DITEMUKAN
+      // =================================================
+
+      console.error(
+        'ROLE USER TIDAK DITEMUKAN'
+      )
+
+      await supabase.auth.signOut()
+
+      setError(
+        'Role user belum ditentukan. Hubungi administrator.'
+      )
+
+      setLoading(false)
+
+    } catch (error) {
+      console.error(
+        'LOGIN EXCEPTION:',
+        error
+      )
+
+      if (
+        error instanceof Error
+      ) {
+        setError(
+          error.message
+        )
+      } else {
+        setError(
+          'Terjadi kesalahan saat proses login.'
+        )
+      }
+
+      setLoading(false)
+    }
   }
 
-  async function handleGoogleLogin() {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-  }
+  // ===================================================
+  // UI
+  // ===================================================
 
   return (
     <div className="login-card">
+
+      {/* ===============================================
+          ILLUSTRATION
+      =============================================== */}
+
       <div className="login-illustration">
-        <img 
-          src="/images/board-logo.png" 
-          alt="Board Game Illustration" 
+
+        <img
+          src="/images/board-logo.png"
+          alt="Board Game Illustration"
           className="illustration-img"
         />
+
       </div>
 
-      <div className="login-form-side">
-        <h1 className="login-title">Log in</h1>
+      {/* ===============================================
+          LOGIN FORM
+      =============================================== */}
 
-        <form onSubmit={handleLogin} className="login-form">
+      <div className="login-form-side">
+
+        <h1 className="login-title">
+          Log in
+        </h1>
+
+        <form
+          onSubmit={handleLogin}
+          className="login-form"
+        >
+
+          {/* EMAIL */}
+
           <div className="login-field">
-            <label htmlFor="email">Login, email or phone number</label>
+
+            <label htmlFor="email">
+              Login, email or phone number
+            </label>
+
             <input
               id="email"
               type="email"
-              placeholder=""
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
               required
+              autoComplete="email"
             />
+
           </div>
 
+          {/* PASSWORD */}
+
           <div className="login-field">
+
             <div className="login-field-row">
-              <label htmlFor="password">Password</label>
+
+              <label htmlFor="password">
+                Password
+              </label>
+
             </div>
+
             <input
               id="password"
               type="password"
-              placeholder=""
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) =>
+                setPassword(e.target.value)
+              }
               required
+              autoComplete="current-password"
             />
+
           </div>
+
+          {/* FORGOT PASSWORD */}
 
           <div className="login-links-row">
-            <a href="/forgot-password" className="login-link forgot">forgot password?</a>
+
+            <a
+              href="/forgot-password"
+              className="login-link forgot"
+            >
+              forgot password?
+            </a>
+
           </div>
 
-          {error && <p className="login-error">{error}</p>}
+          {/* ERROR */}
 
-          <button type="submit" className="login-submit" disabled={loading}>
-            {loading ? 'Memproses...' : 'Log in'}
+          {error && (
+            <p className="login-error">
+              {error}
+            </p>
+          )}
+
+          {/* BUTTON */}
+
+          <button
+            type="submit"
+            className="login-submit"
+            disabled={loading}
+          >
+            {loading
+              ? 'Memproses...'
+              : 'Log in'}
           </button>
 
-          <div className="login-divider">
-            <span>or login with</span>
-          </div>
-
-          <div className="login-social-row">
-            <button type="button" className="login-social-button" onClick={handleGoogleLogin}>
-              <GoogleIcon />
-            </button>
-            <button type="button" className="login-social-button">
-              <MailIcon />
-            </button>
-          </div>
         </form>
+
       </div>
+
     </div>
   )
 }
 
-// BUNGKUS DENGAN SUSPENSE
+// =====================================================
+// LOGIN PAGE
+// =====================================================
+
 export default function LoginPage() {
   return (
     <main className="login-page">
-      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Memuat...</div>}>
+
+      <Suspense
+        fallback={
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+            }}
+          >
+            Memuat...
+          </div>
+        }
+      >
         <LoginContent />
       </Suspense>
+
     </main>
-  )
-}
-
-/* =========================================
-   ICONS
-========================================= */
-function GoogleIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 48 48">
-      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z" />
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-      <path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.6C29.6 34.5 27 35.5 24 35.5c-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.6 5.6C41.5 36 44 30.5 44 24c0-1.2-.1-2.3-.4-3.5z" />
-    </svg>
-  )
-}
-
-function MailIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#50427E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="m22 6-10 7L2 6" />
-    </svg>
   )
 }

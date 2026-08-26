@@ -3,10 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
-    request,
+    request: {
+      headers: request.headers,
+    },
   })
 
-  // Inisialisasi Supabase khusus untuk Proxy (baca dari Cookies)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -15,68 +16,162 @@ export async function proxy(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
+
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value)
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+
+          supabaseResponse = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+
+          cookiesToSet.forEach(
+            ({ name, value, options }) => {
+              supabaseResponse.cookies.set(
+                name,
+                value,
+                options
+              )
+            }
           )
         },
       },
     }
   )
 
-  // Cek apakah user sedang login saat ini berdasarkan Cookies
+  // =====================================================
+  // CEK SESSION SUPABASE
+  // =====================================================
+
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
 
-  // =======================================================
-  // 1. BLOKIR USER YANG BELUM LOGIN MAU MASUK HALAMAN DALAM
-  // =======================================================
-  const protectedRoutes = [
-    '/dashboard', 
-    '/arena', 
-    '/modul', 
-    '/profile', 
-    '/leaderboard', 
-    '/kuis',
-    '/admin',
-    '/dosen'
+  console.log('======================================')
+  console.log('SUPABASE PROXY')
+  console.log('PATH:', pathname)
+  console.log(
+    'USER:',
+    user ? user.id : 'TIDAK ADA'
+  )
+
+  if (authError) {
+    console.log(
+      'AUTH ERROR:',
+      authError.message
+    )
+  }
+
+  console.log('======================================')
+
+  // =====================================================
+  // PUBLIC ROUTES
+  // =====================================================
+
+  const publicRoutes = [
+    '/login',
+    '/register',
+    '/forgot-password',
+    '/reset-password',
   ]
-  
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+
+  const isPublicRoute = publicRoutes.some(
+    (route) =>
+      pathname === route ||
+      pathname.startsWith(`${route}/`)
+  )
+
+  // =====================================================
+  // PROTECTED ROUTES
+  // =====================================================
+
+  const protectedRoutes = [
+    '/dashboard',
+    '/arena',
+    '/modul',
+    '/profile',
+    '/leaderboard',
+    '/kuis',
+
+    // ADMIN
+    '/admin',
+
+    // DOSEN
+    '/Dosen',
+    '/dosen',
+  ]
+
+  const isProtectedRoute = protectedRoutes.some(
+    (route) =>
+      pathname === route ||
+      pathname.startsWith(`${route}/`)
+  )
+
+  // =====================================================
+  // USER BELUM LOGIN
+  // =====================================================
 
   if (isProtectedRoute && !user) {
-    // Tendang ke halaman login dan bawa parameter URL tujuan
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(url)
+    console.log(
+      'PROXY: USER BELUM LOGIN'
+    )
+
+    console.log(
+      'PROXY: REDIRECT KE LOGIN DENGAN TARGET:',
+      pathname
+    )
+
+    const loginUrl = new URL(
+      '/login',
+      request.url
+    )
+
+    loginUrl.searchParams.set(
+      'redirect',
+      pathname
+    )
+
+    return NextResponse.redirect(
+      loginUrl
+    )
   }
 
-  // =======================================================
-  // 2. BLOKIR USER YANG UDAH LOGIN TAPI ISENG BUKA /login
-  // =======================================================
-  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password')
-  
-  if (isAuthRoute && user) {
-    // Kalau udah login tapi buka halaman login, tendang balik ke dashboard
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard' 
-    return NextResponse.redirect(url)
+  // =====================================================
+  // USER SUDAH LOGIN
+  // =====================================================
+
+  if (user) {
+    console.log(
+      'PROXY: USER SUDAH LOGIN:',
+      user.email
+    )
   }
+
+  /*
+   * PENTING:
+   *
+   * Jangan redirect user yang sudah login
+   * dari /login ke /dashboard.
+   *
+   * Role Admin/Dosen/Mahasiswa ditentukan
+   * di login/page.tsx.
+   */
 
   return supabaseResponse
 }
 
-// Konfigurasi rute mana aja yang harus dicek
+// =======================================================
+// MATCHER
+// =======================================================
+
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)',
   ],
 }

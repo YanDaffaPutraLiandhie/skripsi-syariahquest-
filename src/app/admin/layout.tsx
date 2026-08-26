@@ -62,25 +62,47 @@ export default function AdminLayout({
       return userRow?.is_aktif !== false
     }
 
-    async function checkSession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+    let hasCheckedInitialSession = false
 
-      if (!session) {
-        router.replace('/login')
+    // PENTING: pakai onAuthStateChange sebagai sumber kebenaran untuk
+    // pengecekan session AWAL. Gunakan getSession() dengan retry singkat
+    // untuk menghindari race condition saat router.push dari login page —
+    // kadang INITIAL_SESSION terpicu sebelum localStorage selesai ditulis.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        hasCheckedInitialSession = true
+
+        // Jika session dari event kosong, coba baca ulang sekali
+        // (antisipasi race condition setelah router.push dari login)
+        let activeSession = session
+        if (!activeSession) {
+          await new Promise((r) => setTimeout(r, 300))
+          const { data } = await supabase.auth.getSession()
+          activeSession = data.session
+        }
+
+        if (!activeSession) {
+          router.replace('/login')
+          return
+        }
+
+        const masihAktif = await checkStatusAktif(activeSession.user.id)
+
+        if (!masihAktif) {
+          await supabase.auth.signOut()
+          router.replace('/login?nonaktif=1')
+        }
         return
       }
 
-      const masihAktif = await checkStatusAktif(session.user.id)
-
-      if (!masihAktif) {
-        await supabase.auth.signOut()
-        router.replace('/login?nonaktif=1')
+      // Event lain (SIGNED_OUT, TOKEN_REFRESHED, dll) setelah initial
+      // check selesai — kalau session hilang, lempar ke login.
+      if (hasCheckedInitialSession && event === 'SIGNED_OUT') {
+        router.replace('/login')
       }
-    }
-
-    checkSession()
+    })
 
     // Cek ulang tiap 30 detik selama admin sedang aktif memakai sistem.
     // Ini yang bikin user langsung "tertendang" kalau statusnya diubah
@@ -99,14 +121,6 @@ export default function AdminLayout({
         router.replace('/login?nonaktif=1')
       }
     }, 30000)
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        router.replace('/login')
-      }
-    })
 
     return () => {
       clearInterval(intervalId)
@@ -256,7 +270,7 @@ export default function AdminLayout({
                 strokeWidth={1.8}
               />
             </button>
-
+          
           </div>
 
         </header>
