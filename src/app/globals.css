@@ -251,9 +251,15 @@ body {
 }
 
 .navbar-icons {
+
   display: flex;
+
   align-items: center;
+
   gap: 22px;
+
+  margin-left: auto;
+
 }
 
 .icon-button {

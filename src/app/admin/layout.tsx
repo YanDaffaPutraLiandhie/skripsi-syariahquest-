@@ -230,27 +230,27 @@ export default function AdminLayout({
       {/* MAIN AREA */}
       <div className={`main-area ${isCollapsed ? 'full-width' : ''}`}>
 
-        {/* NAVBAR */}
-        <header className="top-navbar">
+        
+{/* NAVBAR */}
+<header className="top-navbar">
 
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search"
-          />
+  <div className="navbar-icons">
 
-          <div className="navbar-icons">
+    <button
+      type="button"
+      className="icon-button"
+      aria-label="Profile"
+      onClick={() => router.push("/admin/profil")}
+    >
+      <CircleUserRound
+        size={24}
+        strokeWidth={1.8}
+      />
+    </button>
 
-            <button
-              className="icon-button"
-              aria-label="Messages"
-            >
-              <Mail
-                size={22}
-                strokeWidth={1.8}
-              />
-            </button>
+  </div>
 
+<<<<<<< Updated upstream
             <button
               className="icon-button"
               aria-label="Notifications"
@@ -274,6 +274,9 @@ export default function AdminLayout({
           </div>
 
         </header>
+=======
+</header>
+>>>>>>> Stashed changes
 
         {/* CONTENT */}
         <main className="content">
