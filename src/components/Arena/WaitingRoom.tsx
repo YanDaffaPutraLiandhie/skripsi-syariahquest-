@@ -254,6 +254,30 @@ export default function WaitingRoom({
             error,
           );
         });
+
+        // BARU: update mahasiswa inRoom ke false
+        const myProfile = profiles?.[currentUserId];
+        if (myProfile?.idMahasiswa) {
+          const mhsUrl =
+            `${supabaseUrl}/rest/v1/mahasiswa` +
+            `?id_mahasiswa=eq.${encodeURIComponent(myProfile.idMahasiswa)}`;
+
+          fetch(mhsUrl, {
+            method: "PATCH",
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({
+              inRoom: false,
+            }),
+            keepalive: true,
+          }).catch((error) => {
+             console.error("Gagal update inRoom mahasiswa:", error);
+          });
+        }
       } catch (error) {
         console.error(
           "Gagal membaca session saat beforeunload:",

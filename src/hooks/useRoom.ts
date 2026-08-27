@@ -254,10 +254,18 @@ export function useRoom(roomId: string) {
       .eq("id_user", currentUserId);
       
     // Update mahasiswa status
-    await supabase
-      .from("mahasiswa")
-      .update({ inRoom: false })
-      .eq("auth_user_id", currentUserId);
+    const { data: userData } = await supabase
+      .from("user")
+      .select("id_mahasiswa")
+      .eq("auth_user_id", currentUserId)
+      .single();
+
+    if (userData?.id_mahasiswa) {
+      await supabase
+        .from("mahasiswa")
+        .update({ inRoom: false })
+        .eq("id_mahasiswa", userData.id_mahasiswa);
+    }
   }, [roomId, currentUserId, players, isHost]);
 
   return {

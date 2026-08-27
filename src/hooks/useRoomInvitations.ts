@@ -56,7 +56,10 @@ export function useRoomInvitations(currentUserId: string | undefined) {
           if (newInvite.status === "pending") {
             const name = await getInviterName(newInvite.invited_by);
             newInvite.inviter_name = name;
-            setInvitations((prev) => [...prev, newInvite]);
+            setInvitations((prev) => {
+              if (prev.some(inv => inv.id_invitation === newInvite.id_invitation)) return prev;
+              return [...prev, newInvite];
+            });
           }
         }
       )
@@ -72,8 +75,14 @@ export function useRoomInvitations(currentUserId: string | undefined) {
       )
       .subscribe();
 
+    // FALLBACK POLLING: Jika realtime di Supabase belum diaktifkan untuk tabel room_invitation
+    const pollInterval = setInterval(() => {
+      fetchPendingInvitations();
+    }, 5000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [currentUserId]);
 
