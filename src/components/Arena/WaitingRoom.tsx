@@ -178,6 +178,16 @@ export default function WaitingRoom({
     setInvitedIds((prev) => [...prev, invitedUserId]);
   };
 
+  // ==============================
+  // HAPUS DARI INVITED JIKA SUDAH JOIN
+  // ==============================
+  // Jika user sudah masuk ke ruangan, kita hapus dari daftar invitedIds.
+  // Sehingga jika dia keluar lagi nanti, tombol "Undang" akan muncul kembali.
+  useEffect(() => {
+    const joinedIds = players.map((p) => p.id_user);
+    setInvitedIds((prev) => prev.filter((id) => !joinedIds.includes(id)));
+  }, [players]);
+
   const isEnoughPlayers = players.length >= 2;
 
   // ==============================
@@ -303,6 +313,7 @@ export default function WaitingRoom({
     setShowInviteModal(false);
     setSearchQuery("");
     setResults([]);
+    setInvitedIds([]); // Bersihkan riwayat undangan agar bisa diundang ulang
   };
 
   // ==============================
