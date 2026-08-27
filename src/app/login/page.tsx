@@ -376,7 +376,7 @@ function LoginContent() {
             
           await supabase
             .from("room_player")
-            .update({ is_inRoom: false, is_host: false })
+            .delete()
             .eq("id_user", data.user.id);
         } catch(e) {
           console.error("Gagal reset inRoom saat login", e);

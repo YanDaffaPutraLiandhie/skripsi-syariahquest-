@@ -246,10 +246,10 @@ export function useRoom(roomId: string) {
         .eq("id_room_player", nextHost.id_room_player);
     }
 
-    // Hapus baris room_player milik user yang keluar (ubah is_inRoom jadi false)
+    // Hapus baris room_player milik user yang keluar
     await supabase
       .from("room_player")
-      .update({ is_inRoom: false, is_host: false })
+      .delete()
       .eq("id_room", roomId)
       .eq("id_user", currentUserId);
       

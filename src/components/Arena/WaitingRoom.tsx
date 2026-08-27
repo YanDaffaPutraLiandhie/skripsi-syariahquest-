@@ -246,17 +246,13 @@ export default function WaitingRoom({
           `&id_user=eq.${encodeURIComponent(currentUserId)}`;
 
         fetch(url, {
-          method: "PATCH",
+          method: "DELETE",
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
-          body: JSON.stringify({
-            is_inRoom: false,
-            is_host: false,
-          }),
           keepalive: true,
         }).catch((error) => {
           console.error(
