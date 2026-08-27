@@ -10,7 +10,6 @@ export type RoomPlayer = {
   posisi: number;
   is_host: boolean;
   joined_at: string;
-  is_inRoom: boolean;
 };
 
 export type RoomInfo = {
@@ -31,7 +30,6 @@ export function useRoom(roomId: string) {
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // BARU: dipakai buat redirect kalau room ternyata sudah dihapus
   const [roomDeleted, setRoomDeleted] = useState(false);
 
   useEffect(() => {
@@ -55,11 +53,11 @@ export function useRoom(roomId: string) {
 
       if (!isCancelled && roomData) setRoom(roomData as RoomInfo);
 
+      // Ambil data pemain (tanpa is_inRoom karena sekarang kita main hapus)
       const { data: playerData } = await supabase
         .from("room_player")
-        .select("id_room_player, id_room, id_user, posisi, is_host, joined_at, is_inRoom")
+        .select("id_room_player, id_room, id_user, posisi, is_host, joined_at")
         .eq("id_room", roomId)
-        .eq("is_inRoom", true)
         .order("joined_at", { ascending: true });
 
       if (!isCancelled && playerData) setPlayers(playerData as RoomPlayer[]);
@@ -77,62 +75,74 @@ export function useRoom(roomId: string) {
   useEffect(() => {
     const channel = supabase
       .channel(`room-${roomId}`)
+      // 1. Antena INSERT (Pakai filter id_room)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "room_player",
           filter: `id_room=eq.${roomId}`,
         },
         (payload) => {
           setPlayers((prev) => {
-            if (payload.eventType === "INSERT") {
-              const newRow = payload.new as RoomPlayer;
-              if (prev.some((p) => p.id_room_player === newRow.id_room_player)) {
-                return prev;
-              }
-              return [...prev, newRow].sort(
-                (a, b) =>
-                  new Date(a.joined_at).getTime() -
-                  new Date(b.joined_at).getTime()
-              );
+            const newRow = payload.new as RoomPlayer;
+            if (prev.some((p) => p.id_room_player === newRow.id_room_player)) {
+              return prev;
             }
-            if (payload.eventType === "UPDATE") {
-              const updated = payload.new as RoomPlayer;
-              if (updated.is_inRoom === false) {
-                return prev.filter((p) => p.id_room_player !== updated.id_room_player);
-              }
-              // Jika sebelumnya tidak ada, dan sekarang masuk (is_inRoom true)
-              if (!prev.some((p) => p.id_room_player === updated.id_room_player) && updated.is_inRoom) {
-                return [...prev, updated].sort(
-                  (a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()
-                );
-              }
-              return prev.map((p) =>
-                p.id_room_player === updated.id_room_player ? updated : p
-              );
-            }
-            if (payload.eventType === "DELETE") {
-              const removed = payload.old as RoomPlayer;
-              return prev.filter(
-                (p) => p.id_room_player !== removed.id_room_player
-              );
-            }
-            return prev;
+            return [...prev, newRow].sort(
+              (a, b) =>
+                new Date(a.joined_at).getTime() -
+                new Date(b.joined_at).getTime()
+            );
           });
         }
       )
+      // 2. Antena UPDATE (Pakai filter id_room)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "UPDATE",
+          schema: "public",
+          table: "room_player",
+          filter: `id_room=eq.${roomId}`,
+        },
+        (payload) => {
+          setPlayers((prev) => {
+            const updated = payload.new as RoomPlayer;
+            return prev.map((p) =>
+              p.id_room_player === updated.id_room_player ? updated : p
+            );
+          });
+        }
+      )
+      // 3. Antena DELETE (SENGAJA TANPA FILTER biar sinyalnya 100% nembus)
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "room_player",
+        },
+        (payload) => {
+          setPlayers((prev) => {
+            const removed = payload.old as RoomPlayer;
+            return prev.filter(
+              (p) => p.id_room_player !== removed.id_room_player
+            );
+          });
+        }
+      )
+      // 4. Antena UPDATE & DELETE Room Utama
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Tangkap UPDATE dan DELETE untuk room
           schema: "public",
           table: "room",
           filter: `id_room=eq.${roomId}`,
         },
         (payload) => {
-          // BARU: tangani DELETE juga, sebelumnya cuma UPDATE
           if (payload.eventType === "DELETE") {
             setRoomDeleted(true);
             setRoom(null);
@@ -214,9 +224,7 @@ export function useRoom(roomId: string) {
   );
 
   // =====================================================
-  // BARU: leaveRoom -- dipanggil dari WaitingRoom.tsx
-  // Kalau host yang keluar -> host dipindah ke pemain berikutnya
-  // Kalau pemain terakhir yang keluar -> room ikut dihapus
+  // FUNGSI LEAVE ROOM (Logika Kerenmu Disempurnakan!)
   // =====================================================
   const leaveRoom = useCallback(async () => {
     if (!currentUserId) return;
@@ -246,14 +254,14 @@ export function useRoom(roomId: string) {
         .eq("id_room_player", nextHost.id_room_player);
     }
 
-    // Hapus baris room_player milik user yang keluar (ubah is_inRoom jadi false)
+    // PERUBAHAN: Sekarang pakai sistem DELETE, bukan update is_inRoom
     await supabase
       .from("room_player")
-      .update({ is_inRoom: false, is_host: false })
+      .delete()
       .eq("id_room", roomId)
       .eq("id_user", currentUserId);
       
-    // Update mahasiswa status
+    // Update mahasiswa status (Logikamu aman!)
     const { data: userData } = await supabase
       .from("user")
       .select("id_mahasiswa")
@@ -280,6 +288,6 @@ export function useRoom(roomId: string) {
     updateMyPosisi,
     passTurnToNext,
     finishGame,
-    leaveRoom,
+    leaveRoom, // Pastikan ini dipanggil pas tombol keluar di WaitingRoom dipencet!
   };
 }
