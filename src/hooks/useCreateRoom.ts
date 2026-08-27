@@ -61,6 +61,7 @@ export function useCreateRoom() {
       id_user: user.id,
       posisi: 0,
       is_host: true,
+      is_inRoom: true,
     });
 
     if (playerError) {
@@ -69,6 +70,9 @@ export function useCreateRoom() {
       setIsCreating(false);
       return null;
     }
+
+    // Update status inRoom di tabel mahasiswa
+    await supabase.from("mahasiswa").update({ inRoom: true }).eq("auth_user_id", user.id);
 
     setIsCreating(false);
     return { idRoom: roomData.id_room, pin };

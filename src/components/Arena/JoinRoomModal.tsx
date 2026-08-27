@@ -100,6 +100,9 @@ export default function JoinRoomModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    // Update status inRoom di tabel mahasiswa
+    await supabase.from("mahasiswa").update({ inRoom: true }).eq("auth_user_id", user.id);
+
     router.push(`/arena/play/${room.id_room}`);
   };
 

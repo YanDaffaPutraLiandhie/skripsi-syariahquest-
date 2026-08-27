@@ -66,7 +66,10 @@ export default function JoinByLinkPage({
         return;
       }
 
-      // 4. Masuk ke halaman arena
+      // 4. Update status inRoom di tabel mahasiswa
+      await supabase.from("mahasiswa").update({ inRoom: true }).eq("auth_user_id", user.id);
+
+      // 5. Masuk ke halaman arena
       router.replace(`/arena/play/${room.id_room}`);
     }
 

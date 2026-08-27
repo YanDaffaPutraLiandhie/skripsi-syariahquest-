@@ -367,6 +367,21 @@ function LoginContent() {
           'ROLE: MAHASISWA'
         )
 
+        // Reset inRoom status when logging in
+        try {
+          await supabase
+            .from("mahasiswa")
+            .update({ inRoom: false })
+            .eq("id_mahasiswa", userData.id_mahasiswa);
+            
+          await supabase
+            .from("room_player")
+            .update({ is_inRoom: false, is_host: false })
+            .eq("id_user", data.user.id);
+        } catch(e) {
+          console.error("Gagal reset inRoom saat login", e);
+        }
+
         // ===============================================
         // VALIDASI REDIRECT
         // ===============================================

@@ -10,6 +10,7 @@ export type RoomPlayer = {
   posisi: number;
   is_host: boolean;
   joined_at: string;
+  is_inRoom: boolean;
 };
 
 export type RoomInfo = {
@@ -56,8 +57,9 @@ export function useRoom(roomId: string) {
 
       const { data: playerData } = await supabase
         .from("room_player")
-        .select("id_room_player, id_room, id_user, posisi, is_host, joined_at")
+        .select("id_room_player, id_room, id_user, posisi, is_host, joined_at, is_inRoom")
         .eq("id_room", roomId)
+        .eq("is_inRoom", true)
         .order("joined_at", { ascending: true });
 
       if (!isCancelled && playerData) setPlayers(playerData as RoomPlayer[]);
@@ -98,6 +100,15 @@ export function useRoom(roomId: string) {
             }
             if (payload.eventType === "UPDATE") {
               const updated = payload.new as RoomPlayer;
+              if (updated.is_inRoom === false) {
+                return prev.filter((p) => p.id_room_player !== updated.id_room_player);
+              }
+              // Jika sebelumnya tidak ada, dan sekarang masuk (is_inRoom true)
+              if (!prev.some((p) => p.id_room_player === updated.id_room_player) && updated.is_inRoom) {
+                return [...prev, updated].sort(
+                  (a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime()
+                );
+              }
               return prev.map((p) =>
                 p.id_room_player === updated.id_room_player ? updated : p
               );
@@ -235,12 +246,18 @@ export function useRoom(roomId: string) {
         .eq("id_room_player", nextHost.id_room_player);
     }
 
-    // Hapus baris room_player milik user yang keluar
+    // Hapus baris room_player milik user yang keluar (ubah is_inRoom jadi false)
     await supabase
       .from("room_player")
-      .delete()
+      .update({ is_inRoom: false, is_host: false })
       .eq("id_room", roomId)
       .eq("id_user", currentUserId);
+      
+    // Update mahasiswa status
+    await supabase
+      .from("mahasiswa")
+      .update({ inRoom: false })
+      .eq("auth_user_id", currentUserId);
   }, [roomId, currentUserId, players, isHost]);
 
   return {

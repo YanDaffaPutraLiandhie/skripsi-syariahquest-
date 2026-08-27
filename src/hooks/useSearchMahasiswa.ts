@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
 export type MahasiswaSearchItem = {
@@ -13,7 +13,7 @@ export function useSearchMahasiswa() {
   const [results, setResults] = useState<MahasiswaSearchItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  const searchMahasiswa = async (keyword: string) => {
+  const searchMahasiswa = useCallback(async (keyword: string) => {
     if (!keyword || keyword.trim() === "") {
       setResults([]);
       return;
@@ -58,7 +58,7 @@ export function useSearchMahasiswa() {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
 
   return { results, isSearching, searchMahasiswa, setResults };
 }
