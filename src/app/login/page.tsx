@@ -373,12 +373,12 @@ function LoginContent() {
             .from("mahasiswa")
             .update({ inRoom: false })
             .eq("id_mahasiswa", userData.id_mahasiswa);
-            
+
           await supabase
             .from("room_player")
-            .delete()
+            .update({ is_inRoom: false, is_host: false })
             .eq("id_user", data.user.id);
-        } catch(e) {
+        } catch (e) {
           console.error("Gagal reset inRoom saat login", e);
         }
 

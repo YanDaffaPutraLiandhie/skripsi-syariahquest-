@@ -246,13 +246,17 @@ export default function WaitingRoom({
           `&id_user=eq.${encodeURIComponent(currentUserId)}`;
 
         fetch(url, {
-          method: "DELETE",
+          method: "PATCH",
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
+          body: JSON.stringify({
+            is_inRoom: false,
+            is_host: false,
+          }),
           keepalive: true,
         }).catch((error) => {
           console.error(
@@ -281,7 +285,7 @@ export default function WaitingRoom({
             }),
             keepalive: true,
           }).catch((error) => {
-             console.error("Gagal update inRoom mahasiswa:", error);
+            console.error("Gagal update inRoom mahasiswa:", error);
           });
         }
       } catch (error) {
@@ -362,11 +366,10 @@ export default function WaitingRoom({
         <button
           onClick={handleCopy}
           disabled={!roomLink}
-          className={`p-2.5 rounded-lg transition-all flex items-center gap-2 ${
-            isCopied
+          className={`p-2.5 rounded-lg transition-all flex items-center gap-2 ${isCopied
               ? "bg-green-100 text-green-600 font-bold"
               : "bg-gray-50 hover:bg-gray-100 text-[#5B5288] font-semibold"
-          }`}
+            }`}
         >
           {isCopied ? (
             <Check className="w-4 h-4" />
@@ -448,11 +451,10 @@ export default function WaitingRoom({
                 onClick={() =>
                   isHost && setShowInviteModal(true)
                 }
-                className={`flex items-center gap-4 p-2.5 rounded-2xl border border-dashed border-gray-200 transition-all ${
-                  isHost
+                className={`flex items-center gap-4 p-2.5 rounded-2xl border border-dashed border-gray-200 transition-all ${isHost
                     ? "cursor-pointer hover:bg-purple-50 hover:border-purple-300"
                     : "opacity-50"
-                }`}
+                  }`}
               >
                 <div className="w-12 h-12 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
                   {isHost && (
