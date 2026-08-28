@@ -158,10 +158,19 @@ export default function WaitingRoom({
       return;
     }
 
-    // Cegah invite ulang
+    // Cegah invite ulang (dalam sesi modal yang sama)
     if (invitedIds.includes(invitedUserId)) {
       return;
     }
+
+    // Hapus undangan lama (jika ada) agar bisa diundang ulang
+    // Ini menangani kasus dimana mahasiswa pernah diundang,
+    // join, lalu keluar — record lama bisa memblokir insert baru.
+    await supabase
+      .from("room_invitation")
+      .delete()
+      .eq("id_room", roomId)
+      .eq("invited_user_id", invitedUserId);
 
     const { error } = await supabase.from("room_invitation").insert({
       id_room: roomId,
@@ -301,6 +310,17 @@ export default function WaitingRoom({
       );
     };
   }, [roomId, currentUserId]);
+
+  // ==============================
+  // BUKA MODAL INVITE — selalu re-search agar data inRoom fresh
+  // ==============================
+  const handleOpenInviteModal = () => {
+    setShowInviteModal(true);
+    // Reset search agar user mulai dari keadaan bersih
+    setSearchQuery("");
+    setResults([]);
+    setInvitedIds([]);
+  };
 
   // ==============================
   // RESET MODAL INVITE
@@ -445,7 +465,7 @@ export default function WaitingRoom({
               <div
                 key={`empty-${i}`}
                 onClick={() =>
-                  isHost && setShowInviteModal(true)
+                  isHost && handleOpenInviteModal()
                 }
                 className={`flex items-center gap-4 p-2.5 rounded-2xl border border-dashed border-gray-200 transition-all ${isHost
                     ? "cursor-pointer hover:bg-purple-50 hover:border-purple-300"
@@ -604,6 +624,11 @@ export default function WaitingRoom({
                         player.id_user === mhs.id_user,
                     );
 
+                  // Cek apakah pemain tidak tersedia:
+                  // - inRoom = true (sedang di room lain)
+                  // - isAlreadyInThisRoom (sudah ada di room ini)
+                  // Data inRoom selalu fresh karena modal di-reset
+                  // saat dibuka (handleOpenInviteModal).
                   const isUnavailable =
                     mhs.inRoom ||
                     isAlreadyInThisRoom;

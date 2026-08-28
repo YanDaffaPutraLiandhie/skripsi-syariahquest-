@@ -203,14 +203,61 @@ export function useRoom(roomId: string) {
       .eq("id_room", roomId);
   }, [roomId, players, room]);
 
+  const cleanupAfterGameEnd = useCallback(async () => {
+    // 1. Ambil semua pemain di room ini
+    const { data: allPlayers } = await supabase
+      .from("room_player")
+      .select("id_user")
+      .eq("id_room", roomId);
+
+    // 2. Update status inRoom = false untuk semua pemain
+    if (allPlayers && allPlayers.length > 0) {
+      const userIds = allPlayers.map((p) => p.id_user);
+
+      // Ambil id_mahasiswa dari semua user
+      const { data: usersData } = await supabase
+        .from("user")
+        .select("auth_user_id, id_mahasiswa")
+        .in("auth_user_id", userIds);
+
+      if (usersData) {
+        const mahasiswaIds = usersData
+          .map((u) => u.id_mahasiswa)
+          .filter(Boolean);
+
+        if (mahasiswaIds.length > 0) {
+          await supabase
+            .from("mahasiswa")
+            .update({ inRoom: false })
+            .in("id_mahasiswa", mahasiswaIds);
+        }
+      }
+    }
+
+    // 3. Hapus semua room_player untuk room ini
+    await supabase
+      .from("room_player")
+      .delete()
+      .eq("id_room", roomId);
+
+    // 4. Hapus semua undangan yang terkait room ini
+    await supabase
+      .from("room_invitation")
+      .delete()
+      .eq("id_room", roomId);
+  }, [roomId]);
+
   const finishGame = useCallback(
     async (winnerUserId: string) => {
       await supabase
         .from("room")
         .update({ status: "finished", winner_user_id: winnerUserId })
         .eq("id_room", roomId);
+
+      // Bersihkan semua data room_player dan status inRoom
+      await cleanupAfterGameEnd();
     },
-    [roomId]
+    [roomId, cleanupAfterGameEnd]
   );
 
   // =====================================================
