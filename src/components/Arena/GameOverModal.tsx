@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
 
 const Player = dynamic(() => import("@lottiefiles/react-lottie-player").then((mod) => mod.Player), { ssr: false });
 
@@ -16,6 +19,47 @@ type GameOverModalProps = {
 export default function GameOverModal({ isWinner, earnedBadge }: GameOverModalProps) {
   const router = useRouter();
   const path = isWinner ? "/animations/victory-trophy.json" : "/animations/game-over.json";
+  
+  // State untuk efek loading di tombol
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ==========================================
+  // JURUS BERSIH-BERSIH MANDIRI (Bypass RLS)
+  // ==========================================
+  const handleBackToArena = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // 1. Cari id_mahasiswa milik user ini
+        const { data: userData } = await supabase
+          .from("user")
+          .select("id_mahasiswa")
+          .eq("auth_user_id", user.id)
+          .single();
+
+        if (userData?.id_mahasiswa) {
+          // 2. Reset status inRoom jadi FALSE di tabel mahasiswa
+          await supabase
+            .from("mahasiswa")
+            .update({ inRoom: false })
+            .eq("id_mahasiswa", userData.id_mahasiswa);
+        }
+
+        // 3. Pastikan juga dia terhapus dari room_player
+        await supabase
+          .from("room_player")
+          .delete()
+          .eq("id_user", user.id);
+      }
+    } catch (error) {
+      console.error("Gagal mereset status pemain:", error);
+    } finally {
+      // Apapun yang terjadi, tetap kembalikan ke Arena
+      router.push("/arena");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
@@ -56,11 +100,10 @@ export default function GameOverModal({ isWinner, earnedBadge }: GameOverModalPr
           </>
         ) : (
           <>
-
             <div className="w-40 h-40 relative z-10 -mb-2">
               <Player
                 autoplay
-                loop={true} // <-- UBAH INI JADI TRUE
+                loop={true}
                 src={path}
                 style={{ height: '100%', width: '100%' }}
               />
@@ -75,10 +118,12 @@ export default function GameOverModal({ isWinner, earnedBadge }: GameOverModalPr
         )}
 
         <button
-          onClick={() => router.push("/arena")}
-          className="w-full mt-4 py-3.5 rounded-xl bg-[#5B5288] text-white font-bold hover:bg-[#4A4270] hover:shadow-lg transition-all relative z-10"
+          onClick={handleBackToArena}
+          disabled={isLoading}
+          className="w-full mt-4 py-3.5 rounded-xl bg-[#5B5288] text-white font-bold hover:bg-[#4A4270] hover:shadow-lg transition-all relative z-10 flex items-center justify-center gap-2"
         >
-          Kembali ke Arena Kelas
+          {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+          {isLoading ? "Membersihkan Arena..." : "Kembali ke Arena Kelas"}
         </button>
       </div>
     </div>
