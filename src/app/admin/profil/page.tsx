@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Pencil, Check, X } from 'lucide-react'
+import { Pencil, Check, X, User, AtSign, Mail, MapPin, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 interface AdminProfile {
@@ -205,68 +205,79 @@ export default function ProfilAdminPage() {
   }
 
   return (
-    <>
-      {/* TOP: AVATAR + INFO + EDIT BUTTON */}
-      <div className="profile-top-row">
-        <div className="profile-avatar-box" onClick={handleAvatarClick}>
-          {avatarPreview || profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarPreview || profile.avatar_url || ''}
-              alt="Foto profil"
+    <div>
+      {/* HERO */}
+      <div className="profile-hero">
+        <div className="profile-top-row">
+          <div className="profile-avatar-box" onClick={handleAvatarClick}>
+            {avatarPreview || profile.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarPreview || profile.avatar_url || ''}
+                alt="Foto profil"
+              />
+            ) : (
+              <div className="profile-avatar-placeholder">
+                {profile.nama_admin.charAt(0).toUpperCase() || 'A'}
+              </div>
+            )}
+
+            {isEditing && (
+              <div className="profile-avatar-overlay">Ganti Foto</div>
+            )}
+
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleAvatarSelect}
             />
+          </div>
+
+          <div className="profile-info-block">
+            <h1>{profile.nama_admin || 'Administrator'}</h1>
+            <div className="profile-info-meta">
+              <span className="profile-role-badge">
+                <ShieldCheck size={13} strokeWidth={2.5} />
+                Administrator
+              </span>
+              <span className="profile-location">
+                <MapPin size={13} strokeWidth={2.5} />
+                {profile.lokasi || 'Malang City Hardcore'}
+              </span>
+            </div>
+          </div>
+
+          {!isEditing ? (
+            <button
+              className="profile-edit-btn"
+              onClick={startEditing}
+              aria-label="Edit profil"
+            >
+              <Pencil size={18} />
+            </button>
           ) : (
-            <div className="profile-avatar-placeholder">
-              {profile.nama_admin.charAt(0).toUpperCase() || 'A'}
+            <div className="profile-edit-actions">
+              <button
+                className="profile-edit-btn confirm"
+                onClick={handleSave}
+                disabled={saving}
+                aria-label="Simpan"
+              >
+                <Check size={18} />
+              </button>
+              <button
+                className="profile-edit-btn cancel"
+                onClick={cancelEditing}
+                disabled={saving}
+                aria-label="Batal"
+              >
+                <X size={18} />
+              </button>
             </div>
           )}
-
-          {isEditing && (
-            <div className="profile-avatar-overlay">Ganti Foto</div>
-          )}
-
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={handleAvatarSelect}
-          />
         </div>
-
-        <div className="profile-info-block">
-          <h1>{profile.nama_admin || 'Administrator'}</h1>
-          <p>{profile.lokasi || 'Malang City Hardcore'}</p>
-        </div>
-
-        {!isEditing ? (
-          <button
-            className="profile-edit-btn"
-            onClick={startEditing}
-            aria-label="Edit profil"
-          >
-            <Pencil size={18} />
-          </button>
-        ) : (
-          <div className="profile-edit-actions">
-            <button
-              className="profile-edit-btn confirm"
-              onClick={handleSave}
-              disabled={saving}
-              aria-label="Simpan"
-            >
-              <Check size={18} />
-            </button>
-            <button
-              className="profile-edit-btn cancel"
-              onClick={cancelEditing}
-              disabled={saving}
-              aria-label="Batal"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
       </div>
 
       {error && <p className="profile-error">{error}</p>}
@@ -274,7 +285,10 @@ export default function ProfilAdminPage() {
       {/* FIELDS PANEL */}
       <div className="profile-fields-panel">
         <div className="profile-field">
-          <label>Nama</label>
+          <label>
+            <User size={14} strokeWidth={2.25} />
+            Nama
+          </label>
           <input
             type="text"
             value={form.nama_admin}
@@ -286,7 +300,10 @@ export default function ProfilAdminPage() {
         </div>
 
         <div className="profile-field">
-          <label>Username</label>
+          <label>
+            <AtSign size={14} strokeWidth={2.25} />
+            Username
+          </label>
           <input
             type="text"
             value={form.username}
@@ -298,7 +315,10 @@ export default function ProfilAdminPage() {
         </div>
 
         <div className="profile-field">
-          <label>Email</label>
+          <label>
+            <Mail size={14} strokeWidth={2.25} />
+            Email
+          </label>
           <input
             type="email"
             value={form.email}
@@ -307,6 +327,6 @@ export default function ProfilAdminPage() {
           />
         </div>
       </div>
-    </>
+    </div>
   )
 }

@@ -24,7 +24,6 @@ import {
   ScrollText,
   User,
   LogOut,
-  Bell,
   CircleUserRound,
   ChevronLeft,
   ChevronRight,
@@ -243,61 +242,9 @@ export default function AdminLayout({
     }
   }, [router])
 
-  // =====================================================
-  // CEK STATUS SETIAP 30 DETIK
-  // =====================================================
 
-  useEffect(() => {
-    const intervalId =
-      setInterval(async () => {
-        try {
-          const {
-            data,
-            error,
-          } =
-            await supabase.auth.getSession()
 
-          if (error) {
-            console.error(
-              'PERIODIC SESSION ERROR:',
-              error.message
-            )
 
-            return
-          }
-
-          const session =
-            data.session
-
-          if (!session) {
-            router.replace('/login')
-            return
-          }
-
-          const masihAktif =
-            await checkStatusAktif(
-              session.user.id
-            )
-
-          if (!masihAktif) {
-            await supabase.auth.signOut()
-
-            router.replace(
-              '/login?nonaktif=1'
-            )
-          }
-        } catch (error) {
-          console.error(
-            'PERIODIC STATUS ERROR:',
-            error
-          )
-        }
-      }, 30000)
-
-    return () => {
-      clearInterval(intervalId)
-    }
-  }, [router])
 
   // =====================================================
   // LOGOUT
@@ -392,11 +339,10 @@ export default function AdminLayout({
 
   return (
     <div
-      className={`admin-layout ${
-        isCollapsed
+      className={`admin-layout ${isCollapsed
           ? 'sidebar-collapsed'
           : ''
-      }`}
+        }`}
     >
 
       {/* =================================================
@@ -405,11 +351,10 @@ export default function AdminLayout({
 
       <button
         type="button"
-        className={`sidebar-external-toggle ${
-          isCollapsed
+        className={`sidebar-external-toggle ${isCollapsed
             ? 'collapsed'
             : ''
-        }`}
+          }`}
         onClick={() =>
           setIsCollapsed(
             (prev) => !prev
@@ -437,11 +382,10 @@ export default function AdminLayout({
       ================================================= */}
 
       <aside
-        className={`sidebar ${
-          isCollapsed
+        className={`sidebar ${isCollapsed
             ? 'collapsed'
             : ''
-        }`}
+          }`}
       >
 
         {/* LOGO */}
@@ -529,12 +473,12 @@ export default function AdminLayout({
           MAIN AREA
       ================================================= */}
 
+
       <div
-        className={`main-area ${
-          isCollapsed
+        className={`main-area ${isCollapsed
             ? 'full-width'
             : ''
-        }`}
+          }`}
       >
 
         {/* =================================================
@@ -545,29 +489,13 @@ export default function AdminLayout({
 
           <div className="navbar-icons">
 
-            {/* NOTIFICATION */}
-
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Notifications"
-            >
-              <Bell
-                size={22}
-                strokeWidth={1.8}
-              />
-            </button>
-
             {/* PROFILE */}
-
             <button
               type="button"
               className="icon-button"
               aria-label="Profile"
               onClick={() =>
-                router.push(
-                  '/admin/profil'
-                )
+                router.push('/admin/profil')
               }
             >
               <CircleUserRound
