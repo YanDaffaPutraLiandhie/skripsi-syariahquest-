@@ -340,8 +340,8 @@ export default function AdminLayout({
   return (
     <div
       className={`admin-layout ${isCollapsed
-          ? 'sidebar-collapsed'
-          : ''
+        ? 'sidebar-collapsed'
+        : ''
         }`}
     >
 
@@ -352,8 +352,8 @@ export default function AdminLayout({
       <button
         type="button"
         className={`sidebar-external-toggle ${isCollapsed
-            ? 'collapsed'
-            : ''
+          ? 'collapsed'
+          : ''
           }`}
         onClick={() =>
           setIsCollapsed(
@@ -383,8 +383,8 @@ export default function AdminLayout({
 
       <aside
         className={`sidebar ${isCollapsed
-            ? 'collapsed'
-            : ''
+          ? 'collapsed'
+          : ''
           }`}
       >
 
@@ -476,8 +476,8 @@ export default function AdminLayout({
 
       <div
         className={`main-area ${isCollapsed
-            ? 'full-width'
-            : ''
+          ? 'full-width'
+          : ''
           }`}
       >
 
