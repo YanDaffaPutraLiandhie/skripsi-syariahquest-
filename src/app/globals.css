@@ -1887,20 +1887,27 @@ body {
   font-size: 14px;
 }
 
+/* HERO: banner ungu solid, sama pola dengan page-banner / level-detail-panel */
+.profile-hero {
+  background-color: var(--primary);
+  border-radius: 20px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+}
+
 .profile-top-row {
   display: flex;
   align-items: center;
-  gap: 28px;
-  margin-bottom: 32px;
+  gap: 24px;
 }
 
 .profile-avatar-box {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 140px;
+  height: 140px;
   flex-shrink: 0;
   border-radius: 16px;
-  background-color: var(--primary);
+  background-color: var(--secondary);
   overflow: hidden;
   cursor: default;
 }
@@ -1917,22 +1924,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #FFFFFF;
-  font-size: 56px;
-  font-weight: 700;
+  color: var(--primary);
+  font-size: 48px;
+  font-weight: 800;
 }
 
 .profile-avatar-overlay {
   position: absolute;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.45);
+  background-color: rgba(31, 41, 55, 0.55);
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  text-align: center;
+  padding: 0 12px;
 }
 
 .profile-info-block {
@@ -1940,47 +1949,74 @@ body {
 }
 
 .profile-info-block h1 {
-  margin: 0 0 6px;
-  color: var(--primary);
-  font-size: 40px;
+  margin: 0 0 10px;
+  color: #FFFFFF;
+  font-size: 32px;
   font-weight: 800;
 }
 
-.profile-info-block p {
-  margin: 0;
-  color: var(--text-gray);
-  font-size: 15px;
+.profile-info-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
+.profile-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--secondary);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.profile-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+}
+
+/* Tombol edit / simpan / batal — pola sama dengan icon-button lain di app */
 .profile-edit-btn {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
-  background-color: var(--primary);
-  color: #FFFFFF;
+  background-color: #FFFFFF;
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.15s ease;
+  flex-shrink: 0;
 }
 
 .profile-edit-btn:hover {
   transform: translateY(-2px);
+  opacity: 0.9;
 }
 
 .profile-edit-actions {
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .profile-edit-btn.confirm {
-  background-color: #22C55E;
+  background-color: var(--easy);
+  color: #FFFFFF;
 }
 
 .profile-edit-btn.cancel {
-  background-color: #DC2626;
+  background-color: var(--hard);
+  color: #FFFFFF;
 }
 
 .profile-edit-btn:disabled {
@@ -1991,15 +2027,15 @@ body {
 .profile-error {
   color: var(--hard);
   font-size: 13px;
-  margin: -20px 0 20px;
+  font-weight: 600;
+  margin: -12px 0 20px;
 }
 
-
-/* FIELDS PANEL */
-
+/* FIELDS PANEL — pola sama dengan modul-form-panel / soal-form-panel:
+   panel ungu solid + label putih tebal + pill input putih */
 .profile-fields-panel {
-  background-color: var(--secondary);
-  border-radius: 18px;
+  background-color: var(--primary);
+  border-radius: 20px;
   padding: 28px 32px;
 }
 
@@ -2012,16 +2048,22 @@ body {
 }
 
 .profile-field label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 10px;
   color: #FFFFFF;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
+}
+
+.profile-field label svg {
+  color: var(--secondary);
 }
 
 .profile-field input {
   width: 100%;
-  height: 52px;
+  height: 48px;
   padding: 0 22px;
   border: none;
   border-radius: 999px;
@@ -2037,9 +2079,8 @@ body {
 }
 
 .profile-field input:not(:read-only):focus {
-  box-shadow: 0 0 0 3px rgba(80, 66, 126, 0.3);
+  box-shadow: 0 0 0 3px var(--secondary);
 }
-
 
 /* Responsive */
 @media (max-width: 700px) {
@@ -2048,16 +2089,19 @@ body {
   }
 
   .profile-avatar-box {
-    width: 120px;
-    height: 120px;
+    width: 96px;
+    height: 96px;
   }
 
   .profile-info-block h1 {
-    font-size: 28px;
+    font-size: 24px;
+  }
+
+  .profile-edit-btn,
+  .profile-edit-actions {
+    margin-left: 0;
   }
 }
-
-
 /* =========================================
    MANAJEMEN GAME
 ========================================= */

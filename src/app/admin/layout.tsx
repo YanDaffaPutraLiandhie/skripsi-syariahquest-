@@ -24,7 +24,6 @@ import {
   ScrollText,
   User,
   LogOut,
-  Bell,
   CircleUserRound,
   ChevronLeft,
   ChevronRight,
@@ -243,61 +242,9 @@ export default function AdminLayout({
     }
   }, [router])
 
-  // =====================================================
-  // CEK STATUS SETIAP 30 DETIK
-  // =====================================================
+  
 
-  useEffect(() => {
-    const intervalId =
-      setInterval(async () => {
-        try {
-          const {
-            data,
-            error,
-          } =
-            await supabase.auth.getSession()
-
-          if (error) {
-            console.error(
-              'PERIODIC SESSION ERROR:',
-              error.message
-            )
-
-            return
-          }
-
-          const session =
-            data.session
-
-          if (!session) {
-            router.replace('/login')
-            return
-          }
-
-          const masihAktif =
-            await checkStatusAktif(
-              session.user.id
-            )
-
-          if (!masihAktif) {
-            await supabase.auth.signOut()
-
-            router.replace(
-              '/login?nonaktif=1'
-            )
-          }
-        } catch (error) {
-          console.error(
-            'PERIODIC STATUS ERROR:',
-            error
-          )
-        }
-      }, 30000)
-
-    return () => {
-      clearInterval(intervalId)
-    }
-  }, [router])
+  
 
   // =====================================================
   // LOGOUT
@@ -529,6 +476,7 @@ export default function AdminLayout({
           MAIN AREA
       ================================================= */}
 
+
       <div
         className={`main-area ${
           isCollapsed
@@ -543,42 +491,26 @@ export default function AdminLayout({
 
         <header className="top-navbar">
 
-          <div className="navbar-icons">
+  <div className="navbar-icons">
 
-            {/* NOTIFICATION */}
+    {/* PROFILE */}
+    <button
+      type="button"
+      className="icon-button"
+      aria-label="Profile"
+      onClick={() =>
+        router.push('/admin/profil')
+      }
+    >
+      <CircleUserRound
+        size={24}
+        strokeWidth={1.8}
+      />
+    </button>
 
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Notifications"
-            >
-              <Bell
-                size={22}
-                strokeWidth={1.8}
-              />
-            </button>
+  </div>
 
-            {/* PROFILE */}
-
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Profile"
-              onClick={() =>
-                router.push(
-                  '/admin/profil'
-                )
-              }
-            >
-              <CircleUserRound
-                size={24}
-                strokeWidth={1.8}
-              />
-            </button>
-
-          </div>
-
-        </header>
+</header>
 
         {/* =================================================
             CONTENT
