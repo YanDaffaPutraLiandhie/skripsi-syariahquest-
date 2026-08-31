@@ -8,6 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-nunito)", "sans-serif"],
+      },
       colors: {
         primary: "#50427E",
         secondary: "#C1BAD8",
@@ -17,6 +20,11 @@ const config: Config = {
         medium: "#EFD01E",
         hard: "#DC2023",
       },
+      boxShadow: {
+        'game': '0 6px 0 rgba(0, 0, 0, 0.1)',
+        'game-hover': '0 2px 0 rgba(0, 0, 0, 0.1)',
+        'game-press': '0 0px 0 rgba(0, 0, 0, 0.1)',
+      }
     },
   },
   plugins: [],
