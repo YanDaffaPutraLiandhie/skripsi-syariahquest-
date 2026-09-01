@@ -139,7 +139,7 @@ export default function WaitingRoom({
   }, [searchQuery, searchMahasiswa]);
 
   // ==============================
-  // KIRIM UNDANGAN
+  // KIRIM UNDANGAN (SUDAH DI-FIX ANTI ERROR)
   // ==============================
   const handleSendInvite = async (invitedUserId: string) => {
     if (!currentUserId || !roomId) return;
@@ -158,11 +158,19 @@ export default function WaitingRoom({
       return;
     }
 
-    // Cegah invite ulang
+    // Cegah invite ulang jika masih ada di state UI
     if (invitedIds.includes(invitedUserId)) {
       return;
     }
 
+    // JURUS FIX: Bersihkan dulu sisa undangan lama di database buat user ini!
+    await supabase
+      .from("room_invitation")
+      .delete()
+      .eq("id_room", roomId)
+      .eq("invited_user_id", invitedUserId);
+
+    // Kirim undangan baru
     const { error } = await supabase.from("room_invitation").insert({
       id_room: roomId,
       invited_user_id: invitedUserId,
@@ -189,18 +197,19 @@ export default function WaitingRoom({
   const isEnoughPlayers = players.length >= 2;
 
   // ==============================
-  // BEFORE UNLOAD (Diperbaiki jadi DELETE!)
+  // BEFORE UNLOAD
   // ==============================
   useEffect(() => {
     if (!currentUserId || !roomId) return;
 
     const handleBeforeUnload = () => {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      const supabaseKey =
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
       if (!supabaseUrl || !supabaseKey) {
         console.error(
-          "URL atau Key Supabase tidak tersedia.",
+          "NEXT_PUBLIC_SUPABASE_URL atau NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY tidak tersedia.",
         );
         return;
       }
@@ -211,10 +220,13 @@ export default function WaitingRoom({
           .split(".")[0];
 
         const storageKey = `sb-${projectRef}-auth-token`;
+
         const storedSession = localStorage.getItem(storageKey);
 
         if (!storedSession) return;
+
         const parsedSession = JSON.parse(storedSession);
+
         const accessToken = parsedSession?.access_token;
 
         if (!accessToken) return;
@@ -224,7 +236,7 @@ export default function WaitingRoom({
           `?id_room=eq.${encodeURIComponent(roomId)}` +
           `&id_user=eq.${encodeURIComponent(currentUserId)}`;
 
-        // PERBAIKAN: Gunakan method DELETE untuk room_player
+        // SUDAH DI-FIX: Menggunakan method DELETE
         fetch(url, {
           method: "DELETE",
           headers: {
@@ -241,7 +253,7 @@ export default function WaitingRoom({
           );
         });
 
-        // Update mahasiswa inRoom ke false tetap pakai PATCH (ini sudah benar)
+        // Update mahasiswa inRoom ke false
         const myProfile = profiles?.[currentUserId];
         if (myProfile?.idMahasiswa) {
           const mhsUrl =
@@ -300,6 +312,7 @@ export default function WaitingRoom({
 
       {/* BACKGROUND DECORATION */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-200/40 rounded-full blur-3xl pointer-events-none" />
+
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-blue-200/40 rounded-full blur-3xl pointer-events-none" />
 
       {/* TITLE */}
@@ -307,6 +320,7 @@ export default function WaitingRoom({
         <h1 className="text-4xl font-black text-[#5B5288] drop-shadow-sm">
           Ruang Tunggu
         </h1>
+
         <p className="text-gray-500 font-medium">
           Ajak temanmu untuk mulai bermain!
         </p>
@@ -318,6 +332,7 @@ export default function WaitingRoom({
           <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
             PIN RUANG
           </span>
+
           <div className="bg-white text-[#5B5288] font-black text-3xl px-10 py-3 rounded-2xl shadow-sm border-2 border-purple-100 tracking-[0.2em]">
             {pin}
           </div>
@@ -344,6 +359,7 @@ export default function WaitingRoom({
           ) : (
             <Copy className="w-4 h-4" />
           )}
+
           <span className="text-xs">
             {isCopied ? "Tersalin!" : "Salin Link"}
           </span>
@@ -352,22 +368,28 @@ export default function WaitingRoom({
 
       {/* PLAYER LIST */}
       <div className="z-10 bg-white rounded-3xl shadow-sm border border-gray-100 p-6 w-full max-w-md mt-2">
+
         <div className="flex justify-between items-center mb-5">
           <p className="text-sm font-bold text-gray-400 flex items-center gap-2">
             <Users className="w-4 h-4" />
             Daftar Pemain
           </p>
+
           <span className="bg-purple-100 text-purple-700 font-black text-xs px-3 py-1 rounded-full">
             {players.length} / 4
           </span>
         </div>
 
         <div className="flex flex-col gap-3">
+
+          {/* PEMAIN YANG SUDAH MASUK */}
           {players.map((player) => {
             const profile = profiles?.[player.id_user];
+
             const avatarSrc =
               profile?.avatarUrl ||
               "/images/avatars/avatar1.svg";
+
             const playerName =
               profile?.namaMahasiswa || "Pemain";
 
@@ -376,6 +398,7 @@ export default function WaitingRoom({
                 key={player.id_room_player}
                 className="flex items-center gap-4 bg-gray-50 p-2.5 rounded-2xl border border-gray-100 transition-all hover:bg-purple-50 hover:border-purple-100"
               >
+                {/* AVATAR */}
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-white shadow-sm border-2 border-white">
                   <img
                     src={avatarSrc}
@@ -383,11 +406,15 @@ export default function WaitingRoom({
                     className="w-full h-full object-cover"
                   />
                 </div>
+
+                {/* NAMA */}
                 <span className="font-bold text-[#5B5288] flex-1 text-base">
                   {player.id_user === currentUserId
                     ? "Kamu"
                     : playerName}
                 </span>
+
+                {/* HOST */}
                 {player.is_host && (
                   <div className="bg-yellow-100 p-1.5 rounded-lg">
                     <Crown className="w-4 h-4 text-yellow-600" />
@@ -397,6 +424,7 @@ export default function WaitingRoom({
             );
           })}
 
+          {/* SLOT KOSONG */}
           {[...Array(Math.max(0, 4 - players.length))].map(
             (_, i) => (
               <div
@@ -415,6 +443,7 @@ export default function WaitingRoom({
                     <UserPlus className="w-5 h-5 text-gray-400" />
                   )}
                 </div>
+
                 <span className="font-semibold text-gray-400 flex-1 text-sm italic">
                   {isHost
                     ? "Klik untuk mengundang pemain..."
@@ -428,8 +457,12 @@ export default function WaitingRoom({
 
       {/* ACTION BUTTONS */}
       <div className="z-10 mt-4 flex flex-col items-center gap-3 w-full max-w-md">
+
+        {/* HOST */}
         {isHost ? (
           <div className="flex gap-3 w-full">
+
+            {/* LEAVE */}
             <button
               onClick={handleLeaveRoom}
               disabled={isStarting || isLeaving}
@@ -442,6 +475,8 @@ export default function WaitingRoom({
                 <LogOut className="w-5 h-5" />
               )}
             </button>
+
+            {/* START */}
             <button
               onClick={handleStart}
               disabled={
@@ -454,13 +489,17 @@ export default function WaitingRoom({
               {isStarting && (
                 <Loader2 className="w-5 h-5 animate-spin" />
               )}
+
               {isStarting
                 ? "Menyiapkan Arena..."
                 : "Mulai Permainan 🎮"}
             </button>
           </div>
         ) : (
+          /* NON HOST */
           <div className="flex gap-3 w-full">
+
+            {/* LEAVE */}
             <button
               onClick={handleLeaveRoom}
               disabled={isLeaving}
@@ -473,8 +512,11 @@ export default function WaitingRoom({
                 <LogOut className="w-5 h-5" />
               )}
             </button>
+
+            {/* WAITING */}
             <div className="flex-1 bg-white px-6 py-3 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center gap-3">
               <Loader2 className="w-5 h-5 animate-spin text-[#5B5288]" />
+
               <p className="text-[#5B5288] font-bold text-sm">
                 Menunggu host memulai permainan...
               </p>
@@ -482,6 +524,7 @@ export default function WaitingRoom({
           </div>
         )}
 
+        {/* WARNING */}
         {isHost && !isEnoughPlayers && (
           <p className="text-red-500 font-semibold text-sm animate-pulse bg-red-50 px-4 py-1.5 rounded-full mt-2">
             ⚠️ Butuh minimal 2 pemain untuk mulai.
@@ -492,7 +535,10 @@ export default function WaitingRoom({
       {/* INVITE MODAL */}
       {showInviteModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+
           <div className="bg-white w-full max-w-[400px] rounded-3xl p-6 shadow-2xl relative animate-fade-in-up">
+
+            {/* CLOSE */}
             <button
               onClick={handleCloseInviteModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -501,12 +547,15 @@ export default function WaitingRoom({
               <X className="w-6 h-6" />
             </button>
 
+            {/* TITLE */}
             <h2 className="text-xl font-black text-[#5B5288] mb-4 text-center">
               Undang Teman
             </h2>
 
+            {/* SEARCH */}
             <div className="relative mb-6">
               <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+
               <input
                 type="text"
                 placeholder="Cari nama mahasiswa..."
@@ -518,12 +567,15 @@ export default function WaitingRoom({
               />
             </div>
 
+            {/* SEARCH RESULT */}
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+
               {isSearching ? (
                 <div className="flex justify-center py-4">
                   <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
                 </div>
               ) : results.length > 0 ? (
+
                 results.map((mhs) => {
                   const isInvited =
                     invitedIds.includes(mhs.id_user);
@@ -535,14 +587,18 @@ export default function WaitingRoom({
                     );
 
                   const isUnavailable =
-                    mhs.inRoom || isAlreadyInThisRoom;
+                    mhs.inRoom ||
+                    isAlreadyInThisRoom;
 
                   return (
                     <div
                       key={mhs.id_mahasiswa}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100"
                     >
+
+                      {/* PROFILE */}
                       <div className="flex items-center gap-3">
+
                         <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
                           <img
                             src={
@@ -553,11 +609,13 @@ export default function WaitingRoom({
                             className="w-full h-full object-cover"
                           />
                         </div>
+
                         <span className="font-bold text-[#5B5288] text-sm max-w-[120px] truncate">
                           {mhs.nama_mahasiswa}
                         </span>
                       </div>
 
+                      {/* STATUS */}
                       {isUnavailable ? (
                         <span className="text-xs font-bold text-gray-400 bg-gray-200 px-3 py-1.5 rounded-lg">
                           Di Ruangan
@@ -569,7 +627,9 @@ export default function WaitingRoom({
                       ) : (
                         <button
                           onClick={() =>
-                            handleSendInvite(mhs.id_user)
+                            handleSendInvite(
+                              mhs.id_user,
+                            )
                           }
                           className="text-xs font-bold text-white bg-[#5B5288] hover:bg-purple-700 px-4 py-1.5 rounded-lg transition-colors"
                         >
@@ -579,11 +639,15 @@ export default function WaitingRoom({
                     </div>
                   );
                 })
+
               ) : searchQuery.trim() !== "" ? (
+
                 <p className="text-center text-sm font-semibold text-gray-400 py-4">
                   Mahasiswa tidak ditemukan.
                 </p>
+
               ) : (
+
                 <p className="text-center text-sm font-semibold text-gray-400 py-4">
                   Ketik nama untuk mencari teman.
                 </p>
