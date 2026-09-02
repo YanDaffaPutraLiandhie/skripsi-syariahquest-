@@ -88,11 +88,6 @@ export default function BoardGameArena({
     updateMyPosisi,
     passTurnToNext,
     finishGame,
-
-    // =====================================================
-    // FIX UTAMA:
-    // Ambil leaveRoom dari useRoom()
-    // =====================================================
     leaveRoom,
   } = useRoom(roomId);
 
@@ -114,6 +109,7 @@ export default function BoardGameArena({
   );
 
   const { profiles } = usePlayerProfiles(allUserIds);
+  const myName = profiles[currentUserId as string]?.namaMahasiswa || "Pemain"; // Buat broadcast dinamis
 
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -145,7 +141,6 @@ export default function BoardGameArena({
 
   const flashSkillEffect = (config: SkillEffectConfig) => {
     setSkillEffect(config);
-
     setTimeout(() => {
       setSkillEffect(null);
     }, 1800);
@@ -157,13 +152,11 @@ export default function BoardGameArena({
 
   const [usedSoalIds, setUsedSoalIds] = useState<number[]>([]);
 
-  const [activeSkillId, setActiveSkillId] =
-    useState<number | null>(null);
+  const [activeSkillId, setActiveSkillId] = useState<number | null>(null);
 
   const [hasShield, setHasShield] = useState(false);
   const [hasExtraTurn, setHasExtraTurn] = useState(false);
-  const [hasUsedSkillThisTurn, setHasUsedSkillThisTurn] =
-    useState(false);
+  const [hasUsedSkillThisTurn, setHasUsedSkillThisTurn] = useState(false);
 
   const [earnedBadge, setEarnedBadge] = useState<{
     nama_badge: string;
@@ -172,13 +165,66 @@ export default function BoardGameArena({
 
   const hasPlayedEndSfx = useRef(false);
 
+// ==========================================================
+  // FITUR BARU: BROADCAST MULTIPLAYER (Kirim notif ke teman)
+  // ==========================================================
+  const broadcastChannelRef = useRef<any>(null);
+  const [isBroadcastReady, setIsBroadcastReady] = useState(false); // <-- State Baru untuk ngecek antena
+
+  useEffect(() => {
+    if (!roomId || !currentUserId) return;
+
+    // Bikin antena radio khusus room ini
+    const channel = supabase.channel(`arena-events-${roomId}`);
+    
+    channel.on("broadcast", { event: "game_action" }, (payload) => {
+      const { message, userId } = payload.payload;
+      
+      // HANYA tampilkan pesan jika yang ngirim BUKAN kita sendiri
+      if (userId !== currentUserId) {
+        setToastMsg(message);
+        
+        // Hapus pesan setelah 4 detik, tapii pastikan pesannya belum diganti yang baru
+        setTimeout(() => {
+          setToastMsg((prev) => (prev === message ? "" : prev));
+        }, 4000);
+      }
+    }).subscribe((status) => {
+      // Cek apakah channel beneran udah nyambung sebelum ngizinin broadcast
+      if (status === 'SUBSCRIBED') {
+        setIsBroadcastReady(true);
+      }
+    });
+
+    broadcastChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId, currentUserId]);
+
+  // Fungsi buat teriak ke antena radio
+  const sendBroadcast = (msg: string) => {
+    // Kunci pelatuknya kalau antena belum siap supaya pesan nggak ilang ditelan bumi!
+    if (!isBroadcastReady) {
+      console.warn("Broadcast belum siap, pesan ditahan:", msg);
+      return; 
+    }
+    
+    broadcastChannelRef.current?.send({
+      type: "broadcast",
+      event: "game_action",
+      payload: { message: msg, userId: currentUserId },
+    });
+  };
+  // ==========================================================
+
   useEffect(() => {
     if (
       room?.status === "finished" &&
       !hasPlayedEndSfx.current
     ) {
       hasPlayedEndSfx.current = true;
-
       if (
         currentUserId &&
         currentUserId !== room.winner_user_id
@@ -186,19 +232,11 @@ export default function BoardGameArena({
         playSfx("lose");
       }
     }
-  }, [
-    room?.status,
-    currentUserId,
-    room?.winner_user_id,
-    playSfx,
-  ]);
-
+  }, [room?.status, currentUserId, room?.winner_user_id, playSfx]);
+  
   const incrementStat = async (
     idMahasiswa: number,
-    statColumn:
-      | "arena_main"
-      | "arena_menang"
-      | "arena_jebakan"
+    statColumn: "arena_main" | "arena_menang" | "arena_jebakan"
   ) => {
     try {
       const { data } = await supabase
@@ -227,9 +265,7 @@ export default function BoardGameArena({
     if (isMyTurn) {
       setHasRolled(false);
       hasRolledRef.current = false;
-
       setHasUsedSkillThisTurn(false);
-
       turnPassedRef.current = false;
     }
   }, [isMyTurn]);
@@ -250,27 +286,19 @@ export default function BoardGameArena({
       !hasIncrementedMainRef.current
     ) {
       hasIncrementedMainRef.current = true;
-
-      const myIdMahasiswa =
-        profiles[currentUserId].idMahasiswa;
-
+      const myIdMahasiswa = profiles[currentUserId].idMahasiswa;
       incrementStat(myIdMahasiswa, "arena_main");
     }
   }, [room?.status, currentUserId, profiles]);
 
   useEffect(() => {
     setCanSkipTurn(false);
-
     if (!room?.turn_started_at || isMyTurn) {
       return;
     }
 
-    const turnStartedAt = new Date(
-      room.turn_started_at
-    ).getTime();
-
-    const msRemaining =
-      60_000 - (Date.now() - turnStartedAt);
+    const turnStartedAt = new Date(room.turn_started_at).getTime();
+    const msRemaining = 60_000 - (Date.now() - turnStartedAt);
 
     if (msRemaining <= 0) {
       setCanSkipTurn(true);
@@ -282,11 +310,7 @@ export default function BoardGameArena({
     }, msRemaining);
 
     return () => clearTimeout(timer);
-  }, [
-    room?.turn_started_at,
-    room?.current_turn_user_id,
-    isMyTurn,
-  ]);
+  }, [room?.turn_started_at, room?.current_turn_user_id, isMyTurn]);
 
   const handleSkipTurn = () => {
     passTurnToNext();
@@ -295,7 +319,6 @@ export default function BoardGameArena({
 
   const endTurnOnce = () => {
     if (turnPassedRef.current) return;
-
     turnPassedRef.current = true;
 
     if (hasExtraTurn) {
@@ -303,17 +326,10 @@ export default function BoardGameArena({
       setHasRolled(false);
       hasRolledRef.current = false;
       setHasUsedSkillThisTurn(false);
-
       turnPassedRef.current = false;
 
-      setToastMsg(
-        "❄️ Ramuan Waktu: Kamu dapat 1 giliran lagi!"
-      );
-
-      setTimeout(() => {
-        setToastMsg("");
-      }, 3000);
-
+      setToastMsg("❄️ Ramuan Waktu: Kamu dapat 1 giliran lagi!");
+      setTimeout(() => setToastMsg(""), 3000);
       return;
     }
 
@@ -324,75 +340,43 @@ export default function BoardGameArena({
     if (mapCoords.length === 0) return;
 
     const max = mapCoords.length - 1;
-
     const totalPetakBermain = max - 1;
 
     if (totalPetakBermain <= 0) return;
 
-    let jumlahJebakan = Math.ceil(
-      totalPetakBermain * 0.25
-    );
-
+    let jumlahJebakan = Math.ceil(totalPetakBermain * 0.25);
     jumlahJebakan = Math.max(
       1,
-      Math.min(
-        jumlahJebakan,
-        Math.floor(totalPetakBermain * 0.5)
-      )
+      Math.min(jumlahJebakan, Math.floor(totalPetakBermain * 0.5))
     );
 
     const newTraps = new Set<number>();
-
     while (newTraps.size < jumlahJebakan) {
-      const randomTile =
-        Math.floor(
-          Math.random() * totalPetakBermain
-        ) + 1;
-
+      const randomTile = Math.floor(Math.random() * totalPetakBermain) + 1;
       newTraps.add(randomTile);
     }
-
-    console.log(
-      `Arena ini punya ${mapCoords.length} petak. Total jebakan yang dipasang: ${jumlahJebakan}`
-    );
 
     await startGame(Array.from(newTraps));
   };
 
-  const handleUseSkill = async (
-    skillId: number,
-    hargaPoin: number
-  ) => {
+  const handleUseSkill = async (skillId: number, hargaPoin: number) => {
     if (!isMyTurn) {
-      setToastMsg(
-        "⚠️ Skill hanya bisa dipakai saat giliranmu!"
-      );
-
+      setToastMsg("⚠️ Skill hanya bisa dipakai saat giliranmu!");
       setTimeout(() => setToastMsg(""), 3000);
       return;
     }
-
     if (hasRolledRef.current) {
-      setToastMsg(
-        "⚠️ Tidak bisa pakai skill karena dadu sudah dilempar!"
-      );
-
+      setToastMsg("⚠️ Tidak bisa pakai skill karena dadu sudah dilempar!");
       setTimeout(() => setToastMsg(""), 3000);
       return;
     }
-
     if (hasUsedSkillThisTurn) {
-      setToastMsg(
-        "⚠️ Kamu sudah menggunakan skill di giliran ini!"
-      );
-
+      setToastMsg("⚠️ Kamu sudah menggunakan skill di giliran ini!");
       setTimeout(() => setToastMsg(""), 3000);
       return;
     }
 
-    const myIdMahasiswa =
-      profiles[currentUserId as string]?.idMahasiswa;
-
+    const myIdMahasiswa = profiles[currentUserId as string]?.idMahasiswa;
     if (!myIdMahasiswa) return;
 
     const { data: mhsData } = await supabase
@@ -404,10 +388,7 @@ export default function BoardGameArena({
     const currentXp = mhsData?.total_xp || 0;
 
     if (currentXp < hargaPoin) {
-      setToastMsg(
-        `❌ XP kurang! Butuh ${hargaPoin} pts, XP kamu ${currentXp} pts.`
-      );
-
+      setToastMsg(`❌ XP kurang! Butuh ${hargaPoin} pts, XP kamu ${currentXp} pts.`);
       setTimeout(() => setToastMsg(""), 3000);
       return;
     }
@@ -416,45 +397,35 @@ export default function BoardGameArena({
 
     if (Number(skillId) === 1) {
       setActiveSkillId(1);
-
       playSfx("skill_double");
-
-      setToastMsg(
-        "⚔️ Lemparan Ganda Aktif! (Dadu x2)"
-      );
-
+      setToastMsg("⚔️ Lemparan Ganda Aktif! (Dadu x2)");
       flashSkillEffect(SKILL_EFFECTS[1]);
+      
+      sendBroadcast(`⚔️ ${myName} menggunakan skill Lemparan Ganda!`); // BROADCAST
+      
     } else if (Number(skillId) === 2) {
       setHasShield(true);
-
       playSfx("skill_shield");
-
-      setToastMsg(
-        "🛡️ Perisai Aktif! Kamu kebal dari 1 bom."
-      );
-
+      setToastMsg("🛡️ Perisai Aktif! Kamu kebal dari 1 bom.");
       flashSkillEffect(SKILL_EFFECTS[2]);
+      
+      sendBroadcast(`🛡️ ${myName} mengaktifkan skill Perisai!`); // BROADCAST
+      
     } else if (Number(skillId) === 3) {
       setHasExtraTurn(true);
-
       playSfx("skill_time");
-
-      setToastMsg(
-        "❄️ Ramuan Waktu! Kamu mendapat 1 giliran ekstra."
-      );
-
+      setToastMsg("❄️ Ramuan Waktu! Kamu mendapat 1 giliran ekstra.");
       flashSkillEffect(SKILL_EFFECTS[3]);
+      
+      sendBroadcast(`❄️ ${myName} meminum Ramuan Waktu! (Dapat giliran ekstra)`); // BROADCAST
+      
     } else if (Number(skillId) === 4) {
       const opponentPositions = players
-        .filter(
-          (p) => p.id_user !== currentUserId
-        )
+        .filter((p) => p.id_user !== currentUserId)
         .map((p) => p.posisi);
 
       const maxOpponentPos =
-        opponentPositions.length > 0
-          ? Math.max(0, ...opponentPositions)
-          : 0;
+        opponentPositions.length > 0 ? Math.max(0, ...opponentPositions) : 0;
 
       if (maxOpponentPos > playerPosition) {
         hasRolledRef.current = true;
@@ -462,16 +433,13 @@ export default function BoardGameArena({
         turnPassedRef.current = false;
 
         playSfx("skill_teleport");
-
-        setToastMsg(
-          "🔀 Teleportasi! Kamu menyalin posisi musuh terdepan."
-        );
-
+        setToastMsg("🔀 Teleportasi! Kamu menyalin posisi musuh terdepan.");
         flashSkillEffect(SKILL_EFFECTS[4]);
+        
+        sendBroadcast(`🔀 ${myName} Teleportasi ke posisi terdepan!`); // BROADCAST
 
         setPlayerPosition(maxOpponentPos);
         setTargetPosition(maxOpponentPos);
-
         updateMyPosisi(maxOpponentPos);
 
         setTimeout(() => {
@@ -479,10 +447,7 @@ export default function BoardGameArena({
         }, 2500);
       } else {
         skillSuccess = false;
-
-        setToastMsg(
-          "⚠️ Kamu sudah di depan, Teleportasi gagal!"
-        );
+        setToastMsg("⚠️ Kamu sudah di depan, Teleportasi gagal!");
       }
     }
 
@@ -492,16 +457,12 @@ export default function BoardGameArena({
     }
 
     setHasUsedSkillThisTurn(true);
-
     setTimeout(() => setToastMsg(""), 3000);
-
     setShowSkills(false);
 
     await supabase
       .from("mahasiswa")
-      .update({
-        total_xp: currentXp - hargaPoin,
-      })
+      .update({ total_xp: currentXp - hargaPoin })
       .eq("id_mahasiswa", myIdMahasiswa);
   };
 
@@ -517,66 +478,42 @@ export default function BoardGameArena({
     }
 
     hasRolledRef.current = true;
-
     setHasRolled(true);
-
     turnPassedRef.current = false;
-
     setIsRolling(true);
-
     playSfx("roll_dice");
 
-    let finalRoll =
-      Math.floor(Math.random() * 6) + 1;
-
+    let finalRoll = Math.floor(Math.random() * 6) + 1;
     let totalSteps = finalRoll;
-
     const isDouble = activeSkillId === 1;
-
     let roll2 = 0;
 
     if (isDouble) {
-      roll2 =
-        Math.floor(Math.random() * 6) + 1;
-
+      roll2 = Math.floor(Math.random() * 6) + 1;
       totalSteps = finalRoll + roll2;
     }
 
     const rollInterval = setInterval(() => {
-      setDiceValue(
-        Math.floor(Math.random() * 6) + 1
-      );
+      setDiceValue(Math.floor(Math.random() * 6) + 1);
     }, 100);
 
     setTimeout(() => {
       clearInterval(rollInterval);
-
       setIsRolling(false);
-
       setActiveSkillId(null);
-
       setDiceValue(finalRoll);
 
       if (isDouble) {
-        setToastMsg(
-          `🎲 Lemparan Ganda: ${finalRoll} + ${roll2} = ${totalSteps}`
-        );
-
+        setToastMsg(`🎲 Lemparan Ganda: ${finalRoll} + ${roll2} = ${totalSteps}`);
         setTimeout(() => {
           setToastMsg("");
         }, 3000);
       }
 
       setTargetPosition((prevTarget) => {
-        const newTarget =
-          prevTarget + totalSteps;
-
-        const maxPos =
-          mapCoords.length - 1;
-
-        return newTarget > maxPos
-          ? maxPos
-          : newTarget;
+        const newTarget = prevTarget + totalSteps;
+        const maxPos = mapCoords.length - 1;
+        return newTarget > maxPos ? maxPos : newTarget;
       });
     }, 1000);
   };
@@ -588,158 +525,88 @@ export default function BoardGameArena({
       setIsMoving(true);
 
       const timer = setTimeout(() => {
-        const isForward =
-          targetPosition > playerPosition;
-
-        const nextPos = isForward
-          ? playerPosition + 1
-          : playerPosition - 1;
+        const isForward = targetPosition > playerPosition;
+        const nextPos = isForward ? playerPosition + 1 : playerPosition - 1;
 
         setPlayerPosition(nextPos);
-
         updateMyPosisi(nextPos);
 
         if (nextPos === targetPosition) {
           setIsMoving(false);
 
-          const maxPos =
-            mapCoords.length - 1;
+          const maxPos = mapCoords.length - 1;
 
           if (nextPos === maxPos) {
             if (currentUserId) {
               finishGame(currentUserId);
-
               playSfx("win");
 
-              const myIdMahasiswa =
-                profiles[currentUserId]
-                  ?.idMahasiswa;
-
+              const myIdMahasiswa = profiles[currentUserId]?.idMahasiswa;
               if (myIdMahasiswa) {
-                incrementStat(
-                  myIdMahasiswa,
-                  "arena_menang"
-                );
-
+                incrementStat(myIdMahasiswa, "arena_menang");
                 const ID_BADGE_FINISH = 2;
 
                 supabase
                   .from("mahasiswa_badges")
                   .upsert(
-                    {
-                      id_mahasiswa:
-                        myIdMahasiswa,
-                      id_badge:
-                        ID_BADGE_FINISH,
-                    },
-                    {
-                      onConflict:
-                        "id_mahasiswa,id_badge",
-                      ignoreDuplicates: true,
-                    }
+                    { id_mahasiswa: myIdMahasiswa, id_badge: ID_BADGE_FINISH },
+                    { onConflict: "id_mahasiswa,id_badge", ignoreDuplicates: true }
                   )
                   .select()
-                  .then(
-                    async ({
-                      data,
-                      error,
-                    }) => {
-                      if (error) {
-                        console.error(
-                          "Gagal trigger badge Finish:",
-                          error
-                        );
-                      } else if (
-                        data &&
-                        data.length > 0
-                      ) {
-                        const {
-                          data: badgeData,
-                        } = await supabase
-                          .from("badges")
-                          .select(
-                            "nama_badge, icon_url"
-                          )
-                          .eq(
-                            "id_badge",
-                            ID_BADGE_FINISH
-                          )
-                          .single();
-
-                        if (badgeData) {
-                          setEarnedBadge(
-                            badgeData
-                          );
-                        }
+                  .then(async ({ data, error }) => {
+                    if (error) {
+                      console.error("Gagal trigger badge Finish:", error);
+                    } else if (data && data.length > 0) {
+                      const { data: badgeData } = await supabase
+                        .from("badges")
+                        .select("nama_badge, icon_url")
+                        .eq("id_badge", ID_BADGE_FINISH)
+                        .single();
+                      if (badgeData) {
+                        setEarnedBadge(badgeData);
                       }
                     }
-                  );
+                  });
               }
             }
-          } else if (
-            trapTiles.includes(nextPos)
-          ) {
-            setTrapTiles((prev) =>
-              prev.filter(
-                (t) => t !== nextPos
-              )
-            );
+          } else if (trapTiles.includes(nextPos)) {
+            
+            setTrapTiles((prev) => prev.filter((t) => t !== nextPos));
 
             if (hasShield) {
               setHasShield(false);
-
               playSfx("skill_shield");
-
-              flashSkillEffect(
-                SHIELD_BLOCK_EFFECT
-              );
-
-              setToastMsg(
-                "🛡️ DARR! Tapi Perisaimu menahan ledakan bom!"
-              );
+              flashSkillEffect(SHIELD_BLOCK_EFFECT);
+              setToastMsg("🛡️ DARR! Tapi Perisaimu menahan ledakan bom!");
+              
+              sendBroadcast(`🛡️ ${myName} berhasil menahan jebakan BOM dengan perisai!`); // BROADCAST
 
               setTimeout(() => {
                 endTurnOnce();
               }, 2500);
             } else {
-              const myIdMahasiswa =
-                profiles[currentUserId as string]
-                  ?.idMahasiswa;
-
+              const myIdMahasiswa = profiles[currentUserId as string]?.idMahasiswa;
               if (myIdMahasiswa) {
-                incrementStat(
-                  myIdMahasiswa,
-                  "arena_jebakan"
-                );
+                incrementStat(myIdMahasiswa, "arena_jebakan");
               }
 
-              let newSoal =
-                pickRandomSoal();
-
+              let newSoal = pickRandomSoal();
               let attempts = 0;
-
-              while (
-                usedSoalIds.includes(
-                  newSoal.id_soal
-                ) &&
-                attempts < 10
-              ) {
+              while (usedSoalIds.includes(newSoal.id_soal) && attempts < 10) {
                 newSoal = pickRandomSoal();
                 attempts++;
               }
-
-              setUsedSoalIds((prev) => [
-                ...prev,
-                newSoal.id_soal,
-              ]);
-
+              setUsedSoalIds((prev) => [...prev, newSoal.id_soal]);
               setCurrentSoal(newSoal);
+              
+              sendBroadcast(`💥 BOOM! ${myName} menginjak Jebakan!`); // BROADCAST
 
+              // TRIGGER BOM
               setTimeout(() => {
                 setShowBoom(true);
-
                 playSfx("boom");
-
+                
+                // Durasi 1500ms cocok untuk animasi
                 setTimeout(() => {
                   setShowBoom(false);
                   setShowQuestionModal(true);
@@ -763,13 +630,10 @@ export default function BoardGameArena({
     hasShield,
   ]);
 
-  const handleAnswer = async (
-    id_jawaban: number
-  ) => {
+  const handleAnswer = async (id_jawaban: number) => {
     setShowQuestionModal(false);
 
     let isCorrect = false;
-
     if (currentSoal?.id_soal === 999) {
       isCorrect = id_jawaban === 2;
     } else {
@@ -778,89 +642,58 @@ export default function BoardGameArena({
         .select("jawaban_benar")
         .eq("id_jawaban", id_jawaban)
         .single();
-
-      isCorrect = !!(
-        data &&
-        data.jawaban_benar === true
-      );
+      isCorrect = !!(data && data.jawaban_benar === true);
     }
 
     setAnswerResult(isCorrect);
-
-    if (isCorrect) {
-      playSfx("correct");
-    } else {
-      playSfx("wrong");
-    }
+    if (isCorrect) playSfx("correct");
+    else playSfx("wrong");
 
     setTimeout(() => {
       setAnswerResult(null);
 
       if (isCorrect) {
-        setToastMsg(
-          "✅ Benar! Kamu maju 1 Langkah."
-        );
-
-        setTargetPosition((prev) =>
-          Math.min(
-            prev + 1,
-            mapCoords.length - 1
-          )
-        );
+        setToastMsg("✅ Benar! Kamu maju 1 Langkah.");
+        sendBroadcast(`✅ ${myName} menjawab benar dan maju!`); // BROADCAST
+        
+        setTargetPosition((prev) => Math.min(prev + 1, mapCoords.length - 1));
       } else {
-        setToastMsg(
-          "❌ Salah! Kamu dihukum mundur 2 Langkah."
-        );
-
-        setTargetPosition((prev) =>
-          Math.max(0, prev - 2)
-        );
+        setToastMsg("❌ Salah! Kamu dihukum mundur 2 Langkah.");
+        sendBroadcast(`❌ ${myName} menjawab salah dan dihukum mundur!`); // BROADCAST
+        
+        setTargetPosition((prev) => Math.max(0, prev - 2));
       }
 
       setTimeout(() => {
         setToastMsg("");
-
         endTurnOnce();
       }, 3000);
     }, 1800);
   };
 
-  const activePlayersList = players.map(
-    (p) => {
-      const isMe =
-        p.id_user === currentUserId;
-
-      const pos = isMe
-        ? playerPosition
-        : p.posisi;
-
-      const profile =
-        profiles[p.id_user] || {
-          idMahasiswa: 0,
-          namaMahasiswa: "Pemain",
-          avatarUrl: null,
-        };
-
-      return {
-        id: p.id_user,
-        idMahasiswa:
-          profile.idMahasiswa,
-        position: pos,
-        name: profile.namaMahasiswa,
-        avatarUrl: profile.avatarUrl,
-        isMe,
-      };
-    }
-  );
+  const activePlayersList = players.map((p) => {
+    const isMe = p.id_user === currentUserId;
+    const pos = isMe ? playerPosition : p.posisi;
+    const profile = profiles[p.id_user] || {
+      idMahasiswa: 0,
+      namaMahasiswa: "Pemain",
+      avatarUrl: null,
+    };
+    return {
+      id: p.id_user,
+      idMahasiswa: profile.idMahasiswa,
+      position: pos,
+      name: profile.namaMahasiswa,
+      avatarUrl: profile.avatarUrl,
+      isMe,
+    };
+  });
 
   if (isRoomLoading || isBoardLoading) {
     return (
       <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-8 h-8 text-[#5B5288] animate-spin" />
-
-        <p className="text-[#5B5288] font-semibold">
-          Memuat arena...
-        </p>
+        <p className="text-[#5B5288] font-semibold">Memuat arena...</p>
       </div>
     );
   }
@@ -869,16 +702,12 @@ export default function BoardGameArena({
     return (
       <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3 text-center px-6">
         <p className="text-red-500 font-bold text-lg">
-          {boardError ??
-            "Ruangan tidak ditemukan."}
+          {boardError ?? "Ruangan tidak ditemukan."}
         </p>
       </div>
     );
   }
 
-  // =====================================================
-  // WAITING ROOM
-  // =====================================================
   if (room.status === "waiting") {
     return (
       <WaitingRoom
@@ -890,11 +719,6 @@ export default function BoardGameArena({
         isPrivate={room.is_private}
         pin={room.pin}
         profiles={profiles}
-
-        // =================================================
-        // FIX ERROR BUILD:
-        // WaitingRoomProps membutuhkan leaveRoom
-        // =================================================
         leaveRoom={leaveRoom}
       />
     );
@@ -904,9 +728,7 @@ export default function BoardGameArena({
     <div className="h-screen bg-[#F8F9FB] flex flex-col overflow-hidden relative">
       {room.status === "finished" && (
         <GameOverModal
-          isWinner={
-            currentUserId === room.winner_user_id
-          }
+          isWinner={currentUserId === room.winner_user_id}
           earnedBadge={earnedBadge}
         />
       )}
@@ -928,14 +750,10 @@ export default function BoardGameArena({
         <div className="flex items-center gap-6">
           <span
             className={`px-4 py-2 rounded-xl font-bold text-sm ${
-              isMyTurn
-                ? "bg-[#39C936] text-white"
-                : "bg-gray-100 text-gray-400"
+              isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-gray-400"
             }`}
           >
-            {isMyTurn
-              ? "Giliranmu! 🎲"
-              : "Menunggu giliran..."}
+            {isMyTurn ? "Giliranmu! 🎲" : "Menunggu giliran..."}
           </span>
 
           {canSkipTurn && !isMyTurn && (
@@ -949,18 +767,14 @@ export default function BoardGameArena({
 
           <div className="flex gap-4 items-center">
             <button
-              onClick={() =>
-                setShowSettings(true)
-              }
+              onClick={() => setShowSettings(true)}
               className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
             >
               <Settings className="w-6 h-6" />
             </button>
 
             <button
-              onClick={() =>
-                setShowGuide(true)
-              }
+              onClick={() => setShowGuide(true)}
               className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
             >
               <HelpCircle className="w-6 h-6" />
@@ -988,19 +802,11 @@ export default function BoardGameArena({
           <div className="lg:absolute lg:bottom-8 lg:left-8 lg:z-30 flex flex-col items-start">
             <PlayerDock
               showSkills={showSkills}
-              onToggleSkills={() =>
-                setShowSkills((prev) => !prev)
-              }
-              isSkillLoading={
-                isSkillLoading
-              }
+              onToggleSkills={() => setShowSkills((prev) => !prev)}
+              isSkillLoading={isSkillLoading}
               skillList={skillList}
-              activePlayers={
-                activePlayersList
-              }
-              onUseSkill={
-                handleUseSkill
-              }
+              activePlayers={activePlayersList}
+              onUseSkill={handleUseSkill}
             />
           </div>
 
@@ -1012,8 +818,7 @@ export default function BoardGameArena({
                 !isMyTurn ||
                 isMoving ||
                 hasRolled ||
-                playerPosition ===
-                  mapCoords.length - 1 ||
+                playerPosition === mapCoords.length - 1 ||
                 isRolling
               }
               onRoll={handleRollDice}
@@ -1022,50 +827,36 @@ export default function BoardGameArena({
         </div>
       </div>
 
+      {/* MODAL BOM YANG SUDAH DI FIX */}
       {showBoom && <BoomModal />}
 
       {answerResult !== null && (
-        <AnswerResultModal
-          isCorrect={answerResult}
-        />
+        <AnswerResultModal isCorrect={answerResult} />
       )}
 
       {skillEffect && (
-        <SkillEffectModal
-          {...skillEffect}
+        <SkillEffectModal {...skillEffect} />
+      )}
+
+      {showQuestionModal && currentSoal && (
+        <QuestionModal
+          currentSoal={currentSoal}
+          onAnswer={handleAnswer}
         />
       )}
 
-      {showQuestionModal &&
-        currentSoal && (
-          <QuestionModal
-            currentSoal={currentSoal}
-            onAnswer={handleAnswer}
-          />
-        )}
-
       {showSettings && (
         <SettingsModal
-          onClose={() =>
-            setShowSettings(false)
-          }
+          onClose={() => setShowSettings(false)}
           isBgmEnabled={isBgmEnabled}
-          setIsBgmEnabled={
-            setIsBgmEnabled
-          }
+          setIsBgmEnabled={setIsBgmEnabled}
           isSfxEnabled={isSfxEnabled}
-          setIsSfxEnabled={
-            setIsSfxEnabled
-          }
+          setIsSfxEnabled={setIsSfxEnabled}
         />
       )}
 
       {showGuide && (
-        <GuideModal
-          onClose={() =>
-            setShowGuide(false)
-          }
-        />
+        <GuideModal onClose={() => setShowGuide(false)} />
       )}
     </div>
   );
