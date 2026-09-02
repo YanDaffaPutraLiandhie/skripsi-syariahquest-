@@ -1,13 +1,18 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Pencil, Trash2, UploadCloud } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Pencil, Trash2, UploadCloud, ChevronLeft, ChevronRight } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { supabase } from '@/lib/supabase'
 
 interface LevelOption {
   id_level: number
   nama_level: string
+}
+
+interface DosenOption {
+  id_dosen: number
+  nama_dosen: string
 }
 
 interface ModulRow {
@@ -66,6 +71,7 @@ export default function ManajemenModulPage() {
   const [view, setView] = useState<'list' | 'form'>('list')
 
   const [levels, setLevels] = useState<LevelOption[]>([])
+  const [dosen, setDosen] = useState<DosenOption[]>([])
   const [stats, setStats] = useState<LevelStats>({
     easy: 0,
     medium: 0,
@@ -86,11 +92,49 @@ export default function ManajemenModulPage() {
   const dokumenInputRef = useRef<HTMLInputElement>(null)
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
 
+  // Pagination tabel — data tetap di-fetch sekaligus dari Supabase,
+  // pemotongan per halaman dilakukan di sisi client.
+  const MODULES_PER_PAGE = 10
+  const [currentPage, setCurrentPage] = useState(1)
+
   useEffect(() => {
     fetchLevels()
+    fetchDosen()
     fetchModules()
     fetchCurrentAdminName()
   }, [])
+
+
+  async function fetchDosen() {
+    try {
+      const { data, error } = await supabase
+        .from('dosen')
+        .select('id_dosen, nama_dosen')
+        .order('nama_dosen', { ascending: true })
+
+      if (error) {
+        console.error(
+          'FETCH DOSEN ERROR:',
+          JSON.stringify({
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          }, null, 2)
+        )
+        return
+      }
+
+      setDosen(data ?? [])
+    } catch (error: any) {
+      console.error(
+        'Gagal memuat data dosen:',
+        JSON.stringify({
+          message: error?.message,
+        })
+      )
+    }
+  }
 
   async function fetchCurrentAdminName() {
     try {
@@ -159,6 +203,20 @@ export default function ManajemenModulPage() {
     return levels.find((l) => l.id_level === idLevel)?.nama_level ?? '-'
   }
 
+  function getPembuatName(dibuatOleh: string | null) {
+    if (!dibuatOleh) return '-'
+
+    const dosenRow = dosen.find(
+      (d) => String(d.id_dosen) === String(dibuatOleh)
+    )
+
+    if (dosenRow) {
+      return dosenRow.nama_dosen
+    }
+
+    return dibuatOleh
+  }
+
   async function fetchModules() {
     setLoading(true)
 
@@ -217,6 +275,25 @@ export default function ManajemenModulPage() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modules, levels])
+
+  const totalPages = Math.max(1, Math.ceil(modules.length / MODULES_PER_PAGE))
+
+  // Kalau halaman aktif jadi tidak valid lagi (misal setelah modul dihapus
+  // dan halaman terakhir jadi kosong), mundur ke halaman terakhir yang ada.
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [totalPages, currentPage])
+
+  const paginatedModules = useMemo(() => {
+    const start = (currentPage - 1) * MODULES_PER_PAGE
+    return modules.slice(start, start + MODULES_PER_PAGE)
+  }, [modules, currentPage])
+
+  const rangeStart =
+    modules.length === 0 ? 0 : (currentPage - 1) * MODULES_PER_PAGE + 1
+  const rangeEnd = Math.min(currentPage * MODULES_PER_PAGE, modules.length)
 
   function openAddForm() {
     setEditingId(null)
@@ -687,11 +764,11 @@ export default function ManajemenModulPage() {
                 </td>
               </tr>
             ) : (
-              modules.map((modul) => (
+              paginatedModules.map((modul) => (
                 <tr key={modul.id_modul}>
                   <td>{modul.nama_modul}</td>
                   <td>{getLevelName(modul.id_level)}</td>
-                  <td>{modul.dibuat_oleh || '-'}</td>
+                  <td>{getPembuatName(modul.dibuat_oleh)}</td>
                   <td>
                     <div className="admin-table-actions">
                       <button
@@ -715,6 +792,42 @@ export default function ManajemenModulPage() {
             )}
           </tbody>
         </table>
+
+        {!loading && modules.length > 0 && (
+          <div className="admin-pagination">
+            <span className="admin-pagination-info">
+              Menampilkan {rangeStart}–{rangeEnd} dari {modules.length} modul
+            </span>
+
+            <div className="admin-pagination-controls">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                aria-label="Halaman sebelumnya"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <span className="pagination-page-label">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                aria-label="Halaman berikutnya"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
