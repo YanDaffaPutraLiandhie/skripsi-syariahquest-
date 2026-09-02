@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -21,6 +20,12 @@ export default function ProfilDosen() {
 
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // =====================================================
+  // JUMLAH MODUL (DIHITUNG REAL-TIME DARI TABEL modul)
+  // =====================================================
+
+  const [jumlahModul, setJumlahModul] = useState<number>(0);
 
   // =====================================================
   // MODAL EDIT
@@ -147,6 +152,38 @@ export default function ProfilDosen() {
 
       setDosen(dosenData);
 
+      // =================================================
+      // 4. HITUNG JUMLAH MODUL YANG DIBUAT DOSEN INI
+      // =================================================
+
+      const totalModul = await hitungJumlahModul(
+        dosenData.nama_dosen,
+        dosenData.id_dosen
+      );
+
+      setJumlahModul(totalModul);
+
+      // =================================================
+      // 5. SIMPAN HASIL HITUNGAN KE KOLOM dosen.modul
+      // =================================================
+      // Hanya update jika angkanya berbeda dari yang
+      // tersimpan, supaya tidak menulis ke DB tanpa perlu
+      // setiap kali halaman profil dibuka.
+      // =================================================
+
+      if (totalModul !== dosenData.modul) {
+        const berhasilSimpan = await simpanJumlahModulKeDosen(
+          dosenData.id_dosen,
+          totalModul
+        );
+
+        if (berhasilSimpan) {
+          setDosen((prev) =>
+            prev ? { ...prev, modul: totalModul } : prev
+          );
+        }
+      }
+
     } catch (error) {
       console.error("Gagal mengambil profil:", error);
 
@@ -157,6 +194,111 @@ export default function ProfilDosen() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  // =====================================================
+  // HITUNG JUMLAH MODUL BERDASARKAN DOSEN YANG LOGIN
+  // =====================================================
+  //
+  // Kolom "dibuat_oleh" pada tabel modul kadang berisi
+  // nama_dosen (mis. "renald") dan kadang berisi id_dosen
+  // (mis. "9"), jadi pencocokan dilakukan untuk keduanya
+  // agar hasil hitungan akurat.
+  // =====================================================
+
+  async function hitungJumlahModul(
+    namaDosen: string,
+    idDosen: number
+  ): Promise<number> {
+    try {
+      const nama = namaDosen.trim();
+
+      // =================================================
+      // Kolom "dibuat_oleh" pada tabel modul berisi
+      // campuran nama dosen (mis. "renald", "jak") dan
+      // id_dosen dalam bentuk teks (mis. "9"). Karena itu,
+      // pencocokan dilakukan terhadap ketiganya:
+      //   1. Nama persis (case-insensitive) -> ilike
+      //   2. Id dosen sebagai angka           -> eq
+      // =================================================
+
+      const { data, count, error } = await supabase
+        .from("modul")
+        .select("id_modul, nama_modul, dibuat_oleh", {
+          count: "exact",
+        })
+        .or(
+          `dibuat_oleh.ilike.${nama},dibuat_oleh.eq.${idDosen}`
+        );
+
+      console.log("MODUL DITEMUKAN:", data);
+      console.log("JUMLAH MODUL:", count);
+      console.log("JUMLAH MODUL ERROR:", error);
+
+      if (error) {
+        console.error(
+          "Gagal menghitung jumlah modul:",
+          error
+        );
+        return 0;
+      }
+
+      return count ?? data?.length ?? 0;
+
+    } catch (error) {
+      console.error(
+        "Gagal menghitung jumlah modul:",
+        error
+      );
+      return 0;
+    }
+  }
+
+  // =====================================================
+  // SIMPAN JUMLAH MODUL KE KOLOM dosen.modul
+  // =====================================================
+  //
+  // Menulis hasil hitungan dari tabel "modul" ke kolom
+  // "modul" pada tabel "dosen", sehingga data tetap
+  // tersinkron setiap kali profil dimuat/diperbarui.
+  // =====================================================
+
+  async function simpanJumlahModulKeDosen(
+    idDosen: number,
+    jumlah: number
+  ): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("dosen")
+        .update({ modul: jumlah })
+        .eq("id_dosen", idDosen);
+
+      console.log(
+        "SIMPAN JUMLAH MODUL KE DOSEN:",
+        jumlah
+      );
+      console.log(
+        "SIMPAN JUMLAH MODUL ERROR:",
+        error
+      );
+
+      if (error) {
+        console.error(
+          "Gagal menyimpan jumlah modul ke tabel dosen:",
+          error
+        );
+        return false;
+      }
+
+      return true;
+
+    } catch (error) {
+      console.error(
+        "Gagal menyimpan jumlah modul ke tabel dosen:",
+        error
+      );
+      return false;
     }
   }
 
@@ -407,6 +549,29 @@ export default function ProfilDosen() {
         updatedDosen.email ?? ""
       );
 
+      // Jika nama dosen berubah, hitung ulang jumlah modul
+      // karena pencocokan "dibuat_oleh" bisa berdasarkan nama.
+      const totalModul = await hitungJumlahModul(
+        updatedDosen.nama_dosen,
+        updatedDosen.id_dosen
+      );
+
+      setJumlahModul(totalModul);
+
+      // Sinkronkan hasil hitungan terbaru ke kolom dosen.modul
+      if (totalModul !== updatedDosen.modul) {
+        const berhasilSimpan = await simpanJumlahModulKeDosen(
+          updatedDosen.id_dosen,
+          totalModul
+        );
+
+        if (berhasilSimpan) {
+          setDosen((prev) =>
+            prev ? { ...prev, modul: totalModul } : prev
+          );
+        }
+      }
+
       if (
         fotoPreview &&
         fotoPreview.startsWith("blob:")
@@ -652,7 +817,7 @@ export default function ProfilDosen() {
               <div>
 
                 <p className="text-lg font-extrabold text-white">
-                  {dosen.modul ?? 0}
+                  {jumlahModul}
                 </p>
 
                 <p className="text-xs text-[#c9c3e6]">
@@ -723,7 +888,7 @@ export default function ProfilDosen() {
             </h2>
 
             <p className="mt-2 text-sm text-white/70">
-              {dosen.modul ?? 0} modul telah dibuat.
+              {jumlahModul} modul telah dibuat.
             </p>
 
             <div className="mt-6 space-y-2">
@@ -737,7 +902,7 @@ export default function ProfilDosen() {
                   </span>
 
                   <span className="text-lg font-bold">
-                    {dosen.modul ?? 0}
+                    {jumlahModul}
                   </span>
 
                 </div>
@@ -992,7 +1157,7 @@ export default function ProfilDosen() {
                   </div>
 
                   <span className="text-xl font-bold text-[#4a3f7a]">
-                    {dosen.modul ?? 0}
+                    {jumlahModul}
                   </span>
 
                 </div>
