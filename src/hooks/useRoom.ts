@@ -116,7 +116,7 @@ export function useRoom(roomId: string) {
           });
         }
       )
-      // 3. Antena DELETE (SENGAJA TANPA FILTER biar sinyalnya 100% nembus)
+      // 3. Antena DELETE (SENGAJA TANPA FILTER biar sinyalnya nembus)
       .on(
         "postgres_changes",
         {
@@ -224,7 +224,7 @@ export function useRoom(roomId: string) {
   );
 
   // =====================================================
-  // FUNGSI LEAVE ROOM (Logika Kerenmu Disempurnakan!)
+  // FUNGSI LEAVE ROOM (Host kabur, mahkota pindah)
   // =====================================================
   const leaveRoom = useCallback(async () => {
     if (!currentUserId) return;
@@ -233,35 +233,39 @@ export function useRoom(roomId: string) {
       (p) => p.id_user !== currentUserId
     );
 
-    // Kasus: ini pemain terakhir di room -> hapus room sekalian
+    // Kasus 1: Ini pemain terakhir di room -> hapus room sekalian
     if (remainingPlayers.length === 0) {
       await supabase.from("room").delete().eq("id_room", roomId);
-      return;
     }
+    // Kasus 2: Yang keluar adalah host (dan masih ada pemain lain) -> transfer host
+    else if (isHost) {
+      const nextHost = remainingPlayers[0]; // Oper ke pemain urutan selanjutnya
 
-    // Kasus: yang keluar adalah host -> transfer host ke pemain berikutnya
-    if (isHost) {
-      const nextHost = remainingPlayers[0];
-
-      await supabase
+      // 1. Ubah kepemilikan room
+      const { error: errRoom } = await supabase
         .from("room")
         .update({ host_user_id: nextHost.id_user })
         .eq("id_room", roomId);
 
-      await supabase
+      // 2. Beri mahkota (is_host: true) ke pemain tersebut
+      const { error: errPlayer } = await supabase
         .from("room_player")
         .update({ is_host: true })
         .eq("id_room_player", nextHost.id_room_player);
+
+      if (errRoom || errPlayer) {
+        console.error("Gagal transfer host (Cek RLS):", errRoom, errPlayer);
+      }
     }
 
-    // PERUBAHAN: Sekarang pakai sistem DELETE, bukan update is_inRoom
+    // Eksekusi WAJIB: Hapus baris room_player milik user yang keluar
     await supabase
       .from("room_player")
       .delete()
       .eq("id_room", roomId)
       .eq("id_user", currentUserId);
 
-    // Update mahasiswa status (Logikamu aman!)
+    // Eksekusi WAJIB: Update mahasiswa status (biar bisa diundang lagi)
     const { data: userData } = await supabase
       .from("user")
       .select("id_mahasiswa")

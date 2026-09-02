@@ -25,24 +25,21 @@ export default function GameOverModal({
   earnedBadge,
 }: GameOverModalProps) {
   const router = useRouter();
+  const path = isWinner ? "/animations/victory-trophy.json" : "/animations/game-over.json";
 
-  // Menentukan animasi berdasarkan hasil permainan
-  const path = isWinner
-    ? "/animations/victory-trophy.json"
-    : "/animations/game-over.json";
-
+  // State untuk efek loading di tombol
   const [isLoading, setIsLoading] = useState(false);
 
-  // Membersihkan status pemain sebelum kembali ke arena
+  // ==========================================
+  // JURUS BERSIH-BERSIH MANDIRI (Bypass RLS)
+  // ==========================================
   const handleBackToArena = async () => {
     setIsLoading(true);
-
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+        // 1. Cari id_mahasiswa milik user ini
         const { data: userData } = await supabase
           .from("user")
           .select("id_mahasiswa")
@@ -50,12 +47,14 @@ export default function GameOverModal({
           .single();
 
         if (userData?.id_mahasiswa) {
+          // 2. Reset status inRoom jadi FALSE di tabel mahasiswa
           await supabase
             .from("mahasiswa")
             .update({ inRoom: false })
             .eq("id_mahasiswa", userData.id_mahasiswa);
         }
 
+        // 3. Pastikan juga dia terhapus dari room_player
         await supabase
           .from("room_player")
           .delete()
@@ -64,6 +63,7 @@ export default function GameOverModal({
     } catch (error) {
       console.error("Gagal mereset status pemain:", error);
     } finally {
+      // Apapun yang terjadi, tetap kembalikan ke Arena
       router.push("/arena");
     }
   };
@@ -122,7 +122,7 @@ export default function GameOverModal({
             <div className="w-40 h-40 relative z-10 -mb-2">
               <Player
                 autoplay
-                loop
+                loop={true}
                 src={path}
                 style={{ height: "100%", width: "100%" }}
               />

@@ -139,7 +139,7 @@ export default function WaitingRoom({
   }, [searchQuery, searchMahasiswa]);
 
   // ==============================
-  // KIRIM UNDANGAN
+  // KIRIM UNDANGAN (SUDAH DI-FIX ANTI ERROR)
   // ==============================
   const handleSendInvite = async (invitedUserId: string) => {
     if (!currentUserId || !roomId) return;
@@ -158,11 +158,19 @@ export default function WaitingRoom({
       return;
     }
 
-    // Cegah invite ulang
+    // Cegah invite ulang jika masih ada di state UI
     if (invitedIds.includes(invitedUserId)) {
       return;
     }
 
+    // JURUS FIX: Bersihkan dulu sisa undangan lama di database buat user ini!
+    await supabase
+      .from("room_invitation")
+      .delete()
+      .eq("id_room", roomId)
+      .eq("invited_user_id", invitedUserId);
+
+    // Kirim undangan baru
     const { error } = await supabase.from("room_invitation").insert({
       id_room: roomId,
       invited_user_id: invitedUserId,
@@ -196,7 +204,8 @@ export default function WaitingRoom({
 
     const handleBeforeUnload = () => {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      const supabaseKey =
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
       if (!supabaseUrl || !supabaseKey) {
         console.error(
@@ -224,7 +233,7 @@ export default function WaitingRoom({
           `?id_room=eq.${encodeURIComponent(roomId)}` +
           `&id_user=eq.${encodeURIComponent(currentUserId)}`;
 
-        // PERBAIKAN: Gunakan method DELETE untuk room_player
+        // SUDAH DI-FIX: Menggunakan method DELETE
         fetch(url, {
           method: "DELETE",
           headers: {
@@ -241,7 +250,7 @@ export default function WaitingRoom({
           );
         });
 
-        // Update mahasiswa inRoom ke false tetap pakai PATCH (ini sudah benar)
+        // Update mahasiswa inRoom ke false
         const myProfile = profiles?.[currentUserId];
         if (myProfile?.idMahasiswa) {
           const mhsUrl =
@@ -334,8 +343,8 @@ export default function WaitingRoom({
           onClick={handleCopy}
           disabled={!roomLink}
           className={`p-2.5 rounded-lg transition-all flex items-center gap-2 ${isCopied
-              ? "bg-green-100 text-green-600 font-bold"
-              : "bg-gray-50 hover:bg-gray-100 text-[#5B5288] font-semibold"
+            ? "bg-green-100 text-green-600 font-bold"
+            : "bg-gray-50 hover:bg-gray-100 text-[#5B5288] font-semibold"
             }`}
         >
           {isCopied ? (
@@ -404,8 +413,8 @@ export default function WaitingRoom({
                   isHost && setShowInviteModal(true)
                 }
                 className={`flex items-center gap-4 p-2.5 rounded-2xl border border-dashed border-gray-200 transition-all ${isHost
-                    ? "cursor-pointer hover:bg-purple-50 hover:border-purple-300"
-                    : "opacity-50"
+                  ? "cursor-pointer hover:bg-purple-50 hover:border-purple-300"
+                  : "opacity-50"
                   }`}
               >
                 <div className="w-12 h-12 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
