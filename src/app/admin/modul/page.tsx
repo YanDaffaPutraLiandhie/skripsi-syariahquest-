@@ -272,189 +272,189 @@ export default function ManajemenModulPage() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault()
+    e.preventDefault()
 
-  // Konfirmasi sebelum simpan/update
-  const result = await Swal.fire({
-    title: editingId ? 'Update Modul?' : 'Tambah Modul?',
-    text: editingId
-      ? 'Perubahan data modul akan disimpan.'
-      : 'Modul baru akan ditambahkan.',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: editingId ? 'Ya, Update' : 'Ya, Simpan',
-    cancelButtonText: 'Batal',
-    confirmButtonColor: '#22c55e',
-    cancelButtonColor: '#6b7280',
-  })
-
-  if (!result.isConfirmed) return
-
-  setSaving(true)
-  setFormError('')
-
-  // DEBUG SEMENTARA
-  const { data: sessionCheck } = await supabase.auth.getSession()
-  console.log(
-    'SESI SAAT SUBMIT:',
-    sessionCheck.session ? 'ADA SESI (authenticated)' : 'TIDAK ADA SESI (anon)',
-    sessionCheck.session?.user?.email
-  )
-
-  try {
-    if (!form.namaModul.trim()) {
-      throw new Error('Nama modul wajib diisi')
-    }
-
-    if (!form.idLevel) {
-      throw new Error('Pilih level modul terlebih dahulu')
-    }
-
-    let dokumenUrl: string | null = null
-    let thumbnailUrl: string | null = null
-
-    if (form.dokumenFile) {
-      const path = `dokumen/${Date.now()}-${form.dokumenFile.name}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('modul-files')
-        .upload(path, form.dokumenFile)
-
-      if (uploadError) throw uploadError
-
-      const { data: publicUrl } = supabase.storage
-        .from('modul-files')
-        .getPublicUrl(path)
-
-      dokumenUrl = publicUrl.publicUrl
-    }
-
-    if (form.thumbnailFile) {
-      const path = `thumbnail/${Date.now()}-${form.thumbnailFile.name}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('modul-files')
-        .upload(path, form.thumbnailFile)
-
-      if (uploadError) throw uploadError
-
-      const { data: publicUrl } = supabase.storage
-        .from('modul-files')
-        .getPublicUrl(path)
-
-      thumbnailUrl = publicUrl.publicUrl
-    }
-
-    const payload: Record<string, any> = {
-      nama_modul: form.namaModul,
-      id_level: form.idLevel,
-      teks_materi: form.teksMateri || null,
-      video_url: form.linkVideo || null,
-      parameter_nilai: form.parameterNilai,
-    }
-
-    if (dokumenUrl) payload.dokumen_pendukung = dokumenUrl
-    if (thumbnailUrl) payload.thumbnail_url = thumbnailUrl
-
-    if (editingId) {
-      const { error } = await supabase
-        .from('modul')
-        .update(payload)
-        .eq('id_modul', editingId)
-
-      if (error) throw error
-    } else {
-      payload.dibuat_oleh = currentAdminName
-
-      const { error } = await supabase
-        .from('modul')
-        .insert(payload)
-
-      if (error) throw error
-    }
-
-    await fetchModules()
-
-    await Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
+    // Konfirmasi sebelum simpan/update
+    const result = await Swal.fire({
+      title: editingId ? 'Update Modul?' : 'Tambah Modul?',
       text: editingId
-        ? 'Modul berhasil diperbarui.'
-        : 'Modul berhasil ditambahkan.',
-      confirmButtonColor: '#50427E',
+        ? 'Perubahan data modul akan disimpan.'
+        : 'Modul baru akan ditambahkan.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: editingId ? 'Ya, Update' : 'Ya, Simpan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#22c55e',
+      cancelButtonColor: '#6b7280',
     })
 
-    backToList()
-  } catch (error: any) {
-    console.error(
-      'Gagal menyimpan modul:',
-      JSON.stringify(
-        {
-          message: error?.message,
-          details: error?.details,
-          hint: error?.hint,
-          code: error?.code,
-          name: error?.name,
-        },
-        null,
-        2
+    if (!result.isConfirmed) return
+
+    setSaving(true)
+    setFormError('')
+
+    // DEBUG SEMENTARA
+    const { data: sessionCheck } = await supabase.auth.getSession()
+    console.log(
+      'SESI SAAT SUBMIT:',
+      sessionCheck.session ? 'ADA SESI (authenticated)' : 'TIDAK ADA SESI (anon)',
+      sessionCheck.session?.user?.email
+    )
+
+    try {
+      if (!form.namaModul.trim()) {
+        throw new Error('Nama modul wajib diisi')
+      }
+
+      if (!form.idLevel) {
+        throw new Error('Pilih level modul terlebih dahulu')
+      }
+
+      let dokumenUrl: string | null = null
+      let thumbnailUrl: string | null = null
+
+      if (form.dokumenFile) {
+        const path = `dokumen/${Date.now()}-${form.dokumenFile.name}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('modul-files')
+          .upload(path, form.dokumenFile)
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrl } = supabase.storage
+          .from('modul-files')
+          .getPublicUrl(path)
+
+        dokumenUrl = publicUrl.publicUrl
+      }
+
+      if (form.thumbnailFile) {
+        const path = `thumbnail/${Date.now()}-${form.thumbnailFile.name}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('modul-files')
+          .upload(path, form.thumbnailFile)
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrl } = supabase.storage
+          .from('modul-files')
+          .getPublicUrl(path)
+
+        thumbnailUrl = publicUrl.publicUrl
+      }
+
+      const payload: Record<string, any> = {
+        nama_modul: form.namaModul,
+        id_level: form.idLevel,
+        teks_materi: form.teksMateri || null,
+        video_url: form.linkVideo || null,
+        parameter_nilai: form.parameterNilai,
+      }
+
+      if (dokumenUrl) payload.dokumen_pendukung = dokumenUrl
+      if (thumbnailUrl) payload.thumbnail_url = thumbnailUrl
+
+      if (editingId) {
+        const { error } = await supabase
+          .from('modul')
+          .update(payload)
+          .eq('id_modul', editingId)
+
+        if (error) throw error
+      } else {
+        payload.dibuat_oleh = currentAdminName
+
+        const { error } = await supabase
+          .from('modul')
+          .insert(payload)
+
+        if (error) throw error
+      }
+
+      await fetchModules()
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: editingId
+          ? 'Modul berhasil diperbarui.'
+          : 'Modul berhasil ditambahkan.',
+        confirmButtonColor: '#50427E',
+      })
+
+      backToList()
+    } catch (error: any) {
+      console.error(
+        'Gagal menyimpan modul:',
+        JSON.stringify(
+          {
+            message: error?.message,
+            details: error?.details,
+            hint: error?.hint,
+            code: error?.code,
+            name: error?.name,
+          },
+          null,
+          2
+        )
       )
-    )
 
-    Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: error.message || 'Terjadi kesalahan saat menyimpan modul.',
-      confirmButtonColor: '#50427E',
-    })
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: error.message || 'Terjadi kesalahan saat menyimpan modul.',
+        confirmButtonColor: '#50427E',
+      })
 
-    setFormError(error.message || 'Terjadi kesalahan')
-  } finally {
-    setSaving(false)
+      setFormError(error.message || 'Terjadi kesalahan')
+    } finally {
+      setSaving(false)
+    }
   }
-}
 
- async function handleDelete(id: number) {
-  const result = await Swal.fire({
-    title: 'Hapus Modul?',
-    text: 'Data yang dihapus tidak dapat dikembalikan.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#dc2626',
-    cancelButtonColor: '#6b7280',
-    confirmButtonText: 'Ya, Hapus',
-    cancelButtonText: 'Batal',
-  })
-
-  if (!result.isConfirmed) return
-
-  try {
-    const { error } = await supabase
-      .from('modul')
-      .delete()
-      .eq('id_modul', id)
-
-    if (error) throw error
-
-    setModules((prev) =>
-      prev.filter((b) => b.id_modul !== id)
-    )
-
-    Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
-      text: 'Modul berhasil dihapus.',
-      confirmButtonColor: '#50427E',
+  async function handleDelete(id: number) {
+    const result = await Swal.fire({
+      title: 'Hapus Modul?',
+      text: 'Data yang dihapus tidak dapat dikembalikan.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
     })
-  } catch (error) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: 'Terjadi kesalahan saat menghapus modul.',
-      confirmButtonColor: '#50427E',
-    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      const { error } = await supabase
+        .from('modul')
+        .delete()
+        .eq('id_modul', id)
+
+      if (error) throw error
+
+      setModules((prev) =>
+        prev.filter((b) => b.id_modul !== id)
+      )
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Modul berhasil dihapus.',
+        confirmButtonColor: '#50427E',
+      })
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: 'Terjadi kesalahan saat menghapus modul.',
+        confirmButtonColor: '#50427E',
+      })
+    }
   }
-}
   /* =========================================
      VIEW: FORM TAMBAH / EDIT MODUL
   ========================================= */

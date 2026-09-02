@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Pencil, Trash2, X, ExternalLink } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Pencil, Trash2, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { supabase } from '@/lib/supabase'
 
@@ -28,6 +28,8 @@ const emptyForm = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+const USERS_PER_PAGE = 10
+
 export default function ManajemenUserPage() {
   const [stats, setStats] = useState<Stats>({
     mahasiswa: 0,
@@ -47,10 +49,32 @@ export default function ManajemenUserPage() {
   // Menandai baris mana yang sedang diproses "Buka sebagai user ini"
   const [viewingId, setViewingId] = useState<number | null>(null)
 
+  // Pagination tabel — data tetap di-fetch sekaligus dari /api/admin/users,
+  // pemotongan per halaman dilakukan di sisi client.
+  const [currentPage, setCurrentPage] = useState(1)
+
   useEffect(() => {
     fetchStats()
     fetchUsers()
   }, [])
+
+  const totalPages = Math.max(1, Math.ceil(users.length / USERS_PER_PAGE))
+
+  // Kalau halaman aktif jadi tidak valid lagi (misal setelah user dihapus
+  // dan halaman terakhir jadi kosong), mundur ke halaman terakhir yang ada.
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [totalPages, currentPage])
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * USERS_PER_PAGE
+    return users.slice(start, start + USERS_PER_PAGE)
+  }, [users, currentPage])
+
+  const rangeStart = users.length === 0 ? 0 : (currentPage - 1) * USERS_PER_PAGE + 1
+  const rangeEnd = Math.min(currentPage * USERS_PER_PAGE, users.length)
 
   async function fetchStats() {
     try {
@@ -220,90 +244,90 @@ export default function ManajemenUserPage() {
     }
   }
 
-async function handleDelete(userId: number) {
-  const result = await Swal.fire({
-    title: 'Hapus User?',
-    text: 'Data user dan data terkait akan dihapus dari sistem. Tindakan ini tidak dapat dibatalkan.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#dc2626',
-    cancelButtonColor: '#6b7280',
-    confirmButtonText: 'Ya, Hapus',
-    cancelButtonText: 'Batal',
-    reverseButtons: true,
-  })
-
-  if (!result.isConfirmed) return
-
-  try {
-    // Tampilkan loading
-    Swal.fire({
-      title: 'Menghapus...',
-      text: 'Sedang menghapus data user.',
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      didOpen: () => {
-        Swal.showLoading()
-      },
+  async function handleDelete(userId: number) {
+    const result = await Swal.fire({
+      title: 'Hapus User?',
+      text: 'Data user dan data terkait akan dihapus dari sistem. Tindakan ini tidak dapat dibatalkan.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
+      reverseButtons: true,
     })
 
-    const res = await fetch(`/api/admin/users/${userId}`, {
-      method: 'DELETE',
-    })
+    if (!result.isConfirmed) return
 
-    const result = await res.json()
+    try {
+      // Tampilkan loading
+      Swal.fire({
+        title: 'Menghapus...',
+        text: 'Sedang menghapus data user.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading()
+        },
+      })
 
-    // Berhasil sebagian
-    if (res.status === 207) {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      })
+
+      const result = await res.json()
+
+      // Berhasil sebagian
+      if (res.status === 207) {
+        setUsers((prev) => prev.filter((u) => u.id_user !== userId))
+        await fetchStats()
+
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Berhasil Sebagian',
+          text:
+            result.message ||
+            'User berhasil dihapus, tetapi sebagian data terkait gagal dihapus.',
+          confirmButtonColor: '#50427E',
+        })
+
+        return
+      }
+
+      // Gagal
+      if (!res.ok) {
+        throw new Error(result.message || 'Gagal menghapus user')
+      }
+
+      // Update tabel setelah berhasil
       setUsers((prev) => prev.filter((u) => u.id_user !== userId))
       await fetchStats()
 
+      // Alert berhasil
       await Swal.fire({
-        icon: 'warning',
-        title: 'Berhasil Sebagian',
-        text:
-          result.message ||
-          'User berhasil dihapus, tetapi sebagian data terkait gagal dihapus.',
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Data user berhasil dihapus.',
         confirmButtonColor: '#50427E',
       })
+    } catch (error: any) {
+      console.error(
+        'Gagal menghapus user:',
+        JSON.stringify({
+          message: error?.message,
+        })
+      )
 
-      return
-    }
+      Swal.close()
 
-    // Gagal
-    if (!res.ok) {
-      throw new Error(result.message || 'Gagal menghapus user')
-    }
-
-    // Update tabel setelah berhasil
-    setUsers((prev) => prev.filter((u) => u.id_user !== userId))
-    await fetchStats()
-
-    // Alert berhasil
-    await Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
-      text: 'Data user berhasil dihapus.',
-      confirmButtonColor: '#50427E',
-    })
-  } catch (error: any) {
-    console.error(
-      'Gagal menghapus user:',
-      JSON.stringify({
-        message: error?.message,
+      await Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: error.message || 'Gagal menghapus user.',
+        confirmButtonColor: '#50427E',
       })
-    )
-
-    Swal.close()
-
-    await Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: error.message || 'Gagal menghapus user.',
-      confirmButtonColor: '#50427E',
-    })
+    }
   }
-}
 
   // =========================================
   // TOGGLE AKTIF / NONAKTIF
@@ -347,66 +371,66 @@ async function handleDelete(userId: number) {
   // =========================================
   // "BUKA SEBAGAI USER INI" — tanpa perlu tahu password user
   // =========================================
- async function handleViewAsUser(user: UserRow) {
-  if (user.role === 'Admin') {
-    await Swal.fire({
-      icon: 'info',
-      title: 'Tidak Dapat Membuka Sesi',
-      text: 'Admin tidak dapat membuka sesi sebagai sesama Admin.',
-      confirmButtonColor: '#50427E',
-    })
-    return
-  }
-
-  if (!user.is_aktif) {
-    await Swal.fire({
-      icon: 'warning',
-      title: 'User Tidak Aktif',
-      text: 'User ini sedang nonaktif. Aktifkan terlebih dahulu sebelum membuka sesinya.',
-      confirmButtonColor: '#50427E',
-    })
-    return
-  }
-
-  setViewingId(user.id_user)
-
-  try {
-    const res = await fetch('/api/admin/impersonate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user.id_user,
-        role: user.role,
-      }),
-    })
-
-    const result = await res.json()
-
-    if (!res.ok) {
-      throw new Error(result.message || 'Gagal membuka sesi user')
+  async function handleViewAsUser(user: UserRow) {
+    if (user.role === 'Admin') {
+      await Swal.fire({
+        icon: 'info',
+        title: 'Tidak Dapat Membuka Sesi',
+        text: 'Admin tidak dapat membuka sesi sebagai sesama Admin.',
+        confirmButtonColor: '#50427E',
+      })
+      return
     }
 
-    window.open(result.link, '_blank', 'noopener,noreferrer')
+    if (!user.is_aktif) {
+      await Swal.fire({
+        icon: 'warning',
+        title: 'User Tidak Aktif',
+        text: 'User ini sedang nonaktif. Aktifkan terlebih dahulu sebelum membuka sesinya.',
+        confirmButtonColor: '#50427E',
+      })
+      return
+    }
 
-    await Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
-      text: `Halaman ${user.role} berhasil dibuka di tab baru.`,
-      confirmButtonColor: '#50427E',
-    })
-  } catch (error: any) {
-    console.error('Gagal membuka sesi sebagai user:', error)
+    setViewingId(user.id_user)
 
-    await Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: error.message || 'Gagal membuka sesi user.',
-      confirmButtonColor: '#50427E',
-    })
-  } finally {
-    setViewingId(null)
+    try {
+      const res = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id_user,
+          role: user.role,
+        }),
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.message || 'Gagal membuka sesi user')
+      }
+
+      window.open(result.link, '_blank', 'noopener,noreferrer')
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: `Halaman ${user.role} berhasil dibuka di tab baru.`,
+        confirmButtonColor: '#50427E',
+      })
+    } catch (error: any) {
+      console.error('Gagal membuka sesi sebagai user:', error)
+
+      await Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: error.message || 'Gagal membuka sesi user.',
+        confirmButtonColor: '#50427E',
+      })
+    } finally {
+      setViewingId(null)
+    }
   }
-}
   return (
     <>
       {/* BANNER */}
@@ -471,7 +495,7 @@ async function handleDelete(userId: number) {
                 </td>
               </tr>
             ) : (
-              users.map((user) => (
+              paginatedUsers.map((user) => (
                 <tr key={user.id_user}>
                   <td>{user.nama}</td>
                   <td>{user.email}</td>
@@ -479,9 +503,8 @@ async function handleDelete(userId: number) {
                   <td>
                     <button
                       type="button"
-                      className={`status-toggle ${
-                        user.is_aktif ? 'active' : ''
-                      }`}
+                      className={`status-toggle ${user.is_aktif ? 'active' : ''
+                        }`}
                       onClick={() => handleToggleAktif(user)}
                       aria-label={
                         user.is_aktif
@@ -492,9 +515,8 @@ async function handleDelete(userId: number) {
                       <span className="status-toggle-knob" />
                     </button>
                     <span
-                      className={`status-label ${
-                        user.is_aktif ? 'label-aktif' : 'label-nonaktif'
-                      }`}
+                      className={`status-label ${user.is_aktif ? 'label-aktif' : 'label-nonaktif'
+                        }`}
                     >
                       {user.is_aktif ? 'Aktif' : 'Nonaktif'}
                     </span>
@@ -533,6 +555,42 @@ async function handleDelete(userId: number) {
             )}
           </tbody>
         </table>
+
+        {!loading && users.length > 0 && (
+          <div className="admin-pagination">
+            <span className="admin-pagination-info">
+              Menampilkan {rangeStart}–{rangeEnd} dari {users.length} user
+            </span>
+
+            <div className="admin-pagination-controls">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                aria-label="Halaman sebelumnya"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <span className="pagination-page-label">
+                Halaman {currentPage} dari {totalPages}
+              </span>
+
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                aria-label="Halaman berikutnya"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ADD / EDIT MODAL */}
