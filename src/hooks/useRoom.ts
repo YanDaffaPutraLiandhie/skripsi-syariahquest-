@@ -23,6 +23,7 @@ export type RoomInfo = {
   pin: string | null;
   turn_started_at: string | null;
   trap_tiles: number[];
+  turn_order: string[];
 };
 
 export function useRoom(roomId: string) {
