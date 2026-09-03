@@ -109,7 +109,7 @@ export default function BoardGameArena({
   );
 
   const { profiles } = usePlayerProfiles(allUserIds);
-  const myName = profiles[currentUserId as string]?.namaMahasiswa || "Pemain"; // Buat broadcast dinamis
+  const myName = profiles[currentUserId as string]?.namaMahasiswa || "Pemain"; 
 
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -127,6 +127,9 @@ export default function BoardGameArena({
   const [isMoving, setIsMoving] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
 
+  // STATE BARU BUAT DADU MANTUL
+  const [bounceTarget, setBounceTarget] = useState<number | null>(null);
+
   const [trapTiles, setTrapTiles] = useState<number[]>([]);
   const [showBoom, setShowBoom] = useState(false);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
@@ -136,8 +139,7 @@ export default function BoardGameArena({
 
   const [answerResult, setAnswerResult] = useState<boolean | null>(null);
 
-  const [skillEffect, setSkillEffect] =
-    useState<SkillEffectConfig | null>(null);
+  const [skillEffect, setSkillEffect] = useState<SkillEffectConfig | null>(null);
 
   const flashSkillEffect = (config: SkillEffectConfig) => {
     setSkillEffect(config);
@@ -149,6 +151,7 @@ export default function BoardGameArena({
   const [hasRolled, setHasRolled] = useState(false);
   const hasRolledRef = useRef(false);
   const turnPassedRef = useRef(false);
+  const hasTriggeredTrapRef = useRef(false); // GEMBOK BOM GANDA
 
   const [usedSoalIds, setUsedSoalIds] = useState<number[]>([]);
 
@@ -165,32 +168,28 @@ export default function BoardGameArena({
 
   const hasPlayedEndSfx = useRef(false);
 
-// ==========================================================
-  // FITUR BARU: BROADCAST MULTIPLAYER (Kirim notif ke teman)
+  // ==========================================================
+  // FITUR BARU: BROADCAST MULTIPLAYER
   // ==========================================================
   const broadcastChannelRef = useRef<any>(null);
-  const [isBroadcastReady, setIsBroadcastReady] = useState(false); // <-- State Baru untuk ngecek antena
+  const [isBroadcastReady, setIsBroadcastReady] = useState(false); 
 
   useEffect(() => {
     if (!roomId || !currentUserId) return;
 
-    // Bikin antena radio khusus room ini
     const channel = supabase.channel(`arena-events-${roomId}`);
     
     channel.on("broadcast", { event: "game_action" }, (payload) => {
       const { message, userId } = payload.payload;
       
-      // HANYA tampilkan pesan jika yang ngirim BUKAN kita sendiri
       if (userId !== currentUserId) {
         setToastMsg(message);
         
-        // Hapus pesan setelah 4 detik, tapii pastikan pesannya belum diganti yang baru
         setTimeout(() => {
           setToastMsg((prev) => (prev === message ? "" : prev));
         }, 4000);
       }
     }).subscribe((status) => {
-      // Cek apakah channel beneran udah nyambung sebelum ngizinin broadcast
       if (status === 'SUBSCRIBED') {
         setIsBroadcastReady(true);
       }
@@ -203,9 +202,7 @@ export default function BoardGameArena({
     };
   }, [roomId, currentUserId]);
 
-  // Fungsi buat teriak ke antena radio
   const sendBroadcast = (msg: string) => {
-    // Kunci pelatuknya kalau antena belum siap supaya pesan nggak ilang ditelan bumi!
     if (!isBroadcastReady) {
       console.warn("Broadcast belum siap, pesan ditahan:", msg);
       return; 
@@ -267,6 +264,7 @@ export default function BoardGameArena({
       hasRolledRef.current = false;
       setHasUsedSkillThisTurn(false);
       turnPassedRef.current = false;
+      hasTriggeredTrapRef.current = false; // Buka gembok bom saat ganti giliran
     }
   }, [isMyTurn]);
 
@@ -401,7 +399,7 @@ export default function BoardGameArena({
       setToastMsg("⚔️ Lemparan Ganda Aktif! (Dadu x2)");
       flashSkillEffect(SKILL_EFFECTS[1]);
       
-      sendBroadcast(`⚔️ ${myName} menggunakan skill Lemparan Ganda!`); // BROADCAST
+      sendBroadcast(`⚔️ ${myName} menggunakan skill Lemparan Ganda!`); 
       
     } else if (Number(skillId) === 2) {
       setHasShield(true);
@@ -409,7 +407,7 @@ export default function BoardGameArena({
       setToastMsg("🛡️ Perisai Aktif! Kamu kebal dari 1 bom.");
       flashSkillEffect(SKILL_EFFECTS[2]);
       
-      sendBroadcast(`🛡️ ${myName} mengaktifkan skill Perisai!`); // BROADCAST
+      sendBroadcast(`🛡️ ${myName} mengaktifkan skill Perisai!`); 
       
     } else if (Number(skillId) === 3) {
       setHasExtraTurn(true);
@@ -417,7 +415,7 @@ export default function BoardGameArena({
       setToastMsg("❄️ Ramuan Waktu! Kamu mendapat 1 giliran ekstra.");
       flashSkillEffect(SKILL_EFFECTS[3]);
       
-      sendBroadcast(`❄️ ${myName} meminum Ramuan Waktu! (Dapat giliran ekstra)`); // BROADCAST
+      sendBroadcast(`❄️ ${myName} meminum Ramuan Waktu! (Dapat giliran ekstra)`); 
       
     } else if (Number(skillId) === 4) {
       const opponentPositions = players
@@ -436,7 +434,7 @@ export default function BoardGameArena({
         setToastMsg("🔀 Teleportasi! Kamu menyalin posisi musuh terdepan.");
         flashSkillEffect(SKILL_EFFECTS[4]);
         
-        sendBroadcast(`🔀 ${myName} Teleportasi ke posisi terdepan!`); // BROADCAST
+        sendBroadcast(`🔀 ${myName} Teleportasi ke posisi terdepan!`); 
 
         setPlayerPosition(maxOpponentPos);
         setTargetPosition(maxOpponentPos);
@@ -513,7 +511,15 @@ export default function BoardGameArena({
       setTargetPosition((prevTarget) => {
         const newTarget = prevTarget + totalSteps;
         const maxPos = mapCoords.length - 1;
-        return newTarget > maxPos ? maxPos : newTarget;
+        
+        // JURUS MANTUL ULAR TANGGA
+        if (newTarget > maxPos) {
+          const excess = newTarget - maxPos;
+          setBounceTarget(maxPos - excess);
+          return maxPos;
+        }
+        
+        return newTarget;
       });
     }, 1000);
   };
@@ -532,20 +538,47 @@ export default function BoardGameArena({
         updateMyPosisi(nextPos);
 
         if (nextPos === targetPosition) {
-          setIsMoving(false);
-
           const maxPos = mapCoords.length - 1;
 
+          // CEK MANTUL ULAR TANGGA
+          if (nextPos === maxPos && bounceTarget !== null) {
+            setTargetPosition(bounceTarget);
+            setBounceTarget(null);
+            
+            setToastMsg("💨 Dadu kelebihan! Kamu mantul mundur wkwk");
+            sendBroadcast(`💨 Dadu ${myName} kelebihan, dia mantul mundur!`);
+            return; 
+          }
+
+          setIsMoving(false);
+
+          // MENANG BENERAN
           if (nextPos === maxPos) {
             if (currentUserId) {
               finishGame(currentUserId);
               playSfx("win");
+              sendBroadcast(`🏆 ${myName} mencapai Finish dan mendapat 50 XP!`);
 
               const myIdMahasiswa = profiles[currentUserId]?.idMahasiswa;
               if (myIdMahasiswa) {
                 incrementStat(myIdMahasiswa, "arena_menang");
-                const ID_BADGE_FINISH = 2;
+                
+                // TAMBAH 50 XP BUAT PEMENANG
+                supabase
+                  .from("mahasiswa")
+                  .select("total_xp")
+                  .eq("id_mahasiswa", myIdMahasiswa)
+                  .single()
+                  .then(({ data }) => {
+                    const currentXp = data?.total_xp || 0;
+                    supabase
+                      .from("mahasiswa")
+                      .update({ total_xp: currentXp + 50 })
+                      .eq("id_mahasiswa", myIdMahasiswa)
+                      .then(() => console.log("Berhasil tambah 50 XP!"));
+                  });
 
+                const ID_BADGE_FINISH = 2;
                 supabase
                   .from("mahasiswa_badges")
                   .upsert(
@@ -569,49 +602,53 @@ export default function BoardGameArena({
                   });
               }
             }
-          } else if (trapTiles.includes(nextPos)) {
+          } 
+          // KENA JEBAKAN BOM (DENGAN PENAHAN GEMBOK GANDA)
+          else if (trapTiles.includes(nextPos)) {
             
-            setTrapTiles((prev) => prev.filter((t) => t !== nextPos));
-
-            if (hasShield) {
-              setHasShield(false);
-              playSfx("skill_shield");
-              flashSkillEffect(SHIELD_BLOCK_EFFECT);
-              setToastMsg("🛡️ DARR! Tapi Perisaimu menahan ledakan bom!");
+            if (!hasTriggeredTrapRef.current) {
+              hasTriggeredTrapRef.current = true; // KUNCI GEMBOK
               
-              sendBroadcast(`🛡️ ${myName} berhasil menahan jebakan BOM dengan perisai!`); // BROADCAST
+              setTrapTiles((prev) => prev.filter((t) => t !== nextPos));
 
-              setTimeout(() => {
-                endTurnOnce();
-              }, 2500);
-            } else {
-              const myIdMahasiswa = profiles[currentUserId as string]?.idMahasiswa;
-              if (myIdMahasiswa) {
-                incrementStat(myIdMahasiswa, "arena_jebakan");
-              }
-
-              let newSoal = pickRandomSoal();
-              let attempts = 0;
-              while (usedSoalIds.includes(newSoal.id_soal) && attempts < 10) {
-                newSoal = pickRandomSoal();
-                attempts++;
-              }
-              setUsedSoalIds((prev) => [...prev, newSoal.id_soal]);
-              setCurrentSoal(newSoal);
-              
-              sendBroadcast(`💥 BOOM! ${myName} menginjak Jebakan!`); // BROADCAST
-
-              // TRIGGER BOM
-              setTimeout(() => {
-                setShowBoom(true);
-                playSfx("boom");
+              if (hasShield) {
+                setHasShield(false);
+                playSfx("skill_shield");
+                flashSkillEffect(SHIELD_BLOCK_EFFECT);
+                setToastMsg("🛡️ DARR! Tapi Perisaimu menahan ledakan bom!");
                 
-                // Durasi 1500ms cocok untuk animasi
+                sendBroadcast(`🛡️ ${myName} berhasil menahan jebakan BOM dengan perisai!`);
+
                 setTimeout(() => {
-                  setShowBoom(false);
-                  setShowQuestionModal(true);
-                }, 1500);
-              }, 300);
+                  endTurnOnce();
+                }, 2500);
+              } else {
+                const myIdMahasiswa = profiles[currentUserId as string]?.idMahasiswa;
+                if (myIdMahasiswa) {
+                  incrementStat(myIdMahasiswa, "arena_jebakan");
+                }
+
+                let newSoal = pickRandomSoal();
+                let attempts = 0;
+                while (usedSoalIds.includes(newSoal.id_soal) && attempts < 10) {
+                  newSoal = pickRandomSoal();
+                  attempts++;
+                }
+                setUsedSoalIds((prev) => [...prev, newSoal.id_soal]);
+                setCurrentSoal(newSoal);
+                
+                sendBroadcast(`💥 BOOM! ${myName} menginjak Jebakan!`); 
+
+                setTimeout(() => {
+                  setShowBoom(true);
+                  playSfx("boom");
+                  
+                  setTimeout(() => {
+                    setShowBoom(false);
+                    setShowQuestionModal(true);
+                  }, 1500);
+                }, 300);
+              }
             }
           } else {
             endTurnOnce();
@@ -628,6 +665,7 @@ export default function BoardGameArena({
     mapCoords.length,
     usedSoalIds,
     hasShield,
+    bounceTarget, // TAMBAH DEPENDENCY BOUNCE
   ]);
 
   const handleAnswer = async (id_jawaban: number) => {
@@ -654,12 +692,12 @@ export default function BoardGameArena({
 
       if (isCorrect) {
         setToastMsg("✅ Benar! Kamu maju 1 Langkah.");
-        sendBroadcast(`✅ ${myName} menjawab benar dan maju!`); // BROADCAST
+        sendBroadcast(`✅ ${myName} menjawab benar dan maju!`);
         
         setTargetPosition((prev) => Math.min(prev + 1, mapCoords.length - 1));
       } else {
         setToastMsg("❌ Salah! Kamu dihukum mundur 2 Langkah.");
-        sendBroadcast(`❌ ${myName} menjawab salah dan dihukum mundur!`); // BROADCAST
+        sendBroadcast(`❌ ${myName} menjawab salah dan dihukum mundur!`); 
         
         setTargetPosition((prev) => Math.max(0, prev - 2));
       }
@@ -692,8 +730,8 @@ export default function BoardGameArena({
   if (isRoomLoading || isBoardLoading) {
     return (
       <div className="h-screen bg-[#F8F9FB] flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-[#5B5288] animate-spin" />
-        <p className="text-[#5B5288] font-semibold">Memuat arena...</p>
+        <Loader2 className="w-8 h-8 text-slate-300 animate-spin" />
+        <p className="text-white">Memuat arena...</p>
       </div>
     );
   }
@@ -750,13 +788,13 @@ export default function BoardGameArena({
         <div className="flex items-center gap-6">
           <span
             className={`px-4 py-2 rounded-xl font-bold text-sm ${
-              isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-gray-400"
+              isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-slate-400"
             }`}
           >
             {isMyTurn ? "Giliranmu! 🎲" : "Menunggu giliran..."}
           </span>
 
-          {canSkipTurn && !isMyTurn && (
+          {canSkipTurn && !isMyTurn && isHost && (
             <button
               onClick={handleSkipTurn}
               className="px-4 py-2 rounded-xl font-bold text-sm bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
@@ -768,14 +806,14 @@ export default function BoardGameArena({
           <div className="flex gap-4 items-center">
             <button
               onClick={() => setShowSettings(true)}
-              className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-300 transition-colors"
             >
               <Settings className="w-6 h-6" />
             </button>
 
             <button
               onClick={() => setShowGuide(true)}
-              className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-300 transition-colors"
             >
               <HelpCircle className="w-6 h-6" />
             </button>
@@ -827,7 +865,6 @@ export default function BoardGameArena({
         </div>
       </div>
 
-      {/* MODAL BOM YANG SUDAH DI FIX */}
       {showBoom && <BoomModal />}
 
       {answerResult !== null && (
