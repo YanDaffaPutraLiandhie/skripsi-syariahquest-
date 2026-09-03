@@ -14,7 +14,7 @@ type JenisAktivitas =
 
 interface LogRow {
   id_log: number
-  nama_dosen: string
+  nama_pelaku: string
   fitur: string
   jenis_aktivitas: JenisAktivitas
   keterangan: string | null
@@ -40,11 +40,11 @@ export default function LogActivityPage() {
     try {
       // TODO: sesuaikan nama tabel & kolom dengan skema Supabase Anda.
       // Asumsi tabel `log_activity` punya kolom:
-      // id_log, nama_dosen, fitur, jenis_aktivitas, keterangan, status, waktu
+      // id_log, nama_pelaku, fitur, jenis_aktivitas, keterangan, status, waktu
       let query = supabase
         .from('log_activity')
         .select(
-          'id_log, nama_dosen, fitur, jenis_aktivitas, keterangan, status, waktu'
+          'id_log, nama_pelaku, fitur, jenis_aktivitas, keterangan, status, waktu'
         )
         .order('waktu', { ascending: false })
 
@@ -81,7 +81,7 @@ export default function LogActivityPage() {
   }
 
   const filteredLogs = logs.filter((log) =>
-    log.nama_dosen.toLowerCase().includes(searchDosen.toLowerCase())
+    log.nama_pelaku.toLowerCase().includes(searchDosen.toLowerCase())
   )
 
   function formatWaktu(iso: string) {
@@ -189,7 +189,7 @@ export default function LogActivityPage() {
             ) : (
               filteredLogs.map((log) => (
                 <tr key={log.id_log}>
-                  <td>{log.nama_dosen}</td>
+                  <td>{log.nama_pelaku}</td>
                   <td>{log.fitur}</td>
                   <td>
                     <span className={jenisBadgeClass(log.jenis_aktivitas)}>
@@ -201,11 +201,10 @@ export default function LogActivityPage() {
                   </td>
                   <td>
                     <span
-                      className={`status-label ${
-                        log.status === 'Sukses'
+                      className={`status-label ${log.status === 'Sukses'
                           ? 'label-aktif'
                           : 'label-nonaktif'
-                      }`}
+                        }`}
                     >
                       {log.status}
                     </span>

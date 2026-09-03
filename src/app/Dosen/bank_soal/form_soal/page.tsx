@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState, Suspense } from "react";
 import Papa from "papaparse";
@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
 
@@ -457,323 +458,256 @@ function BankSoalPageContent() {
 
   if (loadingModul) {
     return (
-      <div className="flex min-h-screen bg-[#f8f7ff]">
-        
-
-        <main className="flex flex-1 items-center justify-center p-8">
-          <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
-            <p className="text-sm text-[#6e6a85]">Memuat modul...</p>
-          </div>
-        </main>
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f7fd]">
+        <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
+          <p className="text-sm font-bold text-[#4a3f7a]">Memuat modul...</p>
+        </div>
       </div>
     );
   }
 
   if (!idModul) {
     return (
-      <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
-
-        <main className="flex flex-1 items-center justify-center p-8">
-          <div className="w-full max-w-lg rounded-[32px] bg-white p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-semibold text-[#2b2540]">
-              Modul Tidak Ditemukan
-            </h1>
-
-            <p className="mt-3 text-sm text-red-500">{formError}</p>
-
-            <button
-              type="button"
-              onClick={() => router.push("/Dosen/bank_soal")}
-              className="mt-6 rounded-full bg-[#4a3f7a] px-6 py-3 text-sm font-semibold text-white"
-            >
-              Kembali ke Bank Soal
-            </button>
-          </div>
-        </main>
-      </div>
+      <DosenContainer
+        categoryTag="BANK SOAL"
+        title="Modul Tidak Ditemukan"
+        subtitle="ID modul tidak valid atau belum dipilih."
+      >
+        <div className="mx-auto max-w-lg rounded-[28px] bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
+          <p className="text-sm font-bold text-rose-600">{formError}</p>
+          <button
+            type="button"
+            onClick={() => router.push("/Dosen/bank_soal")}
+            className="mt-6 rounded-full bg-[#4a3f7a] px-8 py-3 text-sm font-bold text-white shadow-md hover:bg-[#3d3466] transition"
+          >
+            Kembali ke Bank Soal
+          </button>
+        </div>
+      </DosenContainer>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
-  
+    <DosenContainer
+      categoryTag="BANK SOAL & KUIS"
+      title={`Form Soal: ${namaModul}`}
+      subtitle="Tambahkan soal pilihan ganda, tentukan kunci jawaban, atau impor file CSV."
+      headerAction={
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleImportClick}
+            disabled={importing}
+            className="rounded-full bg-emerald-400 px-5 py-2.5 text-xs font-bold text-emerald-950 shadow-md hover:bg-emerald-300 transition disabled:opacity-60"
+          >
+            {importing ? "Mengimpor..." : "Impor CSV"}
+          </button>
 
-      <main className="flex-1 p-8">
-        {/* HEADER */}
-        <div className="mb-6 rounded-[32px] bg-white p-8 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-[#8b84a5]">
-                Bank Soal
-              </p>
-
-              <h1 className="mt-2 text-3xl font-semibold text-[#2b2540]">
-                Form Soal
-              </h1>
-
-              <p className="mt-3 text-sm text-[#6e6a85]">
-                Tambahkan soal pilihan ganda, pilih kunci jawaban, atau impor
-                CSV untuk mempercepat proses.
-              </p>
-
-              <div className="mt-5 inline-flex items-center gap-3 rounded-full bg-[#f1eff8] px-5 py-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#8b84a5]">
-                  Modul
-                </span>
-
-                <span className="font-semibold text-[#4a3f7a]">
-                  {namaModul}
-                </span>
-
-                <span className="rounded-full bg-[#4a3f7a] px-3 py-1 text-xs font-bold text-white">
-                  ID: {idModul}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleImportClick}
-                disabled={importing}
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:opacity-60"
-              >
-                {importing ? "Mengimpor..." : "Impor Dokumen"}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                className="inline-flex items-center gap-2 rounded-full border border-[#ede8ff] bg-[#f7f4ff] px-5 py-3 text-sm font-semibold text-[#4a3f7a] transition hover:bg-[#ede8ff]"
-              >
-                <Download size={16} />
-                Download Template
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+          >
+            <Download size={14} />
+            Template CSV
+          </button>
+        </div>
+      }
+    >
+      {/* INFO STRIP */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-[24px] bg-[#4a3f7a] p-6 text-white shadow-sm">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+            Kunci Jawaban Pilihan Ganda
+          </span>
+          <h2 className="text-lg font-bold text-white">
+            Target Modul: {namaModul} (ID: #{idModul})
+          </h2>
         </div>
 
-        {/* INFO */}
-        <section className="mb-8 rounded-[32px] bg-[#4a3f7a] p-8 shadow-[0_28px_80px_rgba(74,63,122,0.14)]">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-[#c9c6d6]">
-                Kunci Jawaban
-              </p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-[#c9c3e6] mr-1">Opsi Kunci:</span>
+          {ANSWER_KEYS.map((key) => (
+            <span
+              key={key}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-black text-amber-300 border border-white/10"
+            >
+              {key}
+            </span>
+          ))}
+        </div>
+      </div>
 
-              <h2 className="mt-3 text-2xl font-semibold text-white">
-                Sistem Pilih Jawaban
-              </h2>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              {ANSWER_KEYS.map((key) => (
-                <span
-                  key={key}
-                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  {key}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <p className="mt-6 max-w-2xl text-sm leading-6 text-[#e7defd]">
-            Semua soal yang disimpan pada halaman ini akan dimasukkan ke
-            modul:
-            <strong className="ml-1 text-white">{namaModul}</strong>
-          </p>
-        </section>
-
-        {/* FORM */}
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-6">
-            {soalEntries.map((entry, index) => (
-              <section
-                key={entry.id}
-                className="overflow-hidden rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-[#e5e1f2]"
-              >
-                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#7b7397]">
-                      Soal {index + 1}
-                    </p>
-
-                    <h3 className="mt-2 text-xl font-semibold text-[#2b2540]">
-                      Detail Soal
-                    </h3>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {ANSWER_KEYS.map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() =>
-                          updateEntry(entry.id, { kunciJawaban: key })
-                        }
-                        className={`h-10 min-w-[44px] rounded-full px-3 text-sm font-semibold transition ${
-                          entry.kunciJawaban === key
-                            ? "bg-emerald-400 text-emerald-950"
-                            : "bg-[#f1eff8] text-[#4a3f7a] hover:bg-[#e5e0f4]"
-                        }`}
-                      >
-                        {key}
-                      </button>
-                    ))}
-
-                    {soalEntries.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeEntry(entry.id)}
-                        className="inline-flex items-center gap-2 rounded-full border border-[#e4e2ee] bg-[#fbfbfd] px-4 py-2 text-sm font-semibold text-[#8f86a8] hover:bg-[#f3f1f9]"
-                      >
-                        <Trash2 size={14} />
-                        Hapus
-                      </button>
-                    )}
-                  </div>
+      {/* FORM */}
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-6">
+          {soalEntries.map((entry, index) => (
+            <div
+              key={entry.id}
+              className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5"
+            >
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#f0edf9] pb-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#f8f7fd] text-sm font-black text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10">
+                    #{index + 1}
+                  </span>
+                  <h3 className="text-lg font-bold text-[#3d3466]">
+                    Soal Pertanyaan {index + 1}
+                  </h3>
                 </div>
 
-                <div className="grid gap-5">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
-                      Soal
-                    </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-[#8b84a5] mr-1">
+                    Pilih Kunci:
+                  </span>
+                  {ANSWER_KEYS.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => updateEntry(entry.id, { kunciJawaban: key })}
+                      className={`h-9 min-w-[40px] rounded-full px-3 text-xs font-bold transition ${
+                        entry.kunciJawaban === key
+                          ? "bg-amber-400 text-amber-950 shadow-md ring-2 ring-amber-500/30"
+                          : "bg-[#f8f7fd] text-[#4a3f7a] hover:bg-[#f0edf9]"
+                      }`}
+                    >
+                      {key}
+                    </button>
+                  ))}
 
-                    <input
-                      type="text"
-                      value={entry.soal}
-                      onChange={(e) =>
-                        updateEntry(entry.id, { soal: e.target.value })
-                      }
-                      placeholder="Tulis soal di sini"
-                      className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
-                    />
-                  </div>
+                  {soalEntries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeEntry(entry.id)}
+                      className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition"
+                    >
+                      <Trash2 size={14} />
+                      Hapus
+                    </button>
+                  )}
+                </div>
+              </div>
 
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#4a3f7a]">
+                    Teks Pertanyaan Soal
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={entry.soal}
+                    onChange={(e) => updateEntry(entry.id, { soal: e.target.value })}
+                    placeholder="Tuliskan pertanyaan soal di sini..."
+                    className="w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {OPTION_FIELDS.map((field) => {
                     const value =
                       field.key === "A"
                         ? entry.jawabanA
                         : field.key === "B"
-                          ? entry.jawabanB
-                          : field.key === "C"
-                            ? entry.jawabanC
-                            : entry.jawabanD;
+                        ? entry.jawabanB
+                        : field.key === "C"
+                        ? entry.jawabanC
+                        : entry.jawabanD;
 
                     return (
                       <div key={field.key}>
-                        <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
+                        <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
                           {field.label}
                         </label>
-
-                        <input
-                          type="text"
-                          value={value}
-                          onChange={(e) => {
-                            const newValue = e.target.value;
-
-                            if (field.key === "A") {
-                              updateEntry(entry.id, { jawabanA: newValue });
-                            }
-
-                            if (field.key === "B") {
-                              updateEntry(entry.id, { jawabanB: newValue });
-                            }
-
-                            if (field.key === "C") {
-                              updateEntry(entry.id, { jawabanC: newValue });
-                            }
-
-                            if (field.key === "D") {
-                              updateEntry(entry.id, { jawabanD: newValue });
-                            }
-                          }}
-                          placeholder={`Tulis jawaban pilihan ${field.key} di sini`}
-                          className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
-                        />
+                        <div className="relative flex items-center">
+                          <span className="absolute left-4 flex h-6 w-6 items-center justify-center rounded-full bg-[#4a3f7a]/10 text-xs font-black text-[#4a3f7a]">
+                            {field.key}
+                          </span>
+                          <input
+                            type="text"
+                            value={value}
+                            onChange={(e) => {
+                              const newValue = e.target.value;
+                              if (field.key === "A") updateEntry(entry.id, { jawabanA: newValue });
+                              if (field.key === "B") updateEntry(entry.id, { jawabanB: newValue });
+                              if (field.key === "C") updateEntry(entry.id, { jawabanC: newValue });
+                              if (field.key === "D") updateEntry(entry.id, { jawabanD: newValue });
+                            }}
+                            placeholder={`Isi pilihan ${field.key}`}
+                            className="h-11 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] pl-12 pr-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+                          />
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              </section>
-            ))}
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={addEntry}
-              className="inline-flex items-center gap-2 rounded-full bg-[#e7d9ff] px-6 py-3 text-sm font-semibold text-[#4a3f7a] transition hover:bg-[#d4c3f0]"
-            >
-              <Plus size={18} />
-              Tambah Soal
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadTemplate}
-              className="inline-flex items-center gap-2 rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-sm font-semibold text-[#4a3f7a] hover:bg-[#f8f7ff]"
-            >
-              <Download size={16} />
-              Download Template
-            </button>
-          </div>
-
-          {formError && (
-            <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-500">
-              {formError}
+              </div>
             </div>
-          )}
+          ))}
+        </div>
 
-          {successMessage && (
-            <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-600">
-              {successMessage}
-            </div>
-          )}
+        {/* BUTTON ADD ENTRY & NOTIFICATIONS */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={addEntry}
+            className="inline-flex items-center gap-2 rounded-full border border-[#4a3f7a]/20 bg-white px-6 py-3 text-xs font-bold text-[#4a3f7a] shadow-sm hover:bg-[#f8f7fd] transition"
+          >
+            <Plus size={16} />
+            Tambah Pertanyaan Soal
+          </button>
+        </div>
 
-          <div className="mt-8 flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => router.push("/Dosen/bank_soal")}
-              className="rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-sm font-semibold text-[#4a3f7a] hover:bg-[#f8f7ff]"
-            >
-              Batal
-            </button>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {saving ? "Menyimpan..." : "Simpan"}
-            </button>
+        {formError && (
+          <div className="mt-4 rounded-2xl bg-rose-50 p-4 text-center text-sm font-bold text-rose-700 ring-1 ring-rose-200">
+            {formError}
           </div>
-        </form>
+        )}
 
-        <input
-          ref={importInputRef}
-          type="file"
-          accept=".csv"
-          hidden
-          onChange={handleImportFile}
-        />
-      </main>
-    </div>
+        {successMessage && (
+          <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
+            {successMessage}
+          </div>
+        )}
+
+        {/* ACTION BUTTONS */}
+        <div className="mt-8 flex justify-end gap-3 border-t border-[#f0edf9] pt-6">
+          <button
+            type="button"
+            onClick={() => router.push("/Dosen/bank_soal")}
+            className="rounded-full border border-[#e4e2ee] bg-white px-7 py-3 text-sm font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
+          >
+            Batal
+          </button>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full bg-amber-400 px-8 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 hover:bg-amber-300 transition disabled:opacity-50"
+          >
+            {saving ? "Menyimpan Soal..." : "Simpan Semua Soal"}
+          </button>
+        </div>
+      </form>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".csv"
+        hidden
+        onChange={handleImportFile}
+      />
+    </DosenContainer>
   );
 }
 
-// =============================================
-// WAJIB dibungkus Suspense karena pakai useSearchParams()
-// (syarat Next.js App Router untuk production build)
-// =============================================
 export default function BankSoalPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#f8f7ff] text-[#2b2540]">
-          Memuat halaman...
+        <div className="flex min-h-screen items-center justify-center bg-[#f8f7fd]">
+          <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
+            <p className="text-sm font-bold text-[#4a3f7a]">Memuat form soal...</p>
+          </div>
         </div>
       }
     >

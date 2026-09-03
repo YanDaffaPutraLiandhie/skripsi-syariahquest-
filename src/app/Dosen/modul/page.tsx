@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 type ModulCard = {
   id: number;
@@ -217,216 +218,166 @@ function ModulPembelajaranContent() {
   // HALAMAN UTAMA
   // =========================================================
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-
-      <main className="flex-1 p-8">
-
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
-        <div className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8b84a5]">
-            Modul Pembelajaran
+    <DosenContainer
+      categoryTag="MODUL PEMBELAJARAN"
+      title="Daftar Modul Pembelajaran"
+      subtitle="Kelola dan pantau semua modul pembelajaran Syariah Quest yang tersedia untuk mahasiswa."
+      headerAction={
+        <button
+          type="button"
+          onClick={() => router.push("/Dosen/modul/tambah_modul")}
+          className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 transition hover:bg-amber-300 hover:scale-105 active:scale-95"
+        >
+          <span className="text-lg font-extrabold">+</span> Tambah Modul Baru
+        </button>
+      }
+    >
+      {/* GRID MODUL */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {/* TAMBAH MODUL CARD */}
+        <button
+          type="button"
+          onClick={() => router.push("/Dosen/modul/tambah_modul")}
+          className="group flex h-[310px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-[#8a80b8]/30 bg-white/60 p-6 text-[#4a3f7a] shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-[#4a3f7a] hover:bg-white hover:shadow-md hover:scale-[1.01]"
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#4a3f7a]/10 text-2xl font-bold text-[#4a3f7a] transition group-hover:bg-[#4a3f7a] group-hover:text-white">
+            +
+          </div>
+          <span className="text-base font-bold text-[#3d3466]">
+            Tambah Modul Baru
+          </span>
+          <p className="max-w-[200px] text-center text-xs text-[#8b84a5]">
+            Buat modul pembelajaran baru dengan materi dan dokumen
           </p>
+        </button>
 
-          <h1 className="mt-2 text-3xl font-bold text-[#3d3466]">
-            Daftar Modul
-          </h1>
+        {/* DAFTAR MODUL CARDS */}
+        {modulCards.map((card, index) => {
+          const isActive = activeStates[index] ?? true;
 
-          <p className="mt-2 text-sm text-[#8b84a5]">
-            Kelola modul pembelajaran yang tersedia.
-          </p>
-        </div>
-
-        {/* =====================================================
-            GRID
-        ===================================================== */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-
-          {/* ===================================================
-              TAMBAH MODUL
-          =================================================== */}
-          <button
-            type="button"
-            onClick={() =>
-              router.push(
-                "/Dosen/modul/tambah_modul"
-              )
-            }
-            className="flex h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#ececf3] bg-[#f4f3f7] text-[#a3a0b5] transition hover:bg-[#eeedf5]"
-          >
-            <span className="text-4xl">
-              +
-            </span>
-
-            <span className="text-sm font-medium">
-              Tambah Modul Baru
-            </span>
-          </button>
-
-          {/* ===================================================
-              DAFTAR MODUL
-          =================================================== */}
-          {modulCards.map((card, index) => {
-            const isActive =
-              activeStates[index] ?? true;
-
-            return (
-              <div
-                key={card.id}
-                className="flex h-[300px] flex-col overflow-hidden rounded-2xl border border-[#ececf3] bg-white shadow-sm"
-              >
-
-                {/* =================================================
-                    THUMBNAIL
-                ================================================= */}
-                <div className="relative h-[110px] bg-[#ececf3]">
-
-                  {card.thumbnailUrl ? (
-                    <img
-                      src={card.thumbnailUrl}
-                      alt={card.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-[#4a3f7a]">
-                      <span className="text-sm font-semibold text-white/70">
-                        Tidak ada thumbnail
-                      </span>
-                    </div>
-                  )}
-
-                  {/* LEVEL */}
-                  <div
-                    className={`absolute -bottom-4 left-4 flex h-9 w-9 items-center justify-center rounded-full border-4 border-white text-sm font-bold text-white ${card.badgeColor}`}
-                  >
-                    {card.badge}
+          return (
+            <div
+              key={card.id}
+              className="group flex h-[310px] flex-col overflow-hidden rounded-[24px] bg-white ring-1 ring-black/5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
+            >
+              {/* THUMBNAIL */}
+              <div className="relative h-[125px] overflow-hidden bg-[#4a3f7a]">
+                {card.thumbnailUrl ? (
+                  <img
+                    src={card.thumbnailUrl}
+                    alt={card.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#c9c3e6]">
+                      Syariah Quest Module
+                    </span>
                   </div>
+                )}
 
-                  {/* STATUS */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      toggleActive(index)
-                    }
-                    className={`absolute right-3 top-3 rounded-full px-3 py-1 text-[11px] font-semibold text-white transition ${
-                      isActive
-                        ? "bg-red-500 hover:bg-red-600"
-                        : "bg-green-500 hover:bg-green-600"
-                    }`}
-                  >
-                    {isActive
-                      ? "Nonaktifkan"
-                      : "Aktifkan"}
-                  </button>
+                {/* LEVEL BADGE */}
+                <div
+                  className={`absolute -bottom-4 left-4 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white text-sm font-black text-white shadow-md ${card.badgeColor}`}
+                >
+                  {card.badge}
                 </div>
 
-                {/* =================================================
-                    CONTENT
-                ================================================= */}
-                <div className="flex flex-1 flex-col px-4 pb-4 pt-6">
+                {/* STATUS TOGGLE */}
+                <button
+                  type="button"
+                  onClick={() => toggleActive(index)}
+                  className={`absolute right-3 top-3 rounded-full px-3.5 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${
+                    isActive
+                      ? "bg-rose-500/90 hover:bg-rose-600"
+                      : "bg-emerald-500/90 hover:bg-emerald-600"
+                  }`}
+                >
+                  {isActive ? "Nonaktifkan" : "Aktifkan"}
+                </button>
+              </div>
 
-                  {/* NAMA MODUL */}
-                  <h3 className="line-clamp-2 text-sm font-bold text-[#3d3466]">
-                    {card.title}
-                  </h3>
+              {/* CONTENT */}
+              <div className="flex flex-1 flex-col px-5 pb-5 pt-6">
+                <h3 className="line-clamp-2 text-base font-bold leading-snug text-[#2b2540] group-hover:text-[#4a3f7a] transition">
+                  {card.title}
+                </h3>
 
-                  {/* XP */}
-                  <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-500">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
                     +{card.xp} XP
                   </div>
 
-                  {/* DIBUAT OLEH */}
-                  <p className="mt-1 truncate text-xs text-[#8b84a5]">
-                    Dibuat oleh:{" "}
-                    <span className="font-semibold text-[#4a3f7a]">
-                      {card.dibuat_oleh}
-                    </span>
-                  </p>
+                  <span className="truncate text-xs font-medium text-[#8b84a5]">
+                    Dosen: <strong className="text-[#3d3466]">{card.dibuat_oleh}</strong>
+                  </span>
+                </div>
 
-                  {/* BUTTON */}
-                  <div className="mt-auto flex gap-2">
+                {/* BUTTONS */}
+                <div className="mt-auto flex gap-2.5 pt-4 border-t border-[#f0edf9]">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/Dosen/modul/aktivitas?id=${card.id}`)
+                    }
+                    className="flex-1 rounded-xl border border-[#e4e2ee] bg-[#f8f7fd] py-2.5 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#4a3f7a] hover:text-white"
+                  >
+                    Aktivitas
+                  </button>
 
-                    {/* AKTIVITAS */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          `/Dosen/modul/aktivitas?id=${card.id}`
-                        )
-                      }
-                      className="flex-1 rounded-lg border border-[#e4e2ee] py-2 text-xs font-semibold transition hover:bg-[#f7f6fb]"
-                    >
-                      Aktivitas Modul
-                    </button>
-
-                    {/* DETAIL */}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(
-                          `/Dosen/modul/detail_modul?id=${card.id}`
-                        )
-                      }
-                      className="flex-1 rounded-lg border border-[#e4e2ee] py-2 text-xs font-semibold transition hover:bg-[#f7f6fb]"
-                    >
-                      Lihat Modul
-                    </button>
-
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/Dosen/modul/detail_modul?id=${card.id}`)
+                    }
+                    className="flex-1 rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white transition hover:bg-[#3d3466] shadow-sm"
+                  >
+                    Lihat Modul
+                  </button>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* EMPTY STATE */}
+      {modulCards.length === 0 && (
+        <div className="mt-6 rounded-[28px] border-2 border-dashed border-[#8a80b8]/30 bg-white/70 p-12 text-center backdrop-blur-sm shadow-sm">
+          <p className="text-base font-bold text-[#3d3466]">
+            Belum ada modul pembelajaran.
+          </p>
+          <p className="mt-1 text-xs text-[#8b84a5]">
+            Mulai tambahkan modul baru untuk proses pembelajaran mahasiswa.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => router.push("/Dosen/modul/tambah_modul")}
+            className="mt-6 rounded-full bg-amber-400 px-6 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 transition hover:bg-amber-300"
+          >
+            + Tambah Modul Sekarang
+          </button>
         </div>
-
-        {/* =====================================================
-            BELUM ADA MODUL
-        ===================================================== */}
-        {modulCards.length === 0 && (
-          <div className="mt-6 rounded-2xl border border-dashed border-[#dcd8e8] bg-[#faf9fd] p-10 text-center">
-            <p className="text-sm font-semibold text-[#6e6a85]">
-              Belum ada modul pembelajaran.
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/Dosen/modul/tambah_modul"
-                )
-              }
-              className="mt-4 rounded-full bg-emerald-400 px-5 py-2.5 text-sm font-bold text-emerald-950 hover:bg-emerald-300"
-            >
-              Tambah Modul
-            </button>
-          </div>
-        )}
-      </main>
-    </div>
+      )}
+    </DosenContainer>
   );
 }
 
 // =============================================================
 // PAGE WRAPPER
 // =============================================================
-// Suspense diperlukan oleh Next.js 16 ketika ada komponen
-// di dalam tree halaman yang menggunakan useSearchParams().
-// Bisa berasal dari Sidebar atau komponen turunannya.
 export default function ModulPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen bg-white">
-          <main className="flex flex-1 items-center justify-center">
-            <div className="rounded-2xl bg-[#f7f6fb] px-8 py-6">
-              <p className="text-sm font-semibold text-[#6e6a85]">
-                Memuat halaman modul...
-              </p>
-            </div>
-          </main>
+        <div className="flex min-h-screen items-center justify-center bg-[#f8f7fd]">
+          <div className="rounded-2xl bg-white px-8 py-6 shadow-sm">
+            <p className="text-sm font-semibold text-[#4a3f7a]">
+              Memuat modul pembelajaran...
+            </p>
+          </div>
         </div>
       }
     >

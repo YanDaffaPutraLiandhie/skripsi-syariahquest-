@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/sidebar";
-// import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import DosenContainer from "@/components/layout/DosenContainer";
+import { Check, ArrowLeft } from "lucide-react";
 
 type ModulRow = {
   id: number;
@@ -26,7 +26,7 @@ export default function PilihModul() {
 
   useEffect(() => {
     async function loadModules() {
-const { data, error } = await supabase.from("modul").select(`
+      const { data, error } = await supabase.from("modul").select(`
         id_modul,
         nama_modul,
         id_level,
@@ -42,10 +42,10 @@ const { data, error } = await supabase.from("modul").select(`
         const badge = idLevel === 1 ? "E" : idLevel === 2 ? "M" : "H";
         const badgeColor =
           idLevel === 1
-            ? "bg-green-500"
+            ? "bg-emerald-500 text-white"
             : idLevel === 2
-              ? "bg-yellow-500"
-              : "bg-red-500";
+              ? "bg-amber-500 text-white"
+              : "bg-rose-500 text-white";
 
         return {
           id: item.id_modul ?? index + 1,
@@ -56,13 +56,12 @@ const { data, error } = await supabase.from("modul").select(`
         };
       });
 
-setModules(rows);
+      setModules(rows);
     }
 
     loadModules();
   }, []);
 
-  // Fungsi memilih / membatalkan pilihan
   const toggleSelected = (id: number) => {
     setSelected((prev) =>
       prev.includes(id)
@@ -71,7 +70,6 @@ setModules(rows);
     );
   };
 
-  // Acak array (Fisher–Yates)
   function shuffle<T>(arr: T[]): T[] {
     const copy = [...arr];
     for (let i = copy.length - 1; i > 0; i--) {
@@ -97,14 +95,11 @@ setModules(rows);
 
     setSaving(true);
 
-try {
-      // Ambil modul yang dipilih dan nama kuis
+    try {
       const selectedModules = modules.filter((m) => selected.includes(m.id));
       const kuisName = namaKuis.trim();
 
       let totalSoal = 0;
-
-      // Kumpulkan semua soal dari setiap modul terpilih
       const semuaSoal: any[] = [];
 
       for (const modul of selectedModules) {
@@ -113,12 +108,8 @@ try {
           .select("id_soal, id_modul, soal")
           .eq("id_modul", modul.id);
 
-        if (soalError) {
-          console.error("Error ambil soal:", soalError);
-          throw new Error(soalError.message);
-        }
+        if (soalError) throw new Error(soalError.message);
 
-        // Acak dan batasi maksimal 10 soal per modul, lalu gabungkan
         const dipilih = shuffle(soalList ?? []).slice(0, 10);
         semuaSoal.push(...dipilih);
       }
@@ -127,31 +118,20 @@ try {
         throw new Error("Tidak ada soal pada modul yang dipilih.");
       }
 
-      // Ambil semua id_soal dari kumpulan soal
       const idSoalList = semuaSoal.map((s) => s.id_soal);
 
-      // Query tabel jawaban secara terpisah,
-      // ambil semua jawaban yang id_soal-nya ada di daftar soal
       const { data: jawabanList, error: jawabanError } = await supabase
         .from("jawaban")
         .select("id_jawaban, id_soal, jawaban, jawaban_benar")
         .in("id_soal", idSoalList);
 
-      if (jawabanError) {
-        console.error("Error ambil jawaban:", jawabanError);
-        throw new Error(jawabanError.message);
-      }
+      if (jawabanError) throw new Error(jawabanError.message);
 
-      // Kelompokkan jawaban berdasarkan id_soal
       const jawabanBySoal: Record<number, any[]> = {};
       for (const j of jawabanList ?? []) {
         if (!jawabanBySoal[j.id_soal]) jawabanBySoal[j.id_soal] = [];
         jawabanBySoal[j.id_soal].push(j);
       }
-
-      // =====================
-      // BUAT SATU BARIS PADA TABEL QUIS (1 kuis = 1 id_quis)
-      // =====================
 
       const { data: quisBaru, error: quisError } = await supabase
         .from("quis")
@@ -159,19 +139,14 @@ try {
         .select()
         .single();
 
-      if (quisError) {
-        console.error("Error insert quis:", quisError);
-        throw new Error(quisError.message);
-      }
+      if (quisError) throw new Error(quisError.message);
 
       const idQuis = quisBaru.id_quis;
 
-      // Simpan relasi ke tabel detail_kuis
       for (const soal of semuaSoal) {
         const jawaban = jawabanBySoal[soal.id_soal] ?? [];
 
         if (jawaban.length === 0) {
-          // Soal tanpa jawaban, tetap simpan id_soal ke detail_kuis
           const { error: detailError } = await supabase
             .from("detail_kuis")
             .insert({
@@ -179,15 +154,11 @@ try {
               id_soal: soal.id_soal,
             });
 
-          if (detailError) {
-            console.error("Error insert detail_kuis:", detailError);
-            throw new Error(detailError.message);
-          }
+          if (detailError) throw new Error(detailError.message);
           totalSoal += 1;
           continue;
         }
 
-        // Simpan id_soal beserta setiap id_jawaban yang memiliki id_soal sama
         for (const j of jawaban) {
           const { error: detailError } = await supabase
             .from("detail_kuis")
@@ -197,23 +168,19 @@ try {
               id_jawaban: j.id_jawaban,
             });
 
-          if (detailError) {
-            console.error("Error insert detail_kuis:", detailError);
-            throw new Error(detailError.message);
-          }
+          if (detailError) throw new Error(detailError.message);
         }
         totalSoal += 1;
       }
 
-    
-await logActivity({
-  fitur: "Kuis",
-  jenis_aktivitas: "Tambah Kuis",
-  keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal`,
-});
+      await logActivity({
+        fitur: "Kuis",
+        jenis_aktivitas: "Tambah Kuis",
+        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal`,
+      });
 
       setSuccessMessage(
-        `Kuis "${kuisName}" berhasil dibuat dengan id ${idQuis} (${totalSoal} soal).`,
+        `Kuis "${kuisName}" berhasil dibuat dengan id #${idQuis} (${totalSoal} soal).`,
       );
       setSelected([]);
       setNamaKuis("");
@@ -232,152 +199,117 @@ await logActivity({
   };
 
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <Sidebar activeLabel="Modul Pembelajaran" />
+    <DosenContainer
+      categoryTag="GENERATE KUIS OTOMATIS"
+      title="Pilih Modul Pembelajaran"
+      subtitle="Sistem akan mengambil bank soal secara acak berdasarkan modul aktif yang Anda centang."
+      headerAction={
+        <button
+          type="button"
+          onClick={() => router.push("/Dosen/kuis")}
+          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-xs font-bold text-white backdrop-blur-sm hover:bg-white/20 transition"
+        >
+          <ArrowLeft size={16} />
+          Kembali ke Kuis
+        </button>
+      }
+    >
+      <div className="space-y-6">
+        <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Nama Kuis Baru
+          </label>
+          <input
+            type="text"
+            value={namaKuis}
+            onChange={(e) => setNamaKuis(e.target.value)}
+            placeholder="Contoh: Kuis Evaluasi Pekan 1..."
+            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+          />
+        </div>
 
-      {/* Main */}
-      <main className="flex-1 p-8">
-{/* Topbar */}
-
-        {/* Panel */}
-        <div className="rounded-[24px] bg-[#4a3f7a] px-10 pb-8 pt-10 text-white">
-<h1 className="mb-8 text-center text-3xl font-extrabold">
-            Pilih Modul
-          </h1>
-
-          {/* Nama Kuis */}
-          <div className="mb-6">
-            <label className="mb-2 block text-sm font-semibold text-white">
-              Nama Kuis
-            </label>
-            <input
-              type="text"
-              value={namaKuis}
-              onChange={(e) => setNamaKuis(e.target.value)}
-              placeholder="Tulis nama kuis"
-              className="h-11 w-full rounded-full bg-white px-4 text-sm text-[#2b2540] outline-none placeholder:text-[#c9c6d6]"
-            />
+        <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
+          <div className="mb-4 flex items-center justify-between border-b border-[#f0edf9] pb-4">
+            <h2 className="text-lg font-bold text-[#3d3466]">Daftar Modul Aktif</h2>
+            <span className="rounded-full bg-[#f8f7fd] px-3.5 py-1 text-xs font-bold text-[#4a3f7a]">
+              {selected.length} Modul Terpilih
+            </span>
           </div>
 
-{/* Header */}
-          <div className="mb-3 grid grid-cols-[50px_40px_1fr_70px] items-center gap-4 px-1 text-sm font-semibold">
-            <span>No</span>
-            <span>Level</span>
-            <span>Nama Modul</span>
-            <span className="text-center">Pilih</span>
-          </div>
-
-{/* List Modul */}
-          <div className="flex flex-col gap-3">
+          <div className="space-y-3">
             {modules.length === 0 ? (
-              <div className="rounded-xl bg-white/10 p-4 text-center text-sm text-gray-300">
+              <div className="py-8 text-center text-sm font-semibold text-[#8b84a5]">
                 Tidak ada modul aktif yang tersedia.
               </div>
             ) : (
-              modules.map((row) => (
-              <div
-                key={row.id}
-                className="grid grid-cols-[50px_40px_1fr_70px] items-center gap-4"
-              >
-                {/* Nomor */}
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-sm font-semibold text-[#4a3f7a]">
-                  {row.no}
-                </div>
-
-                {/* Badge Level */}
-                <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white ${row.badgeColor}`}
-                >
-                  {row.badge}
-                </div>
-
-                {/* Nama Modul */}
-                <input
-                  type="text"
-                  value={row.name}
-                  readOnly
-                  className="h-9 w-full rounded-full bg-white px-4 text-sm text-[#2b2540] outline-none"
-                />
-
-                {/* Checkbox Bulat */}
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={selected.includes(row.id)}
+              modules.map((row) => {
+                const isChecked = selected.includes(row.id);
+                return (
+                  <div
+                    key={row.id}
                     onClick={() => toggleSelected(row.id)}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-white transition-all duration-200 ${
-                      selected.includes(row.id)
-                        ? "bg-white"
-                        : "bg-transparent hover:bg-white/20"
+                    className={`flex cursor-pointer items-center justify-between rounded-2xl p-4 transition ${
+                      isChecked
+                        ? "bg-[#f8f7fd] ring-2 ring-[#4a3f7a]"
+                        : "bg-white ring-1 ring-[#4a3f7a]/10 hover:bg-[#f8f7fd]/50"
                     }`}
                   >
-                    {selected.includes(row.id) && (
-                      <div className="h-3 w-3 rounded-full bg-[#4a3f7a]" />
-                    )}
-                  </button>
-</div>
-              </div>
-            ))
-          )}
-          </div>
+                    <div className="flex items-center gap-4">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#4a3f7a] text-xs font-black text-white">
+                        #{row.no}
+                      </span>
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black shadow-xs ${row.badgeColor}`}
+                      >
+                        {row.badge}
+                      </span>
+                      <p className="text-sm font-bold text-[#2b2540]">{row.name}</p>
+                    </div>
 
-          {/* Modul yang dipilih */}
-          <div className="mt-6 rounded-xl bg-white/10 p-4">
-            <p className="text-sm font-semibold">Modul dipilih:</p>
-
-            {selected.length === 0 ? (
-              <p className="mt-1 text-sm text-gray-300">
-                Belum ada modul yang dipilih.
-              </p>
-            ) : (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {modules
-                  .filter((item) => selected.includes(item.id))
-                  .map((item) => (
-                    <span
-                      key={item.id}
-                      className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-[#4a3f7a]"
+                    <div
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition ${
+                        isChecked
+                          ? "border-[#4a3f7a] bg-[#4a3f7a] text-white"
+                          : "border-[#8b84a5]"
+                      }`}
                     >
-                      {item.name}
-                    </span>
-                  ))}
-              </div>
+                      {isChecked && <Check size={14} strokeWidth={3} />}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
 
-{/* Pesan */}
           {errorMessage && (
-            <p className="mt-6 rounded-xl bg-red-500/20 px-4 py-3 text-sm font-semibold text-red-100">
+            <p className="mt-4 rounded-2xl bg-rose-50 p-4 text-xs font-bold text-rose-700 ring-1 ring-rose-200">
               {errorMessage}
             </p>
           )}
           {successMessage && (
-            <p className="mt-6 rounded-xl bg-emerald-500/20 px-4 py-3 text-sm font-semibold text-emerald-100">
+            <p className="mt-4 rounded-2xl bg-emerald-50 p-4 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
               {successMessage}
             </p>
           )}
 
-          {/* Button */}
-          <div className="mt-8 flex justify-end gap-3">
+          <div className="mt-8 flex justify-end gap-3 border-t border-[#f0edf9] pt-6">
             <button
               onClick={handleCancel}
               disabled={saving}
-              className="rounded-full bg-[#c9c3e6] px-6 py-2 text-sm font-semibold text-[#3d3466] transition hover:bg-[#d8d3ef] disabled:opacity-50"
+              className="rounded-full border border-[#e4e2ee] bg-white px-6 py-2.5 text-xs font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
             >
               Batal
             </button>
-
             <button
               onClick={handleFinish}
               disabled={saving}
-              className="rounded-full bg-emerald-400 px-6 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-full bg-emerald-400 px-8 py-2.5 text-xs font-bold text-emerald-950 shadow-md shadow-emerald-900/20 hover:bg-emerald-300 transition disabled:opacity-70"
             >
-              {saving ? "Menyimpan..." : "Selesai"}
+              {saving ? "Membuat Kuis..." : "Generate Kuis"}
             </button>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </DosenContainer>
   );
 }

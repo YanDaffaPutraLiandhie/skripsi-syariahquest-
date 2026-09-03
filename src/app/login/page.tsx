@@ -571,6 +571,19 @@ function LoginContent() {
               : 'Log in'}
           </button>
 
+          {/* REGISTER */}
+
+          <button
+            type="button"
+            className="login-register-btn"
+            disabled={loading}
+            onClick={() =>
+              router.push('/register')
+            }
+          >
+            Belum punya akun? Daftar
+          </button>
+
         </form>
 
       </div>

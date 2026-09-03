@@ -73,16 +73,14 @@ export default function ClientLayout({
       )}
 
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-          isCollapsed ? "ml-20" : "ml-64"
-        }`}
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? "ml-20" : "ml-64"
+          }`}
       >
         {!isGameMode && !isProfilePage && <Navbar />}
 
         <main
-          className={`flex-1 overflow-x-hidden ${
-            isGameMode ? "p-0" : "p-8 bg-gray-50/30"
-          }`}
+          className={`flex-1 overflow-x-hidden ${isGameMode ? "p-0" : "p-8 bg-gray-50/30"
+            }`}
         >
           {children}
         </main>

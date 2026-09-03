@@ -1,8 +1,9 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 type ModulDone = {
   no: number;
@@ -21,6 +22,7 @@ function getBadgeInfo(namaLevel: string | null | undefined) {
 }
 
 export default function DetailMahasiswa() {
+  const router = useRouter();
   const params = useParams();
   const idMahasiswa = params?.id as string;
 
@@ -34,7 +36,6 @@ export default function DetailMahasiswa() {
     async function load() {
       setIsLoading(true);
 
-      // Nama mahasiswa
       const { data: mhs, error: mhsError } = await supabase
         .from("mahasiswa")
         .select("nama_mahasiswa")
@@ -44,7 +45,6 @@ export default function DetailMahasiswa() {
       if (mhsError) console.error("Gagal fetch mahasiswa:", mhsError);
       setNamaMahasiswa(mhs?.nama_mahasiswa ?? "Mahasiswa");
 
-      // Modul yang sudah diselesaikan mahasiswa ini
       const { data, error } = await supabase
         .from("progress_modul")
         .select(
@@ -93,61 +93,74 @@ export default function DetailMahasiswa() {
   }, [idMahasiswa]);
 
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <main className="flex-1 p-8">
-        <div className="rounded-[24px] bg-[#4a3f7a] px-10 pb-8 pt-10 text-white">
-          <div className="mb-8 flex flex-col items-center">
-            <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[#dcdae3]">
-              <svg className="h-10 w-10 text-[#a3a0b5]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="8" r="3.5" />
-                <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
-              </svg>
-            </div>
-            <h1 className="mb-4 text-2xl font-bold">{namaMahasiswa}</h1>
-            <h2 className="text-base font-semibold">Modul Yang Telah diselesaikan</h2>
+    <DosenContainer
+      categoryTag="DETAIL AKTIVITAS MAHASISWA"
+      title={namaMahasiswa}
+      subtitle="Riwayat modul dan pencapaian nilai yang telah diselesaikan mahasiswa."
+      headerAction={
+        <button
+          type="button"
+          onClick={() => router.push("/Dosen/modul/aktivitas")}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+        >
+          ← Kembali ke Aktivitas
+        </button>
+      }
+    >
+      <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
+        <div className="mb-8 flex flex-col items-center border-b border-[#f0edf9] pb-6">
+          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#4a3f7a] to-[#3d3466] text-white shadow-md">
+            <svg className="h-10 w-10 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+            </svg>
           </div>
-
-          {isLoading ? (
-            <p className="py-6 text-center text-sm text-white/70">Memuat data...</p>
-          ) : modulDone.length === 0 ? (
-            <p className="py-6 text-center text-sm text-white/70">
-              Mahasiswa ini belum menyelesaikan modul apa pun.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {modulDone.map((row) => (
-                <div key={row.no} className="grid grid-cols-[60px_1fr_90px] items-center gap-4">
-                  <div className="flex h-9 w-16 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#2b2540]">
-                    {row.no}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      defaultValue={row.name}
-                      readOnly
-                      className="h-9 w-full rounded-full border-none bg-white px-4 pr-10 text-sm text-[#2b2540] outline-none"
-                    />
-                    <span
-                      className={`absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-xs font-bold text-white ${row.badgeColor}`}
-                    >
-                      {row.badge}
-                    </span>
-                  </div>
-                  <div className="flex h-9 w-16 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#2b2540]">
-                    {row.score}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-8 flex justify-end">
-            <button className="rounded-full bg-emerald-400 px-8 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-300">
-              Ekspor
-            </button>
-          </div>
+          <h2 className="text-2xl font-bold text-[#3d3466]">{namaMahasiswa}</h2>
+          <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[#f8f7fd] px-3.5 py-1 text-xs font-semibold text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10">
+            Daftar Modul Diselesaikan ({modulDone.length})
+          </span>
         </div>
-      </main>
-    </div>
+
+        {isLoading ? (
+          <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
+            Memuat detail progress mahasiswa...
+          </div>
+        ) : modulDone.length === 0 ? (
+          <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
+            Mahasiswa ini belum menyelesaikan modul pembelajaran apapun.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {modulDone.map((row) => (
+              <div
+                key={row.no}
+                className="flex items-center justify-between rounded-2xl bg-[#f8f7fd] p-4 ring-1 ring-[#4a3f7a]/5 transition hover:bg-[#f0edf9]"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4a3f7a] text-xs font-bold text-white">
+                    #{row.no}
+                  </span>
+                  <span className="text-sm font-bold text-[#2b2540]">{row.name}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${row.badgeColor}`}>
+                    {row.badge}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                    Nilai: {row.score}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-8 flex justify-end pt-4 border-t border-[#f0edf9]">
+          <button className="rounded-full bg-emerald-400 px-8 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-300 transition shadow-sm">
+            Ekspor Laporan (PDF)
+          </button>
+        </div>
+      </div>
+    </DosenContainer>
   );
 }

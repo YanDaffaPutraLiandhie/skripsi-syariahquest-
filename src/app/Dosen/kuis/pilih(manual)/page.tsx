@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
 
@@ -188,7 +189,7 @@ export default function BankSoalPage() {
     });
   }
 
-async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     setSaving(true);
@@ -201,13 +202,9 @@ async function handleSubmit(e: React.FormEvent) {
       return;
     }
 
-try {
+    try {
       const kuisName = namaKuis.trim();
       const quizRows: SavedQuiz[] = [];
-
-      // =====================
-      // BUAT SATU BARIS PADA TABEL QUIS (1 nama kuis = 1 id_quis)
-      // =====================
 
       const { data: quisBaru, error: quisError } = await supabase
         .from("quis")
@@ -216,9 +213,6 @@ try {
         .single();
 
       if (quisError) {
-        console.log("===== ERROR INSERT QUIS =====");
-        console.log(quisError);
-        console.log(JSON.stringify(quisError, null, 2));
         throw new Error(quisError.message);
       }
 
@@ -246,10 +240,6 @@ try {
           throw new Error(`Pilih kunci jawaban untuk soal ke-${nomor}`);
         }
 
-        // =====================
-        // SIMPAN SOAL
-        // =====================
-
         const { data: soalBaru, error: soalError } = await supabase
           .from("soal")
           .insert({
@@ -260,17 +250,8 @@ try {
           .single();
 
         if (soalError) {
-          console.log("===== ERROR INSERT SOAL =====");
-          console.log(soalError);
-          console.log(JSON.stringify(soalError, null, 2));
           throw new Error(soalError.message);
         }
-
-        console.log("SOAL BERHASIL :", soalBaru);
-
-        // =====================
-        // SIMPAN JAWABAN
-        // =====================
 
         const jawabanInput = [
           {
@@ -301,17 +282,8 @@ try {
           .select();
 
         if (jawabanError) {
-          console.log("===== ERROR INSERT JAWABAN =====");
-          console.log(jawabanError);
-          console.log(JSON.stringify(jawabanError, null, 2));
           throw new Error(jawabanError.message);
         }
-
-        console.log("JAWABAN BERHASIL :", jawabanData);
-
-        // =====================
-        // SIMPAN KE TABEL DETAIL_QUIS (relasi kuis -> soal & jawaban)
-        // =====================
 
         for (const j of jawabanData ?? []) {
           const { error: detailError } = await supabase
@@ -323,9 +295,6 @@ try {
             });
 
           if (detailError) {
-            console.log("===== ERROR INSERT DETAIL_QUIS =====");
-            console.log(detailError);
-            console.log(JSON.stringify(detailError, null, 2));
             throw new Error(detailError.message);
           }
 
@@ -346,20 +315,15 @@ try {
         `Kuis "${kuisName}" berhasil dibuat dengan id ${idQuis} (${soalEntries.length} soal).`,
       );
 
-      
-await logActivity({
-  fitur: "Kuis",
-  jenis_aktivitas: "Tambah",
-  keterangan: `Menambahkan kuis "${kuisName}" secara manual dengan ${soalEntries.length} soal`,
-});
+      await logActivity({
+        fitur: "Kuis",
+        jenis_aktivitas: "Tambah",
+        keterangan: `Menambahkan kuis "${kuisName}" secara manual dengan ${soalEntries.length} soal`,
+      });
 
       setSoalEntries([makeEmptyEntry()]);
       setNamaKuis("");
     } catch (err: any) {
-      console.log("===== CATCH =====");
-      console.log(err);
-      console.log(JSON.stringify(err, null, 2));
-
       setFormError(
         err?.message || err?.details || err?.hint || "Terjadi kesalahan.",
       );
@@ -369,165 +333,108 @@ await logActivity({
   }
 
   return (
-<div className="flex min-h-screen bg-[#f8f7ff] text-[#2b2540]">
-      <main className="flex-1 p-8">
-        <div className="mb-6 rounded-[32px] bg-white p-8 shadow-sm">
+    <DosenContainer
+      categoryTag="PEMBUATAN KUIS MANUAL"
+      title="Susun Kuis Baru"
+      subtitle="Input soal dan pilihan jawaban secara manual atau impor dari template CSV."
+      headerAction={
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push("/Dosen/kuis")}
-            className="mb-4 flex h-10 w-10 items-center justify-center rounded-full border border-[#e4e2ee] bg-white text-[#4a3f7a] transition hover:bg-[#f7f6fb]"
-            aria-label="Kembali"
+            type="button"
+            onClick={handleImportClick}
+            disabled={importing}
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-2.5 text-xs font-bold text-emerald-950 shadow-md hover:bg-emerald-300 transition"
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            {importing ? "Mengimpor..." : "Impor CSV"}
           </button>
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-[#8b84a5]">
-                Bank Soal
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold text-[#2b2540]">
-                Form Soal
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm text-[#6e6a85]">
-                Tambahkan soal pilihan ganda, pilih kunci jawaban, atau impor
-                CSV untuk mempercepat proses.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleImportClick}
-                disabled={importing}
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300"
-              >
-                {importing ? "Mengimpor..." : "Impor Dokumen"}
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                className="inline-flex items-center gap-2 rounded-full border border-[#ede8ff] bg-[#f7f4ff] px-5 py-3 text-sm font-semibold text-[#4a3f7a] transition hover:bg-[#ede8ff]"
-              >
-                <Download size={16} />
-                Download Template
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-xs font-bold text-white backdrop-blur-sm hover:bg-white/20 transition"
+          >
+            <Download size={15} />
+            Template CSV
+          </button>
+        </div>
+      }
+    >
+      <form onSubmit={handleSubmit}>
+        <div className="mb-6 rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Nama Kuis
+          </label>
+          <input
+            type="text"
+            value={namaKuis}
+            onChange={(e) => setNamaKuis(e.target.value)}
+            placeholder="Tulis nama kuis di sini..."
+            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+          />
         </div>
 
-        <section className="mb-8 rounded-[32px] bg-[#4a3f7a] p-8 shadow-[0_28px_80px_rgba(74,63,122,0.14)]">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-[#c9c6d6]">
-                Kunci Jawaban
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold text-white">
-                Sistem Pilih Jawaban
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {ANSWER_KEYS.map((key) => (
-                <span
-                  key={key}
-                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  {key}
-                </span>
-              ))}
-            </div>
-          </div>
-          <p className="mt-6 max-w-2xl text-sm leading-6 text-[#e7defd]">
-            Isi soal secara manual atau gunakan template CSV. Setiap soal dapat
-            memiliki empat pilihan jawaban dengan satu kunci jawaban aktif.
-          </p>
-        </section>
+        <div className="space-y-6">
+          {soalEntries.map((entry, index) => (
+            <section
+              key={entry.id}
+              className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5"
+            >
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#f0edf9] pb-4">
+                <div>
+                  <span className="inline-flex items-center rounded-full bg-[#f8f7fd] px-3 py-1 text-xs font-black text-[#4a3f7a]">
+                    Pertanyaan Soal #{index + 1}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="mr-2 text-xs font-bold text-[#8b84a5]">Kunci:</span>
+                  {ANSWER_KEYS.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        updateEntry(entry.id, { kunciJawaban: key })
+                      }
+                      className={`h-9 w-9 rounded-full text-xs font-black transition ${
+                        entry.kunciJawaban === key
+                          ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                          : "bg-[#f8f7fd] text-[#4a3f7a] hover:bg-[#f0edf9]"
+                      }`}
+                    >
+                      {key}
+                    </button>
+                  ))}
+                  {soalEntries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeEntry(entry.id)}
+                      className="ml-3 inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 transition"
+                    >
+                      <Trash2 size={14} />
+                      Hapus
+                    </button>
+                  )}
+                </div>
+              </div>
 
-<form onSubmit={handleSubmit}>
-          <div className="mb-6 rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-[#e5e1f2]">
-            <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
-              Nama Kuis
-            </label>
-            <input
-              type="text"
-              value={namaKuis}
-              onChange={(e) => setNamaKuis(e.target.value)}
-              placeholder="Tulis nama kuis"
-              className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
-            />
-          </div>
-
-          <div className="grid gap-6">
-            {soalEntries.map((entry, index) => (
-              <section
-                key={entry.id}
-                className="overflow-hidden rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-[#e5e1f2]"
-              >
-                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.24em] text-[#7b7397]">
-                      Soal {index + 1}
-                    </p>
-                    <h3 className="mt-2 text-xl font-semibold text-[#2b2540]">
-                      Detail Soal
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {ANSWER_KEYS.map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() =>
-                          updateEntry(entry.id, { kunciJawaban: key })
-                        }
-                        className={`h-10 min-w-[44px] rounded-full px-3 text-sm font-semibold transition ${
-                          entry.kunciJawaban === key
-                            ? "bg-emerald-400 text-emerald-950"
-                            : "bg-[#f1eff8] text-[#4a3f7a] hover:bg-[#e5e0f4]"
-                        }`}
-                      >
-                        {key}
-                      </button>
-                    ))}
-                    {soalEntries.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeEntry(entry.id)}
-                        className="inline-flex items-center gap-2 rounded-full border border-[#e4e2ee] bg-[#fbfbfd] px-4 py-2 text-sm font-semibold text-[#8f86a8] hover:bg-[#f3f1f9]"
-                      >
-                        <Trash2 size={14} />
-                        Hapus
-                      </button>
-                    )}
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-xs font-bold text-[#4a3f7a]">
+                    Teks Pertanyaan
+                  </label>
+                  <input
+                    type="text"
+                    value={entry.soal}
+                    onChange={(e) =>
+                      updateEntry(entry.id, { soal: e.target.value })
+                    }
+                    placeholder="Tulis pertanyaan soal..."
+                    className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+                  />
                 </div>
 
-                <div className="grid gap-5">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
-                      Soal
-                    </label>
-                    <input
-                      type="text"
-                      value={entry.soal}
-                      onChange={(e) =>
-                        updateEntry(entry.id, { soal: e.target.value })
-                      }
-                      placeholder="Tulis soal di sini"
-                      className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
-                    />
-                  </div>
-
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {OPTION_FIELDS.map((field) => (
                     <div key={field.key}>
-                      <label className="mb-2 block text-sm font-semibold text-[#4a3f7a]">
+                      <label className="mb-2 block text-xs font-bold text-[#4a3f7a]">
                         {field.label}
                       </label>
                       <input
@@ -561,130 +468,64 @@ await logActivity({
                                 : entry.jawabanD,
                           })
                         }
-                        placeholder={`Tulis jawaban pilihan ${field.key} di sini`}
-                        className="h-12 w-full rounded-full border border-[#e4e2ee] bg-[#fcfcff] px-4 text-sm text-[#2b2540] outline-none transition focus:border-[#4a3f7a]"
+                        placeholder={`Pilihan ${field.key}...`}
+                        className="h-11 w-full rounded-xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-xs font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
                       />
                     </div>
                   ))}
                 </div>
-              </section>
-            ))}
-          </div>
+              </div>
+            </section>
+          ))}
+        </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={addEntry}
+            className="inline-flex items-center gap-2 rounded-full bg-[#4a3f7a] px-6 py-3 text-xs font-bold text-white shadow-md hover:bg-[#3d3466] transition"
+          >
+            <Plus size={16} />
+            Tambah Pertanyaan Lain
+          </button>
+
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={addEntry}
-              className="inline-flex items-center gap-2 rounded-full bg-[#e7d9ff] px-6 py-3 text-sm font-semibold text-[#4a3f7a] transition hover:bg-[#d4c3f0]"
-            >
-              <Plus size={18} />
-              Tambah Soal
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadTemplate}
-              className="inline-flex items-center gap-2 rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-sm font-semibold text-[#4a3f7a] transition hover:bg-[#f8f7ff]"
-            >
-              <Download size={16} />
-              Download Template
-            </button>
-          </div>
-
-          {formError && (
-            <p className="mt-4 text-sm font-semibold text-red-500">
-              {formError}
-            </p>
-          )}
-          {successMessage && (
-            <p className="mt-4 text-sm font-semibold text-emerald-600">
-              {successMessage}
-            </p>
-          )}
-
-          <div className="mt-8 flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => setSoalEntries([makeEmptyEntry()])}
-              className="rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-sm font-semibold text-[#4a3f7a] hover:bg-[#f8f7ff]"
+              onClick={() => router.push("/Dosen/kuis")}
+              className="rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-xs font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-full bg-emerald-400 px-6 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-full bg-emerald-400 px-8 py-3 text-xs font-bold text-emerald-950 shadow-md shadow-emerald-900/20 hover:bg-emerald-300 transition disabled:opacity-70"
             >
-              {saving ? "Menyimpan..." : "Simpan"}
+              {saving ? "Menyimpan..." : "Simpan Kuis"}
             </button>
           </div>
-        </form>
+        </div>
 
-<input
-          ref={importInputRef}
-          type="file"
-          accept=".csv,.xls,.xlsx"
-          hidden
-          onChange={handleImportFile}
-        />
-
-        {/* Tabel Kuis yang sudah dibuat */}
-        {savedQuiz.length > 0 && (
-          <section className="mt-8 overflow-hidden rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-[#e5e1f2]">
-            <div className="mb-4">
-              <p className="text-sm uppercase tracking-[0.24em] text-[#8b84a5]">
-                Hasil Kuis
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-[#2b2540]">
-                {savedQuiz[0]?.nama_kuis ?? "Kuis"}
-              </h2>
-              <p className="mt-1 text-sm text-[#6e6a85]">
-                Kuis disimpan dengan <b>{savedQuiz[0]?.id_quis}</b> sebagai id
-                kuis baru.
-              </p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[#e5e1f2] text-[#8b84a5]">
-                    <th className="px-3 py-3 font-semibold">ID Kuis</th>
-                    <th className="px-3 py-3 font-semibold">ID Soal</th>
-                    <th className="px-3 py-3 font-semibold">Soal</th>
-                    <th className="px-3 py-3 font-semibold">ID Jawaban</th>
-                    <th className="px-3 py-3 font-semibold">Jawaban</th>
-                    <th className="px-3 py-3 font-semibold">Jawaban Benar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {savedQuiz.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-[#f0eef7] last:border-0"
-                    >
-                      <td className="px-3 py-3">{row.id_quis}</td>
-                      <td className="px-3 py-3">{row.id_soal}</td>
-                      <td className="px-3 py-3">{row.soal}</td>
-                      <td className="px-3 py-3">{row.id_jawaban}</td>
-                      <td className="px-3 py-3">{row.jawaban}</td>
-                      <td className="px-3 py-3">
-                        {row.jawaban_benar ? (
-                          <span className="rounded-full bg-emerald-400 px-3 py-1 text-xs font-bold text-emerald-950">
-                            Benar
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-[#f1eff8] px-3 py-1 text-xs font-semibold text-[#8f86a8]">
-                            Salah
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+        {formError && (
+          <p className="mt-4 rounded-2xl bg-rose-50 p-4 text-xs font-bold text-rose-700 ring-1 ring-rose-200">
+            {formError}
+          </p>
         )}
-      </main>
-    </div>
+        {successMessage && (
+          <p className="mt-4 rounded-2xl bg-emerald-50 p-4 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+            {successMessage}
+          </p>
+        )}
+      </form>
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".csv,.xls,.xlsx"
+        hidden
+        onChange={handleImportFile}
+      />
+    </DosenContainer>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 type Dosen = {
   id_dosen: number;
@@ -611,116 +612,69 @@ export default function ProfilDosen() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-3">
-
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#8a80b8] border-t-transparent" />
-
-          <p className="text-sm text-gray-400">
-            Memuat profil dosen...
-          </p>
-
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f7fd]">
+        <div className="flex flex-col items-center gap-3 rounded-2xl bg-white px-8 py-6 shadow-sm">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#4a3f7a]/20 border-t-[#4a3f7a]" />
+          <p className="text-sm font-bold text-[#4a3f7a]">Memuat profil dosen...</p>
         </div>
       </div>
     );
   }
 
-  // =====================================================
-  // ERROR
-  // =====================================================
-
   if (!dosen) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white p-8">
-
-        <div className="w-full max-w-lg rounded-2xl bg-red-50 p-6 text-center">
-
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-
-            <svg
-              className="h-7 w-7 text-red-500"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle
-                cx="12"
-                cy="12"
-                r="9"
-              />
-
-              <path d="M12 8v4" />
-
-              <path d="M12 16h.01" />
-            </svg>
-
-          </div>
-
-          <h2 className="mb-2 text-lg font-bold text-red-600">
+      <DosenContainer
+        categoryTag="PROFIL DOSEN"
+        title="Gagal Memuat Profil"
+        subtitle="Data akun dosen tidak dapat ditemukan atau belum terhubung."
+      >
+        <div className="mx-auto max-w-lg rounded-[28px] bg-white p-8 text-center shadow-sm ring-1 ring-black/5">
+          <h2 className="mb-2 text-lg font-bold text-rose-600">
             Data profil tidak ditemukan
           </h2>
-
-          <p className="mb-4 text-sm text-gray-500">
-            {errorMessage ||
-              "Data dosen belum tersedia."}
+          <p className="mb-4 text-xs font-semibold text-[#8b84a5]">
+            {errorMessage || "Data dosen belum tersedia."}
           </p>
 
           {userEmail && (
-            <div className="mb-4 rounded-xl bg-white p-4 text-left">
-
-              <p className="text-xs text-gray-400">
-                Email login
-              </p>
-
-              <p className="mt-1 text-sm font-semibold text-[#4a3f7a]">
-                {userEmail}
-              </p>
-
-              <p className="mt-3 text-xs text-gray-400">
-                Auth User ID
-              </p>
-
-              <p className="mt-1 break-all text-xs text-gray-500">
-                {authUserId}
-              </p>
-
+            <div className="mb-6 rounded-2xl bg-[#f8f7fd] p-4 text-left ring-1 ring-[#4a3f7a]/10">
+              <p className="text-xs text-[#8b84a5]">Email Account:</p>
+              <p className="mt-0.5 text-sm font-bold text-[#4a3f7a]">{userEmail}</p>
             </div>
           )}
 
           <button
             type="button"
             onClick={loadProfilDosen}
-            className="cursor-pointer rounded-xl bg-[#4a3f7a] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#3d3466]"
+            className="rounded-full bg-[#4a3f7a] px-8 py-3 text-sm font-bold text-white shadow-md hover:bg-[#3d3466] transition"
           >
             Coba Lagi
           </button>
-
         </div>
-
-      </div>
+      </DosenContainer>
     );
   }
 
-  // =====================================================
-  // HALAMAN PROFIL
-  // =====================================================
-
   return (
-    <div className="relative min-h-screen bg-white text-[#2b2540]">
-
-      <main className="relative z-0 p-8">
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
-        <div className="mb-6 flex items-start gap-8">
-
+    <DosenContainer
+      categoryTag="AKUN & PROFIL"
+      title="Profil Pengajar Dosen"
+      subtitle="Kelola data pribadi, foto profil, dan pantau statistik modul pembelajaran."
+      headerAction={
+        <button
+          type="button"
+          onClick={openEditModal}
+          className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-xs font-bold text-amber-950 shadow-md shadow-amber-900/20 hover:bg-amber-300 transition"
+        >
+          Edit Profil Dosen
+        </button>
+      }
+    >
+      {/* HEADER CARD */}
+      <div className="mb-8 rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
           {/* FOTO PROFIL */}
-
-          <div className="flex h-[178px] w-[178px] flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#4a3f7a]">
-
+          <div className="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-gradient-to-br from-[#4a3f7a] to-[#3d3466] shadow-md ring-4 ring-white">
             {dosen.foto_dosen ? (
               <img
                 src={dosen.foto_dosen}
@@ -729,193 +683,88 @@ export default function ProfilDosen() {
               />
             ) : (
               <svg
-                className="h-20 w-20 text-white/70"
+                className="h-16 w-16 text-amber-300"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
               >
-                <circle
-                  cx="12"
-                  cy="8"
-                  r="4"
-                />
-
+                <circle cx="12" cy="8" r="4" />
                 <path d="M4 20a8 8 0 0 1 16 0" />
               </svg>
             )}
-
           </div>
 
           {/* DATA DOSEN */}
-
-          <div className="flex-1">
-
-            <div className="mb-1 flex items-center gap-3">
-
-              <h1 className="text-2xl font-bold text-[#3d3466]">
-                {dosen.nama_dosen}
-              </h1>
-
-              {/* =================================================
-                  TOMBOL EDIT
-              ================================================= */}
-
-              <button
-                type="button"
-                onClick={openEditModal}
-                aria-label="Edit profil"
-                title="Edit Profil"
-                className="relative z-20 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#4a3f7a] text-white shadow-md transition hover:bg-[#3d3466] active:scale-95"
-              >
-
-                <svg
-                  className="pointer-events-none h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M12 20h9" />
-
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-                </svg>
-
-              </button>
-
-            </div>
-
-            <p className="mb-1 text-sm text-[#a79fd6]">
-              {dosen.email ||
-                userEmail}
+          <div className="flex-1 text-center sm:text-left">
+            <h1 className="text-2xl font-black text-[#2b2540]">
+              {dosen.nama_dosen}
+            </h1>
+            <p className="mt-1 text-sm font-semibold text-[#8b84a5]">
+              {dosen.email || userEmail}
+            </p>
+            <p className="mt-0.5 text-xs font-bold text-[#4a3f7a]">
+              Dosen Pengampu Syariah Quest
             </p>
 
-            <p className="mb-4 text-sm text-[#a79fd6]">
-              Dosen Politeknik Negeri Malang
-            </p>
-
-            {/* JUMLAH MODUL */}
-
-            <div className="flex w-fit items-center gap-3 rounded-xl bg-[#4a3f7a] px-5 py-4">
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
-
-                <svg
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="1.8"
-                >
+            <div className="mt-4 inline-flex items-center gap-4 rounded-2xl bg-[#f8f7fd] px-5 py-3 ring-1 ring-[#4a3f7a]/10">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#4a3f7a] text-amber-300 shadow-sm">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H12v16H5.5A1.5 1.5 0 0 1 4 18.5v-13z" />
-
                   <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H12v16h6.5a1.5 1.5 0 0 0 1.5-1.5v-13z" />
                 </svg>
-
               </div>
-
               <div>
-
-                <p className="text-lg font-extrabold text-white">
-                  {jumlahModul}
-                </p>
-
-                <p className="text-xs text-[#c9c3e6]">
-                  Modul Anda
-                </p>
-
+                <p className="text-lg font-black text-[#2b2540]">{jumlahModul}</p>
+                <p className="text-[11px] font-bold text-[#8b84a5]">Modul Dibuat</p>
               </div>
-
             </div>
-
           </div>
-
         </div>
+      </div>
 
-        {/* =================================================
-            PESAN BERHASIL
-        ================================================= */}
+      {successMessage && (
+        <div className="mb-6 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
+          {successMessage}
+        </div>
+      )}
 
-        {successMessage && (
-          <div className="mb-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-600">
-            {successMessage}
-          </div>
-        )}
-
-        {/* =================================================
-            CONTENT
-        ================================================= */}
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-
-          {/* RIWAYAT PENDIDIKAN */}
-
-          <div className="flex min-h-[240px] flex-col rounded-2xl bg-[#8a80b8] p-6 text-white">
-
-            <h2 className="mb-6 text-lg font-bold">
-              Riwayat pendidikan
-            </h2>
-
+      {/* CARDS INFORMATION */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* RIWAYAT PENDIDIKAN */}
+        <div className="flex min-h-[220px] flex-col rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-lg font-bold text-[#3d3466] border-b border-[#f0edf9] pb-3">
+            Riwayat Pendidikan
+          </h2>
+          <div className="mt-4 flex-1">
             {dosen.riwayat_pendidikan ? (
-              <p className="whitespace-pre-line text-sm leading-relaxed text-white/90">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-[#2b2540]">
                 {dosen.riwayat_pendidikan}
               </p>
             ) : (
-              <p className="text-sm text-white/60">
-                Belum ada riwayat pendidikan.
+              <p className="text-sm font-semibold text-[#8b84a5]">
+                Belum ada riwayat pendidikan yang diisi.
               </p>
             )}
-
-            <div className="mt-auto border-t border-white/30 pt-3 text-center">
-
-              <button
-                type="button"
-                className="cursor-pointer text-sm font-medium hover:underline"
-              >
-                Lihat Semua
-              </button>
-
-            </div>
-
           </div>
-
-          {/* MODUL */}
-
-          <div className="flex min-h-[240px] flex-col rounded-2xl bg-[#8a80b8] p-6 text-white">
-
-            <h2 className="text-lg font-bold">
-              Modul Yang Anda Buat
-            </h2>
-
-            <p className="mt-2 text-sm text-white/70">
-              {jumlahModul} modul telah dibuat.
-            </p>
-
-            <div className="mt-6 space-y-2">
-
-              <div className="rounded-xl bg-white/10 px-4 py-3">
-
-                <div className="flex items-center justify-between">
-
-                  <span className="text-sm text-white/80">
-                    Total Modul
-                  </span>
-
-                  <span className="text-lg font-bold">
-                    {jumlahModul}
-                  </span>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-
         </div>
 
-      </main>
+        {/* MODUL SINKRON */}
+        <div className="flex min-h-[220px] flex-col rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-lg font-bold text-[#3d3466] border-b border-[#f0edf9] pb-3">
+            Statistik Pembelajaran
+          </h2>
+          <div className="mt-4 flex-1 space-y-3">
+            <div className="flex items-center justify-between rounded-2xl bg-[#f8f7fd] p-4 ring-1 ring-[#4a3f7a]/5">
+              <span className="text-sm font-bold text-[#4a3f7a]">Total Modul Diterbitkan</span>
+              <span className="text-xl font-black text-[#2b2540]">{jumlahModul}</span>
+            </div>
+            <p className="text-xs font-medium text-[#8b84a5]">
+              Jumlah modul ini terhubung otomatis secara real-time dengan basis data modul Anda.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* =====================================================
           MODAL EDIT PROFIL
@@ -1202,7 +1051,6 @@ export default function ProfilDosen() {
 
         </div>
       )}
-
-    </div>
+    </DosenContainer>
   );
 }

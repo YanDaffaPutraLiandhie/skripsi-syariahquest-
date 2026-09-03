@@ -85,8 +85,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    
-
     // Ambil nama Dosen
     const {
       data: dosen,
@@ -135,7 +133,8 @@ export async function POST(req: NextRequest) {
     } = await supabaseAdmin
       .from('log_activity')
       .insert({
-        nama_dosen: dosen.nama_dosen,
+        // Nama kolom tabel log_activity adalah nama_pelaku
+        nama_pelaku: dosen.nama_dosen,
         fitur,
         jenis_aktivitas,
         keterangan: keterangan || null,

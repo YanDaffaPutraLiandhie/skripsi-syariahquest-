@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 type AktivitasRow = {
-  id: number; // id_mahasiswa
+  id: number;
   no: number;
   name: string;
-  progress: number; // rata-rata nilai dari semua modul yang dikerjakan
+  progress: number;
 };
 
 export default function Aktivitas() {
@@ -38,7 +39,6 @@ export default function Aktivitas() {
         return;
       }
 
-      // Kelompokkan per mahasiswa
       const grouped = new Map<number, { name: string; totalNilai: number; count: number }>();
 
       (data ?? []).forEach((row: any) => {
@@ -72,58 +72,72 @@ export default function Aktivitas() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <main className="flex-1 p-8">
-        <div className="rounded-[24px] bg-[#4a3f7a] px-10 pb-8 pt-10 text-white">
-          <h1 className="mb-8 text-center text-3xl font-extrabold">Aktivitas</h1>
-
-          <div className="mb-3 grid grid-cols-[60px_1fr_100px_100px] items-center gap-4 px-1 text-sm font-semibold">
-            <span>No</span>
-            <span>Nama Mahasiswa</span>
-            <span>progress</span>
-            <span>Aksi</span>
-          </div>
-
-          {isLoading ? (
-            <p className="py-6 text-center text-sm text-white/70">Memuat data...</p>
-          ) : rows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-white/70">
-              Belum ada mahasiswa yang mengakses modul.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {rows.map((row) => (
-                <div key={row.id} className="grid grid-cols-[60px_1fr_100px_100px] items-center gap-4">
-                  <div className="flex h-9 w-16 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#2b2540]">
-                    {row.no}
-                  </div>
-                  <input
-                    type="text"
-                    defaultValue={row.name}
-                    readOnly
-                    className="h-9 w-full rounded-full border-none bg-white px-4 text-sm text-[#2b2540] outline-none"
-                  />
-                  <div className="flex h-9 w-16 items-center justify-center rounded-full bg-white text-sm font-semibold text-[#2b2540]">
-                    {row.progress}%
-                  </div>
-                  <button
-                    onClick={() => route.push(`/Dosen/modul/aktivitas/detail_aktivitas/${row.id}`)}
-                    className="h-9 rounded-full bg-amber-400 text-sm font-semibold text-amber-950 hover:bg-amber-300"
-                  >
-                    Detail
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-8 flex justify-end">
-            <button className="rounded-full bg-emerald-400 px-8 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-300">
-              Ekspor
-            </button>
-          </div>
+    <DosenContainer
+      categoryTag="MODUL PEMBELAJARAN"
+      title="Aktivitas Pembelajaran Mahasiswa"
+      subtitle="Pantau pencapaian progress dan nilai rata-rata modul seluruh mahasiswa."
+      headerAction={
+        <button
+          type="button"
+          onClick={() => route.push("/Dosen/modul")}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+        >
+          ← Kembali ke Modul
+        </button>
+      }
+    >
+      <div className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
+        <div className="mb-6 flex items-center justify-between border-b border-[#f0edf9] pb-4">
+          <h2 className="text-xl font-bold text-[#3d3466]">Daftar Progress Mahasiswa</h2>
+          <button className="rounded-full bg-emerald-400 px-6 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-300 transition shadow-sm">
+            Ekspor Data (Excel/CSV)
+          </button>
         </div>
-      </main>
-    </div>
+
+        {isLoading ? (
+          <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
+            Memuat aktivitas mahasiswa...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
+            Belum ada mahasiswa yang mengakses modul ini.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#f0edf9] text-xs font-bold uppercase tracking-wider text-[#8b84a5]">
+                  <th className="pb-3 px-4">No</th>
+                  <th className="pb-3 px-4">Nama Mahasiswa</th>
+                  <th className="pb-3 px-4 text-center">Rata-rata Progress</th>
+                  <th className="pb-3 px-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f0edf9]">
+                {rows.map((row) => (
+                  <tr key={row.id} className="group transition hover:bg-[#f8f7fd]">
+                    <td className="py-4 px-4 font-bold text-[#4a3f7a]">#{row.no}</td>
+                    <td className="py-4 px-4 font-bold text-[#2b2540]">{row.name}</td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+                        {row.progress}%
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <button
+                        onClick={() => route.push(`/Dosen/modul/aktivitas/detail_aktivitas/${row.id}`)}
+                        className="rounded-full bg-amber-400 px-5 py-2 text-xs font-bold text-amber-950 hover:bg-amber-300 transition shadow-sm"
+                      >
+                        Detail Aktivitas
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </DosenContainer>
   );
 }

@@ -48,7 +48,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="h-24 bg-background flex items-center justify-between px-8 relative z-50">
+    <header className="sticky top-0 z-50 h-20 bg-white/90 backdrop-blur-md flex items-center justify-between px-8 border-b border-gray-100/80 shadow-sm transition-all">
       
       {/* BAGIAN KIRI: Search Bar */}
       <div className="flex-1">

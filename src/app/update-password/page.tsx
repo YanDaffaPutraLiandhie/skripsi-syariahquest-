@@ -51,9 +51,9 @@ export default function UpdatePasswordPage() {
     <main className="login-page">
       <div className="login-card">
         <div className="login-illustration">
-          <img 
-            src="/images/board-logo.png" 
-            alt="Update Password Illustration" 
+          <img
+            src="/images/board-logo.png"
+            alt="Update Password Illustration"
             className="illustration-img"
           />
         </div>
