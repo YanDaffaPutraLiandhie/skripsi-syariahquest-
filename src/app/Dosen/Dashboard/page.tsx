@@ -40,6 +40,13 @@ const DEFAULT_MODULES: Modul[] = [
   },
 ];
 
+// Tinggi tetap untuk kolom Modul, Leaderboard, dan
+// Bank Soal & Kuis, supaya batas bawah ketiganya sejajar.
+// Kalau konten lebih banyak dari yang muat, area di
+// dalam kotak akan discroll (bukan mendorong kotak
+// jadi makin tinggi).
+const DASHBOARD_COLUMN_HEIGHT = 420; // px
+
 export default function Dashboard() {
   const router = useRouter();
 
@@ -146,6 +153,10 @@ export default function Dashboard() {
       // =====================================================
       // 4. AMBIL DATA MODUL
       // =====================================================
+      // Limit dinaikkan karena daftar sekarang bisa discroll
+      // di dalam kotak, bukan lagi dibatasi tampil hanya
+      // beberapa item saja.
+      // =====================================================
 
       const {
         data: modulData,
@@ -153,7 +164,8 @@ export default function Dashboard() {
       } = await supabase
         .from("modul")
         .select("id_modul, nama_modul, id_level")
-        .limit(6);
+        .order("id_modul", { ascending: false })
+        .limit(30);
 
       if (modulError) {
         console.error(
@@ -199,6 +211,9 @@ export default function Dashboard() {
       // =====================================================
       // 5. AMBIL DATA LEADERBOARD MAHASISWA
       // =====================================================
+      // Limit dinaikkan karena daftar sekarang bisa discroll
+      // di dalam kotak.
+      // =====================================================
 
       const {
         data: mahasiswaData,
@@ -209,7 +224,7 @@ export default function Dashboard() {
         .order("Nilai", {
           ascending: false,
         })
-        .limit(6);
+        .limit(30);
 
       if (mahasiswaError) {
         console.error(
@@ -624,20 +639,40 @@ export default function Dashboard() {
         {/* ===================================================
             GRID
         =================================================== */}
+        {/*
+          items-start dipakai supaya tiap kolom mempunyai
+          tinggi sesuai yang kita atur manual lewat konstanta
+          DASHBOARD_COLUMN_HEIGHT, bukan otomatis diseragamkan
+          oleh grid — dengan begitu batas bawah ketiganya
+          tetap sejajar rapi.
+        */}
 
-        <div className="grid grid-cols-[1.2fr_1.2fr_1fr] gap-6">
+        <div className="grid grid-cols-[1.2fr_1.2fr_1fr] items-start gap-6">
 
           {/* =================================================
               MODUL
           ================================================= */}
 
-          <section>
+          <section
+            className="flex flex-col"
+            style={{ height: `${DASHBOARD_COLUMN_HEIGHT}px` }}
+          >
 
-            <h2 className="mb-3 text-base font-bold text-[#3d3466]">
-              Modul
-            </h2>
+            <div className="mb-3 flex shrink-0 items-center justify-between">
 
-            <div className="rounded-2xl border-2 border-[#4a3f7a] bg-white p-3.5">
+              <h2 className="text-base font-bold text-[#3d3466]">
+                Modul
+              </h2>
+
+              {!loading && modules.length > 0 && (
+                <span className="text-[11px] font-medium text-[#a79fd6]">
+                  {modules.length} modul
+                </span>
+              )}
+
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[#4a3f7a] bg-white p-3.5">
 
               <button
                 onClick={() =>
@@ -645,7 +680,7 @@ export default function Dashboard() {
                     "/Dosen/modul/tambah_modul"
                   )
                 }
-                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#c9c3e6] py-3 text-sm font-semibold text-[#a79fd6] hover:bg-[#f7f6fb]"
+                className="mb-3 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#c9c3e6] py-3 text-sm font-semibold text-[#a79fd6] hover:bg-[#f7f6fb]"
               >
                 + Tambah Modul Baru
               </button>
@@ -654,44 +689,50 @@ export default function Dashboard() {
                 <div className="py-5 text-center text-sm text-gray-400">
                   Memuat modul...
                 </div>
+              ) : modules.length === 0 ? (
+                <div className="py-5 text-center text-sm text-gray-400">
+                  Belum ada modul
+                </div>
               ) : (
-                modules.map((m, idx) => (
-                  <div
-                    key={`${m.title}-${idx}`}
-                    className="mb-2.5 flex items-center gap-3 rounded-xl bg-[#f5f4fb] p-2.5"
-                  >
-
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  {modules.map((m, idx) => (
                     <div
-                      className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] text-[15px] font-bold text-white ${m.color}`}
+                      key={`${m.title}-${idx}`}
+                      className="mb-2.5 flex items-center gap-3 rounded-xl bg-[#f5f4fb] p-2.5 last:mb-0"
                     >
-                      {m.code}
-                    </div>
 
-                    <div className="min-w-0 flex-1">
-
-                      <div className="text-[13.5px] font-semibold text-[#2b2540]">
-                        {m.title}
+                      <div
+                        className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] text-[15px] font-bold text-white ${m.color}`}
+                      >
+                        {m.code}
                       </div>
 
-                      <div className="text-xs text-[#9a96ad]">
-                        {m.subtitle}
+                      <div className="min-w-0 flex-1">
+
+                        <div className="truncate text-[13.5px] font-semibold text-[#2b2540]">
+                          {m.title}
+                        </div>
+
+                        <div className="text-xs text-[#9a96ad]">
+                          {m.subtitle}
+                        </div>
+
                       </div>
 
+                      <button
+                        onClick={() =>
+                          router.push(
+                            "/Dosen/modul/detail_modul"
+                          )
+                        }
+                        className="whitespace-nowrap rounded-full bg-emerald-400 px-3.5 py-1.5 text-[11.5px] font-bold text-emerald-950"
+                      >
+                        Lihat
+                      </button>
+
                     </div>
-
-                    <button
-                      onClick={() =>
-                        router.push(
-                          "/Dosen/modul/detail_modul"
-                        )
-                      }
-                      className="whitespace-nowrap rounded-full bg-emerald-400 px-3.5 py-1.5 text-[11.5px] font-bold text-emerald-950"
-                    >
-                      Lihat
-                    </button>
-
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
 
             </div>
@@ -702,9 +743,12 @@ export default function Dashboard() {
               LEADERBOARD
           ================================================= */}
 
-          <section>
+          <section
+            className="flex flex-col"
+            style={{ height: `${DASHBOARD_COLUMN_HEIGHT}px` }}
+          >
 
-            <h2 className="mb-3 text-base font-bold text-[#3d3466]">
+            <h2 className="mb-3 shrink-0 text-base font-bold text-[#3d3466]">
               Leaderboard
             </h2>
 
@@ -712,10 +756,10 @@ export default function Dashboard() {
               onClick={() =>
                 router.push("/Dosen/leaderboard")
               }
-              className="cursor-pointer rounded-2xl border-2 border-[#4a3f7a] bg-white p-3.5"
+              className="flex min-h-0 flex-1 cursor-pointer flex-col overflow-hidden rounded-2xl border-2 border-[#4a3f7a] bg-white p-3.5"
             >
 
-              <div className="grid grid-cols-[24px_1fr_40px_36px] px-2 pb-2 text-[11px] font-medium text-[#a79fd6]">
+              <div className="grid shrink-0 grid-cols-[24px_1fr_40px_36px] px-2 pb-2 text-[11px] font-medium text-[#a79fd6]">
 
                 <span>No</span>
 
@@ -747,30 +791,32 @@ export default function Dashboard() {
 
               ) : (
 
-                rows.map((row) => (
-                  <div
-                    key={row.no}
-                    className="mb-2 grid grid-cols-[24px_1fr_40px_36px] items-center rounded-lg bg-[#f5f4fb] px-2 py-2.5 text-[12.5px] text-[#2b2540]"
-                  >
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                  {rows.map((row) => (
+                    <div
+                      key={row.no}
+                      className="mb-2 grid grid-cols-[24px_1fr_40px_36px] items-center rounded-lg bg-[#f5f4fb] px-2 py-2.5 text-[12.5px] text-[#2b2540] last:mb-0"
+                    >
 
-                    <span className="text-[#a79fd6]">
-                      {row.no}
-                    </span>
+                      <span className="text-[#a79fd6]">
+                        {row.no}
+                      </span>
 
-                    <span className="truncate text-sm font-semibold text-[#2b2540]">
-                      {row.name || "Mahasiswa"}
-                    </span>
+                      <span className="truncate text-sm font-semibold text-[#2b2540]">
+                        {row.name || "Mahasiswa"}
+                      </span>
 
-                    <span className="rounded-full bg-amber-400 px-2 py-0.5 text-center text-[11px] font-bold text-amber-950">
-                      {row.score}
-                    </span>
+                      <span className="rounded-full bg-amber-400 px-2 py-0.5 text-center text-[11px] font-bold text-amber-950">
+                        {row.score}
+                      </span>
 
-                    <span>
-                      <div className="mx-auto h-[16px] w-[16px] rounded-full bg-amber-400" />
-                    </span>
+                      <span>
+                        <div className="mx-auto h-[16px] w-[16px] rounded-full bg-amber-400" />
+                      </span>
 
-                  </div>
-                ))
+                    </div>
+                  ))}
+                </div>
 
               )}
 
@@ -782,39 +828,50 @@ export default function Dashboard() {
               BANK SOAL & KUIS
           ================================================= */}
 
-          <section>
+          <section
+            className="flex flex-col"
+            style={{ height: `${DASHBOARD_COLUMN_HEIGHT}px` }}
+          >
 
-            <h2 className="mb-3 text-base font-bold text-[#3d3466]">
-              Bank Soal
-            </h2>
+            <div className="mb-5 flex min-h-0 flex-1 flex-col">
 
-            <div
-              onClick={() =>
-                router.push("/Dosen/bank_soal")
-              }
-              className="mb-5 flex h-[88px] cursor-pointer items-center justify-center rounded-2xl border-2 border-[#4a3f7a] bg-[#fafafc]"
-            >
+              <h2 className="mb-3 shrink-0 text-base font-bold text-[#3d3466]">
+                Bank Soal
+              </h2>
 
-              <span className="text-4xl font-extrabold text-amber-400">
-                ?
-              </span>
+              <div
+                onClick={() =>
+                  router.push("/Dosen/bank_soal")
+                }
+                className="flex min-h-0 flex-1 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#4a3f7a] bg-[#fafafc]"
+              >
+
+                <span className="text-4xl font-extrabold text-amber-400">
+                  ?
+                </span>
+
+              </div>
 
             </div>
 
-            <h2 className="mb-3 text-base font-bold text-[#3d3466]">
-              Kuis
-            </h2>
+            <div className="flex min-h-0 flex-1 flex-col">
 
-            <div
-              onClick={() =>
-                router.push("/Dosen/kuis")
-              }
-              className="flex h-[88px] cursor-pointer items-center justify-center rounded-2xl border-2 border-[#4a3f7a] bg-[#fafafc]"
-            >
+              <h2 className="mb-3 shrink-0 text-base font-bold text-[#3d3466]">
+                Kuis
+              </h2>
 
-              <span className="text-4xl font-extrabold text-amber-400">
-                ?
-              </span>
+              <div
+                onClick={() =>
+                  router.push("/Dosen/kuis")
+                }
+                className="flex min-h-0 flex-1 cursor-pointer items-center justify-center rounded-2xl border-2 border-[#4a3f7a] bg-[#fafafc]"
+              >
+
+                <span className="text-4xl font-extrabold text-amber-400">
+                  ?
+                </span>
+
+              </div>
 
             </div>
 
