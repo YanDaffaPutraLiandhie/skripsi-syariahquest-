@@ -58,6 +58,30 @@ function UploadBox({
   );
 }
 
+
+interface ModulForm {
+  idLevel: number | null
+  namaModul: string
+  teksMateri: string
+  linkVideo: string
+  parameterNilai: number
+  dokumenFile: File | null
+  thumbnailFile: File | null
+  dokumenFileName: string
+  thumbnailFileName: string
+}
+
+const emptyForm: ModulForm = {
+  idLevel: null,
+  namaModul: '',
+  teksMateri: '',
+  linkVideo: '',
+  parameterNilai: 80,
+  dokumenFile: null,
+  thumbnailFile: null,
+  dokumenFileName: '',
+  thumbnailFileName: '',
+}
 function TambahModulContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,6 +135,10 @@ function TambahModulContent() {
   const [editingModuleId, setEditingModuleId] =
     useState<number | null>(null);
 
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [form, setForm] = useState<ModulForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
   /*
    * =========================================================
    * DATA DOSEN LOGIN
@@ -503,6 +531,7 @@ function TambahModulContent() {
     setNilai(80);
     setLevel("medium");
     setMessage("");
+    setForm(emptyForm);
   }
 
   /*
@@ -559,6 +588,7 @@ function TambahModulContent() {
 
         return;
       }
+
 
       /*
        * =====================================================
@@ -669,6 +699,9 @@ function TambahModulContent() {
 
         id_level:
           LEVEL_VALUE[level],
+
+        teks_materi:
+          form.teksMateri.trim() || null,
 
         video_url:
           linkVideo.trim() || null,
@@ -909,11 +942,10 @@ function TambahModulContent() {
                   key={lvl.key}
                   type="button"
                   onClick={() => setLevel(lvl.key)}
-                  className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${lvl.color} ${
-                    level === lvl.key
-                      ? "opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]"
-                      : "opacity-40 hover:opacity-80"
-                  }`}
+                  className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${lvl.color} ${level === lvl.key
+                    ? "opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]"
+                    : "opacity-40 hover:opacity-80"
+                    }`}
                 >
                   {lvl.label}
                 </button>
@@ -933,6 +965,27 @@ function TambahModulContent() {
             onChange={(e) => setNamaModul(e.target.value)}
             placeholder="Contoh: Pengantar Ekonomi & Keuangan Syariah"
             className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+          />
+        </div>
+
+        {/* TEKS MATERI — sekarang pakai gaya Tailwind yang sama
+            dengan field Nama Modul & Link Video di atas/bawahnya,
+            bukan class CSS eksternal (modul-form-field /
+            modul-textarea-input) yang tidak ada definisinya di
+            sini sehingga tampilannya polos/tidak konsisten. */}
+
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Teks Materi
+          </label>
+          <textarea
+            value={form.teksMateri}
+            onChange={(e) =>
+              setForm({ ...form, teksMateri: e.target.value })
+            }
+            rows={5}
+            placeholder="Tulis isi materi pembelajaran di sini..."
+            className="w-full resize-none rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 py-3 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
           />
         </div>
 
@@ -969,11 +1022,10 @@ function TambahModulContent() {
         {/* MESSAGE */}
         {message && (
           <div
-            className={`mb-6 rounded-2xl p-4 text-center text-sm font-bold ${
-              message.includes("berhasil")
-                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
-            }`}
+            className={`mb-6 rounded-2xl p-4 text-center text-sm font-bold ${message.includes("berhasil")
+              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+              : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+              }`}
           >
             {message}
           </div>
@@ -1004,10 +1056,10 @@ function TambahModulContent() {
             {loading
               ? "Menyimpan..."
               : loadingDosen
-              ? "Memuat..."
-              : isEditMode
-              ? "Simpan Perubahan"
-              : "Selesai & Simpan"}
+                ? "Memuat..."
+                : isEditMode
+                  ? "Simpan Perubahan"
+                  : "Selesai & Simpan"}
           </button>
         </div>
       </div>

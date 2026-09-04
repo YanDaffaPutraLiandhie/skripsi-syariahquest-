@@ -57,14 +57,14 @@ const emptyForm: ModulForm = {
   thumbnailFileName: '',
 }
 
-// Pemetaan nama level -> class warna pill. Cocokkan case-insensitive
+// Pemetaan nama level -> warna pill. Cocokkan case-insensitive
 // supaya tetap jalan walau di database ditulis "easy"/"Easy"/"EASY".
-function levelPillClass(namaLevel: string) {
+function levelPillColor(namaLevel: string) {
   const lower = namaLevel.toLowerCase()
-  if (lower.includes('easy')) return 'pill-easy'
-  if (lower.includes('medium')) return 'pill-medium'
-  if (lower.includes('hard')) return 'pill-hard'
-  return 'pill-easy'
+  if (lower.includes('easy')) return 'bg-emerald-500'
+  if (lower.includes('medium')) return 'bg-amber-400'
+  if (lower.includes('hard')) return 'bg-red-600'
+  return 'bg-[#8a80b8]'
 }
 
 export default function ManajemenModulPage() {
@@ -86,14 +86,11 @@ export default function ManajemenModulPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
-  // Nama admin yang sedang login, dipakai otomatis untuk kolom `dibuat_oleh`
   const [currentAdminName, setCurrentAdminName] = useState<string>('Admin')
 
   const dokumenInputRef = useRef<HTMLInputElement>(null)
   const thumbnailInputRef = useRef<HTMLInputElement>(null)
 
-  // Pagination tabel — data tetap di-fetch sekaligus dari Supabase,
-  // pemotongan per halaman dilakukan di sisi client.
   const MODULES_PER_PAGE = 10
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -103,7 +100,6 @@ export default function ManajemenModulPage() {
     fetchModules()
     fetchCurrentAdminName()
   }, [])
-
 
   async function fetchDosen() {
     try {
@@ -129,9 +125,7 @@ export default function ManajemenModulPage() {
     } catch (error: any) {
       console.error(
         'Gagal memuat data dosen:',
-        JSON.stringify({
-          message: error?.message,
-        })
+        JSON.stringify({ message: error?.message })
       )
     }
   }
@@ -142,7 +136,6 @@ export default function ManajemenModulPage() {
       const authUser = authData.user
       if (!authUser) return
 
-      // TODO: sesuaikan nama tabel/kolom dengan skema Supabase Anda
       const { data: userRow, error: userError } = await supabase
         .from('user')
         .select('id_admin')
@@ -258,7 +251,6 @@ export default function ManajemenModulPage() {
     }
   }
 
-  // Hitung ulang statistik setiap kali modules ATAU levels berubah
   useEffect(() => {
     if (levels.length === 0) return
 
@@ -278,8 +270,6 @@ export default function ManajemenModulPage() {
 
   const totalPages = Math.max(1, Math.ceil(modules.length / MODULES_PER_PAGE))
 
-  // Kalau halaman aktif jadi tidak valid lagi (misal setelah modul dihapus
-  // dan halaman terakhir jadi kosong), mundur ke halaman terakhir yang ada.
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages)
@@ -351,7 +341,6 @@ export default function ManajemenModulPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    // Konfirmasi sebelum simpan/update
     const result = await Swal.fire({
       title: editingId ? 'Update Modul?' : 'Tambah Modul?',
       text: editingId
@@ -361,7 +350,7 @@ export default function ManajemenModulPage() {
       showCancelButton: true,
       confirmButtonText: editingId ? 'Ya, Update' : 'Ya, Simpan',
       cancelButtonText: 'Batal',
-      confirmButtonColor: '#22c55e',
+      confirmButtonColor: '#4a3f7a',
       cancelButtonColor: '#6b7280',
     })
 
@@ -370,7 +359,6 @@ export default function ManajemenModulPage() {
     setSaving(true)
     setFormError('')
 
-    // DEBUG SEMENTARA
     const { data: sessionCheck } = await supabase.auth.getSession()
     console.log(
       'SESI SAAT SUBMIT:',
@@ -458,7 +446,7 @@ export default function ManajemenModulPage() {
         text: editingId
           ? 'Modul berhasil diperbarui.'
           : 'Modul berhasil ditambahkan.',
-        confirmButtonColor: '#50427E',
+        confirmButtonColor: '#4a3f7a',
       })
 
       backToList()
@@ -482,7 +470,7 @@ export default function ManajemenModulPage() {
         icon: 'error',
         title: 'Gagal',
         text: error.message || 'Terjadi kesalahan saat menyimpan modul.',
-        confirmButtonColor: '#50427E',
+        confirmButtonColor: '#4a3f7a',
       })
 
       setFormError(error.message || 'Terjadi kesalahan')
@@ -513,37 +501,38 @@ export default function ManajemenModulPage() {
 
       if (error) throw error
 
-      setModules((prev) =>
-        prev.filter((b) => b.id_modul !== id)
-      )
+      setModules((prev) => prev.filter((b) => b.id_modul !== id))
 
       Swal.fire({
         icon: 'success',
         title: 'Berhasil',
         text: 'Modul berhasil dihapus.',
-        confirmButtonColor: '#50427E',
+        confirmButtonColor: '#4a3f7a',
       })
     } catch (error) {
       Swal.fire({
         icon: 'error',
         title: 'Gagal',
         text: 'Terjadi kesalahan saat menghapus modul.',
-        confirmButtonColor: '#50427E',
+        confirmButtonColor: '#4a3f7a',
       })
     }
   }
+
   /* =========================================
      VIEW: FORM TAMBAH / EDIT MODUL
   ========================================= */
 
   if (view === 'form') {
     return (
-      <div className="modul-form-panel">
+      <div className="mx-auto max-w-4xl space-y-6">
         {/* TOP ROW: parameter nilai + level modul */}
-        <div className="modul-form-top-row">
-          <div className="modul-white-card modul-parameter-card">
-            <h3>Set Parameter Nilai</h3>
-            <div className="modul-parameter-value">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+            <h3 className="mb-2 text-center text-sm font-bold text-[#3d3466]">
+              Set Parameter Nilai
+            </h3>
+            <div className="flex items-center justify-center gap-2">
               <input
                 type="number"
                 min={0}
@@ -555,16 +544,19 @@ export default function ManajemenModulPage() {
                     parameterNilai: Number(e.target.value),
                   })
                 }
+                className="w-24 rounded-xl border border-[#4a3f7a]/20 bg-white px-3 py-2 text-center text-xl font-black text-[#3d3466] outline-none focus:border-[#4a3f7a] focus:ring-2 focus:ring-[#4a3f7a]/20"
               />
-              <span>%</span>
+              <span className="text-xl font-black text-[#3d3466]">%</span>
             </div>
           </div>
 
-          <div className="modul-white-card modul-level-card">
-            <h3>Level Modul</h3>
-            <div className="modul-level-pills">
+          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+            <h3 className="mb-3 text-center text-sm font-bold text-[#3d3466]">
+              Level Modul
+            </h3>
+            <div className="flex flex-wrap justify-center gap-3">
               {levels.length === 0 ? (
-                <p className="modul-level-empty">
+                <p className="text-xs text-[#a79fd6]">
                   Belum ada data level di database
                 </p>
               ) : (
@@ -572,12 +564,13 @@ export default function ManajemenModulPage() {
                   <button
                     key={lvl.id_level}
                     type="button"
-                    className={`level-pill ${levelPillClass(
+                    onClick={() => setForm({ ...form, idLevel: lvl.id_level })}
+                    className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${levelPillColor(
                       lvl.nama_level
-                    )} ${form.idLevel === lvl.id_level ? 'active' : ''}`}
-                    onClick={() =>
-                      setForm({ ...form, idLevel: lvl.id_level })
-                    }
+                    )} ${form.idLevel === lvl.id_level
+                      ? 'opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]'
+                      : 'opacity-40 hover:opacity-80'
+                      }`}
                   >
                     {lvl.nama_level}
                   </button>
@@ -587,62 +580,62 @@ export default function ManajemenModulPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
           {/* NAMA MODUL */}
-          <div className="modul-form-field">
-            <label>Nama Modul</label>
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Nama Modul
+            </label>
             <input
               type="text"
-              className="modul-pill-input input-green"
               value={form.namaModul}
-              onChange={(e) =>
-                setForm({ ...form, namaModul: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, namaModul: e.target.value })}
               required
+              className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
             />
           </div>
 
           {/* TEKS MATERI */}
-          <div className="modul-form-field">
-            <label>Teks Materi</label>
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Teks Materi
+            </label>
             <textarea
-              className="modul-textarea-input"
               value={form.teksMateri}
-              onChange={(e) =>
-                setForm({ ...form, teksMateri: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, teksMateri: e.target.value })}
               rows={5}
               placeholder="Tulis isi materi pembelajaran di sini..."
+              className="w-full resize-none rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 py-3 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
             />
           </div>
 
           {/* LINK VIDEO */}
-          <div className="modul-form-field">
-            <label>Link Vidio Pembelajaran</label>
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Link Video Pembelajaran
+            </label>
             <input
               type="url"
-              className="modul-pill-input input-orange"
               placeholder="https://..."
               value={form.linkVideo}
-              onChange={(e) =>
-                setForm({ ...form, linkVideo: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, linkVideo: e.target.value })}
+              className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
             />
           </div>
 
           {/* UPLOAD FILES */}
-          <div className="modul-upload-grid">
+          <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="modul-upload-label">
-                Dokumen Pembelajaran (Doc/Pdf)
+              <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+                Dokumen Pembelajaran (Doc/PDF)
               </label>
               <div
-                className="modul-dropzone dropzone-blue"
                 onClick={() => dokumenInputRef.current?.click()}
+                className="flex h-[180px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-sky-300 bg-[#f8f7fd] text-center transition hover:bg-[#f0edf9]"
               >
-                <UploadCloud size={28} />
-                <span>
-                  {form.dokumenFileName || 'Unggah File disini'}
+                <UploadCloud size={28} className="text-[#4a3f7a]" />
+                <span className="px-4 text-sm font-bold text-[#4a3f7a]">
+                  {form.dokumenFileName || 'Unggah file di sini'}
                 </span>
                 <input
                   ref={dokumenInputRef}
@@ -655,19 +648,17 @@ export default function ManajemenModulPage() {
             </div>
 
             <div>
-              <label className="modul-upload-label">Thumbnail Modul</label>
+              <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+                Thumbnail Modul
+              </label>
               <div
-                className="modul-dropzone dropzone-yellow"
                 onClick={() => thumbnailInputRef.current?.click()}
+                className="flex h-[180px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-amber-300 bg-[#f8f7fd] text-center transition hover:bg-[#f0edf9]"
               >
-                {form.thumbnailFileName ? (
-                  <span>{form.thumbnailFileName}</span>
-                ) : (
-                  <>
-                    <UploadCloud size={28} />
-                    <span>Unggah File disini</span>
-                  </>
-                )}
+                <UploadCloud size={28} className="text-[#4a3f7a]" />
+                <span className="px-4 text-sm font-bold text-[#4a3f7a]">
+                  {form.thumbnailFileName || 'Unggah file di sini'}
+                </span>
                 <input
                   ref={thumbnailInputRef}
                   type="file"
@@ -679,21 +670,25 @@ export default function ManajemenModulPage() {
             </div>
           </div>
 
-          {formError && <p className="modul-form-error">{formError}</p>}
+          {formError && (
+            <p className="mb-6 rounded-2xl bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-600 ring-1 ring-red-200">
+              {formError}
+            </p>
+          )}
 
           {/* ACTIONS */}
-          <div className="modul-form-actions">
+          <div className="flex justify-end gap-3 border-t border-[#f0edf9] pt-4">
             <button
               type="button"
-              className="btn-modul-batal"
               onClick={backToList}
+              className="rounded-full border border-[#e4e2ee] bg-white px-7 py-3 text-sm font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="btn-modul-simpan"
               disabled={saving}
+              className="rounded-full bg-amber-400 px-8 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 transition hover:bg-amber-300 disabled:opacity-50"
             >
               {saving ? 'Menyimpan...' : 'Simpan'}
             </button>
@@ -708,120 +703,135 @@ export default function ManajemenModulPage() {
   ========================================= */
 
   return (
-    <>
+    <div className="space-y-6">
       {/* BANNER */}
-      <div className="page-banner">
-        <h1>Manajemen Modul</h1>
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] to-[#3d3466] px-8 py-7 shadow-lg shadow-[#3d3466]/20 lg:px-10 lg:py-8">
+        <h1 className="text-2xl font-bold text-white lg:text-3xl">
+          Manajemen Modul
+        </h1>
       </div>
 
       {/* LEVEL STAT CARDS */}
-      <div className="modul-stats-grid">
-        <div className="modul-stat-card modul-easy">
-          <h2>Easy</h2>
-          <p>{stats.easy}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-sm font-bold text-emerald-600">Easy</h2>
+          <p className="mt-1 text-3xl font-black text-[#3d3466]">{stats.easy}</p>
         </div>
-
-        <div className="modul-stat-card modul-medium">
-          <h2>Medium</h2>
-          <p>{stats.medium}</p>
+        <div className="rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-sm font-bold text-amber-500">Medium</h2>
+          <p className="mt-1 text-3xl font-black text-[#3d3466]">{stats.medium}</p>
         </div>
-
-        <div className="modul-stat-card modul-hard">
-          <h2>Hard</h2>
-          <p>{stats.hard}</p>
+        <div className="rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-sm font-bold text-red-600">Hard</h2>
+          <p className="mt-1 text-3xl font-black text-[#3d3466]">{stats.hard}</p>
         </div>
       </div>
 
       {/* ADD MODUL BUTTON */}
-      <div className="admin-action-row">
-        <button className="btn-add-user" onClick={openAddForm}>
+      <div className="flex justify-end">
+        <button
+          onClick={openAddForm}
+          className="rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-amber-950 shadow-sm shadow-amber-900/20 transition hover:bg-amber-300"
+        >
           + Modul
         </button>
       </div>
 
       {/* TABLE */}
-      <div className="admin-table-wrapper">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Nama Modul</th>
-              <th>Level</th>
-              <th>Dibuat oleh</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="admin-table-empty">
-                  Memuat data...
-                </td>
+      <div className="overflow-hidden rounded-[22px] bg-white shadow-sm ring-1 ring-black/5">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#f0edf9] text-xs font-bold uppercase tracking-wide text-[#8b84a5]">
+                <th className="px-5 py-3">Nama Modul</th>
+                <th className="px-5 py-3">Level</th>
+                <th className="px-5 py-3">Dibuat oleh</th>
+                <th className="px-5 py-3">Aksi</th>
               </tr>
-            ) : modules.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="admin-table-empty">
-                  Belum ada data modul
-                </td>
-              </tr>
-            ) : (
-              paginatedModules.map((modul) => (
-                <tr key={modul.id_modul}>
-                  <td>{modul.nama_modul}</td>
-                  <td>{getLevelName(modul.id_level)}</td>
-                  <td>{getPembuatName(modul.dibuat_oleh)}</td>
-                  <td>
-                    <div className="admin-table-actions">
-                      <button
-                        className="icon-action edit"
-                        onClick={() => openEditForm(modul)}
-                        aria-label="Edit modul"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="icon-action delete"
-                        onClick={() => handleDelete(modul.id_modul)}
-                        aria-label="Hapus modul"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-[#f0edf9]">
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-10 text-center text-sm font-semibold text-[#4a3f7a]">
+                    Memuat data...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : modules.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-10 text-center text-sm text-[#a79fd6]">
+                    Belum ada data modul
+                  </td>
+                </tr>
+              ) : (
+                paginatedModules.map((modul) => (
+                  <tr key={modul.id_modul} className="transition hover:bg-[#f8f7fd]">
+                    <td className="px-5 py-3.5 font-semibold text-[#2b2540]">
+                      {modul.nama_modul}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold text-white ${levelPillColor(
+                          getLevelName(modul.id_level)
+                        )}`}
+                      >
+                        {getLevelName(modul.id_level)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-[#6e6a85]">
+                      {getPembuatName(modul.dibuat_oleh)}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditForm(modul)}
+                          aria-label="Edit modul"
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4f2fa] text-[#4a3f7a] transition hover:bg-[#e9e5f7]"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(modul.id_modul)}
+                          aria-label="Hapus modul"
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 transition hover:bg-rose-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {!loading && modules.length > 0 && (
-          <div className="admin-pagination">
-            <span className="admin-pagination-info">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f0edf9] px-5 py-4">
+            <span className="text-xs font-medium text-[#8b84a5]">
               Menampilkan {rangeStart}–{rangeEnd} dari {modules.length} modul
             </span>
 
-            <div className="admin-pagination-controls">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                className="pagination-btn"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 aria-label="Halaman sebelumnya"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4f2fa] text-[#4a3f7a] transition hover:bg-[#e9e5f7] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft size={16} />
               </button>
 
-              <span className="pagination-page-label">
+              <span className="text-xs font-semibold text-[#3d3466]">
                 Halaman {currentPage} dari {totalPages}
               </span>
 
               <button
                 type="button"
-                className="pagination-btn"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 aria-label="Halaman berikutnya"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4f2fa] text-[#4a3f7a] transition hover:bg-[#e9e5f7] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronRight size={16} />
               </button>
@@ -829,6 +839,6 @@ export default function ManajemenModulPage() {
           </div>
         )}
       </div>
-    </>
+    </div>
   )
 }

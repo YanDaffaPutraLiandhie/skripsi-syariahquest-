@@ -84,9 +84,9 @@ export default function Dashboard() {
   }, [profile?.idMahasiswa]);
 
   const getLevelInfo = (levelId: number) => {
-    if (levelId === 1) return { label: "E", color: "bg-[#39C936]" };
-    if (levelId === 2) return { label: "M", color: "bg-[#FFC107]" };
-    return { label: "H", color: "bg-[#EF4444]" };
+    if (levelId === 1) return { label: "E", color: "bg-emerald-500", stars: 1 };
+    if (levelId === 2) return { label: "M", color: "bg-amber-400", stars: 2 };
+    return { label: "H", color: "bg-rose-500", stars: 3 };
   };
 
   const handleLanjutkan = () => {
@@ -102,31 +102,53 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative z-10 pt-2 lg:pt-4">
       {/* BANNER UTAMA */}
-      <div className="bg-[#5B5288] rounded-[30px] p-10 lg:p-14 flex items-center justify-between relative shadow-lg h-72 lg:h-80 mt-8 overflow-hidden">
-        <div className="z-10 text-white space-y-4 max-w-xl">
-          <h1 className="text-4xl lg:text-5xl font-bold leading-tight">
-            Halo, {profile?.namaMahasiswa?.split(' ')[0] || 'Pemain'}! <br />
-            <span className="font-normal text-2xl lg:text-3xl">
-              Siap melanjutkan petualangan?
-            </span>
-          </h1>
+      <div className="relative">
+        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-8 shadow-lg shadow-[#3d3466]/25 lg:p-10 flex items-center justify-between">
+          
+          {/* Header Banner Background SVGs */}
+          <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+          <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+          
+          {/* Banner Decorative Curved Lines */}
+          <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+            <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+              <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+              <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+            </svg>
+          </div>
 
-          <button
-            onClick={handleLanjutkan}
-            className="bg-[#D6D2E7] hover:bg-[#C5C0DA] text-[#5B5288] font-bold text-base lg:text-lg px-6 py-3 rounded-xl transition-all shadow-md mt-4"
-          >
-            {lastActiveModulId ? "Lanjutkan Pembelajaran" : "Mulai Pembelajaran"}
-          </button>
-        </div>
+          <div className="z-10 text-white space-y-4 max-w-xl relative">
+            <h1 className="text-3xl lg:text-4xl font-black leading-snug tracking-wide">
+              Halo, {profile?.namaMahasiswa?.split(' ')[0] || 'Pemain'}! <br />
+              <span className="font-semibold text-xl lg:text-2xl text-[#c9c3e6]">
+                Siap melanjutkan petualangan?
+              </span>
+            </h1>
 
-        <div className="absolute right-0 bottom-[-20px] z-0 h-[110%] flex items-end pointer-events-none">
-          <img
-            src="/images/hero-dashboard.svg" 
-            alt="Hero Dashboard"
-            className="h-full w-auto object-contain object-bottom"
-          />
+            <button
+              onClick={handleLanjutkan}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-amber-950 transition-all hover:bg-amber-300 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95"
+            >
+              {lastActiveModulId ? "Lanjutkan Pembelajaran" : "Mulai Pembelajaran"}
+            </button>
+          </div>
+
+          <div className="absolute right-0 bottom-[-20px] z-0 h-[110%] flex items-end pointer-events-none opacity-90">
+            <img
+              src="/images/hero-dashboard.svg" 
+              alt="Hero Dashboard"
+              className="h-full w-auto object-contain object-bottom"
+            />
+          </div>
+
+          {/* Bottom Wave Decoration */}
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+              <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -135,34 +157,68 @@ export default function Dashboard() {
         
         {/* KOLOM 1: MODUL TERSEDIA */}
         <div className="flex flex-col gap-4">
-          <h3 className="text-xl font-bold text-[#5B5288]">Modul Tersedia</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-[#3d3466]">Modul Tersedia</h3>
+            {!isModulLoading && modulTersedia.length > 0 && (
+              <span className="rounded-full bg-[#4a3f7a]/10 px-2.5 py-1 text-xs font-semibold text-[#4a3f7a]">
+                {modulTersedia.length} modul
+              </span>
+            )}
+          </div>
           
-          {/* PERBAIKAN: Tinggi mutlak h-[384px] ngepas untuk 4 modul */}
-          <div className="flex flex-col gap-4 h-[384px] overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-1 pr-1 sm:grid-cols-3 lg:grid-cols-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden h-[384px]">
             {isModulLoading ? (
-              <p className="text-[#5B5288] font-semibold text-sm">Memuat data...</p>
+              <p className="col-span-full text-sm text-[#4a3f7a]">Memuat data...</p>
             ) : modulTersedia.length > 0 ? (
-              modulTersedia.map((modul) => {
+              modulTersedia.map((modul, i) => {
                 const lvl = getLevelInfo(modul.id_level);
+                const tilt = i % 2 === 0 ? "-rotate-2" : "rotate-2";
+                
                 return (
-                  <div key={modul.id_modul} className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white hover:bg-purple-50 transition-colors shrink-0">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 ${lvl.color} rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm`}>
+                  <div
+                    key={modul.id_modul}
+                    className="flex shrink-0 flex-col rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:rotate-1 hover:shadow-lg hover:shadow-[#4a3f7a]/10"
+                  >
+                    <div
+                      className={`mx-auto flex h-16 w-16 ${tilt} items-center justify-center rounded-2xl shadow-md ${lvl.color}`}
+                    >
+                      <span className="text-2xl font-black text-white">
                         {lvl.label}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-[#5B5288] text-sm lg:text-base">{modul.nama_modul}</h4>
-                        <p className="text-xs text-gray-500">1+ Modul</p>
-                      </div>
+                      </span>
                     </div>
-                    <Link href={`/modul/${modul.id_modul}`} className="px-5 py-2 bg-[#E6E4F0] text-[#5B5288] text-sm font-bold rounded-lg hover:bg-[#D6D2E7] transition-colors">
-                      Lihat
-                    </Link>
+
+                    <h4 className="mt-3 line-clamp-2 min-h-[2.5rem] text-center text-sm font-bold text-[#2b2540]">
+                      {modul.nama_modul}
+                    </h4>
+
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <div className="flex gap-0.5">
+                        {[...Array(3)].map((_, index) => (
+                          <svg
+                            key={index}
+                            className={`h-3 w-3 ${
+                              index < lvl.stars ? "text-amber-400" : "text-gray-200"
+                            }`}
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => router.push(`/modul/${modul.id_modul}`)}
+                        className="shrink-0 rounded-full bg-[#4a3f7a] px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-[#3d3466]"
+                      >
+                        Lihat
+                      </button>
+                    </div>
                   </div>
                 );
               })
             ) : (
-              <p className="text-gray-400 text-sm">Belum ada modul tersedia.</p>
+              <p className="col-span-full text-sm text-[#a79fd6]">Belum ada modul tersedia.</p>
             )}
           </div>
         </div>
@@ -175,42 +231,63 @@ export default function Dashboard() {
           <div className="flex flex-col gap-4 h-[272px] overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {isModulLoading ? (
               <p className="text-[#5B5288] font-semibold text-sm">Memuat data...</p>
-            ) : progressList.length > 0 ? (
-              progressList.map((prog, idx) => {
-                const lvl = getLevelInfo(prog.modul.id_level);
-                
-                let persentase = 0;
-                if (prog.selesai) {
-                  persentase = 100;
-                } else if (prog.kuis_dicoba) {
-                  persentase = 40 + Math.round(((prog.nilai || 0) / 100) * 60);
-                } else if (prog.materi_dilihat) {
-                  persentase = 40;
-                }
+            ) : (
+              <>
+                {progressList.map((prog, idx) => {
+                  const lvl = getLevelInfo(prog.modul.id_level);
+                  
+                  let persentase = 0;
+                  if (prog.selesai) {
+                    persentase = 100;
+                  } else if (prog.kuis_dicoba) {
+                    persentase = 40 + Math.round(((prog.nilai || 0) / 100) * 60);
+                  } else if (prog.materi_dilihat) {
+                    persentase = 40;
+                  }
 
-                return (
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => router.push(`/modul/${prog.id_modul}`)}
+                      className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white cursor-pointer hover:bg-purple-50 hover:shadow-md hover:border-purple-400 transition-all shrink-0"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 ${lvl.color} rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm`}>
+                          {lvl.label}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-[#5B5288] text-sm lg:text-base">{prog.modul.nama_modul}</h4>
+                          <p className="text-xs text-gray-500">{prog.selesai ? "Selesai" : "Sedang Dikerjakan"}</p>
+                        </div>
+                      </div>
+                      <span className="text-[#39C936] font-bold text-sm lg:text-base">
+                        {persentase} %
+                      </span>
+                    </div>
+                  );
+                })}
+                
+                {/* Empty placeholders to fill up to 3 cards */}
+                {Array.from({ length: Math.max(0, 3 - progressList.length) }).map((_, idx) => (
                   <div 
-                    key={idx} 
-                    onClick={() => router.push(`/modul/${prog.id_modul}`)}
-                    className="flex items-center justify-between p-4 rounded-2xl border-2 border-[#5B5288] bg-white cursor-pointer hover:bg-purple-50 hover:shadow-md hover:border-purple-400 transition-all shrink-0"
+                    key={`empty-prog-${idx}`} 
+                    className="flex items-center justify-between p-4 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/50 shrink-0 opacity-70"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 ${lvl.color} rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm`}>
-                        {lvl.label}
+                      <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center">
+                        <span className="text-gray-400 font-bold text-xl">-</span>
                       </div>
                       <div>
-                        <h4 className="font-bold text-[#5B5288] text-sm lg:text-base">{prog.modul.nama_modul}</h4>
-                        <p className="text-xs text-gray-500">{prog.selesai ? "Selesai" : "Sedang Dikerjakan"}</p>
+                        <h4 className="font-bold text-gray-400 text-sm lg:text-base">Belum Ada Progress</h4>
+                        <p className="text-xs text-gray-400">Mainkan modul untuk mengisi slot ini</p>
                       </div>
                     </div>
-                    <span className="text-[#39C936] font-bold text-sm lg:text-base">
-                      {persentase} %
+                    <span className="text-gray-300 font-bold text-sm lg:text-base">
+                      0 %
                     </span>
                   </div>
-                );
-              })
-            ) : (
-              <p className="text-gray-400 text-sm">Belum ada progress belajar.</p>
+                ))}
+              </>
             )}
           </div>
 

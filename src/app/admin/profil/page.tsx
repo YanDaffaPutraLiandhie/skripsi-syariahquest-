@@ -201,29 +201,42 @@ export default function ProfilAdminPage() {
   }
 
   if (loading) {
-    return <p className="profile-loading">Memuat profil...</p>
+    return (
+      <p className="pt-10 text-center text-sm font-semibold text-[#4a3f7a]">
+        Memuat profil...
+      </p>
+    )
   }
 
   return (
-    <div>
+    <div className="space-y-6 pt-6">
       {/* HERO */}
-      <div className="profile-hero">
-        <div className="profile-top-row">
-          <div className="profile-avatar-box" onClick={handleAvatarClick}>
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] to-[#3d3466] px-8 py-8 shadow-lg shadow-[#3d3466]/20 lg:px-10 lg:py-10">
+        <span className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
+
+        <div className="relative z-10 flex flex-wrap items-center gap-6">
+          <div
+            onClick={handleAvatarClick}
+            className={`group relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white/10 ring-4 ring-white/20 ${isEditing ? 'cursor-pointer' : ''
+              }`}
+          >
             {avatarPreview || profile.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarPreview || profile.avatar_url || ''}
                 alt="Foto profil"
+                className="h-full w-full object-cover"
               />
             ) : (
-              <div className="profile-avatar-placeholder">
+              <div className="flex h-full w-full items-center justify-center text-3xl font-black text-white">
                 {profile.nama_admin.charAt(0).toUpperCase() || 'A'}
               </div>
             )}
 
             {isEditing && (
-              <div className="profile-avatar-overlay">Ganti Foto</div>
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold text-white opacity-0 transition group-hover:opacity-100">
+                Ganti Foto
+              </div>
             )}
 
             <input
@@ -235,57 +248,63 @@ export default function ProfilAdminPage() {
             />
           </div>
 
-          <div className="profile-info-block">
-            <h1>{profile.nama_admin || 'Administrator'}</h1>
-            <div className="profile-info-meta">
-              <span className="profile-role-badge">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold text-white lg:text-3xl">
+              {profile.nama_admin || 'Administrator'}
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-amber-950">
                 <ShieldCheck size={13} strokeWidth={2.5} />
                 Administrator
               </span>
-              <span className="profile-location">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#c9c3e6]">
                 <MapPin size={13} strokeWidth={2.5} />
-                {profile.lokasi || 'Malang City Hardcore'}
+                {profile.lokasi || 'Malang City'}
               </span>
             </div>
           </div>
 
           {!isEditing ? (
             <button
-              className="profile-edit-btn"
               onClick={startEditing}
               aria-label="Edit profil"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
             >
-              <Pencil size={18} />
+              <Pencil size={17} />
             </button>
           ) : (
-            <div className="profile-edit-actions">
+            <div className="flex shrink-0 items-center gap-2">
               <button
-                className="profile-edit-btn confirm"
                 onClick={handleSave}
                 disabled={saving}
                 aria-label="Simpan"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400 text-amber-950 transition hover:bg-amber-300 disabled:opacity-60"
               >
-                <Check size={18} />
+                <Check size={17} />
               </button>
               <button
-                className="profile-edit-btn cancel"
                 onClick={cancelEditing}
                 disabled={saving}
                 aria-label="Batal"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-60"
               >
-                <X size={18} />
+                <X size={17} />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {error && <p className="profile-error">{error}</p>}
+      {error && (
+        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+          {error}
+        </p>
+      )}
 
       {/* FIELDS PANEL */}
-      <div className="profile-fields-panel">
-        <div className="profile-field">
-          <label>
+      <div className="grid grid-cols-1 gap-4 rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-[#4a3f7a]">
             <User size={14} strokeWidth={2.25} />
             Nama
           </label>
@@ -296,11 +315,15 @@ export default function ProfilAdminPage() {
             onChange={(e) =>
               setForm({ ...form, nama_admin: e.target.value })
             }
+            className={`rounded-xl px-3.5 py-2.5 text-sm text-[#2b2540] outline-none ${isEditing
+              ? 'bg-[#f4f2fa] ring-1 ring-[#c9c3e6] focus:ring-2 focus:ring-[#4a3f7a]'
+              : 'bg-[#f8f7fd]'
+              }`}
           />
         </div>
 
-        <div className="profile-field">
-          <label>
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-[#4a3f7a]">
             <AtSign size={14} strokeWidth={2.25} />
             Username
           </label>
@@ -308,14 +331,16 @@ export default function ProfilAdminPage() {
             type="text"
             value={form.username}
             readOnly={!isEditing}
-            onChange={(e) =>
-              setForm({ ...form, username: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+            className={`rounded-xl px-3.5 py-2.5 text-sm text-[#2b2540] outline-none ${isEditing
+              ? 'bg-[#f4f2fa] ring-1 ring-[#c9c3e6] focus:ring-2 focus:ring-[#4a3f7a]'
+              : 'bg-[#f8f7fd]'
+              }`}
           />
         </div>
 
-        <div className="profile-field">
-          <label>
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-[#4a3f7a]">
             <Mail size={14} strokeWidth={2.25} />
             Email
           </label>
@@ -324,6 +349,10 @@ export default function ProfilAdminPage() {
             value={form.email}
             readOnly={!isEditing}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
+            className={`rounded-xl px-3.5 py-2.5 text-sm text-[#2b2540] outline-none ${isEditing
+              ? 'bg-[#f4f2fa] ring-1 ring-[#c9c3e6] focus:ring-2 focus:ring-[#4a3f7a]'
+              : 'bg-[#f8f7fd]'
+              }`}
           />
         </div>
       </div>

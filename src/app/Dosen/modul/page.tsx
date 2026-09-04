@@ -161,11 +161,10 @@ function ModulPembelajaranContent() {
           jenis_aktivitas: newActive
             ? "Aktifkan Modul"
             : "Nonaktifkan Modul",
-          keterangan: `${
-            newActive
+          keterangan: `${newActive
               ? "Mengaktifkan"
               : "Menonaktifkan"
-          } modul "${card.title}"`,
+            } modul "${card.title}"`,
         });
       }
     } catch (logError) {
@@ -188,9 +187,9 @@ function ModulPembelajaranContent() {
       prev.map((item, i) =>
         i === index
           ? {
-              ...item,
-              status: newActive,
-            }
+            ...item,
+            status: newActive,
+          }
           : item
       )
     );
@@ -222,15 +221,7 @@ function ModulPembelajaranContent() {
       categoryTag="MODUL PEMBELAJARAN"
       title="Daftar Modul Pembelajaran"
       subtitle="Kelola dan pantau semua modul pembelajaran Syariah Quest yang tersedia untuk mahasiswa."
-      headerAction={
-        <button
-          type="button"
-          onClick={() => router.push("/Dosen/modul/tambah_modul")}
-          className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 transition hover:bg-amber-300 hover:scale-105 active:scale-95"
-        >
-          <span className="text-lg font-extrabold">+</span> Tambah Modul Baru
-        </button>
-      }
+
     >
       {/* GRID MODUL */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -261,20 +252,22 @@ function ModulPembelajaranContent() {
               className="group flex h-[310px] flex-col overflow-hidden rounded-[24px] bg-white ring-1 ring-black/5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
             >
               {/* THUMBNAIL */}
-              <div className="relative h-[125px] overflow-hidden bg-[#4a3f7a]">
-                {card.thumbnailUrl ? (
-                  <img
-                    src={card.thumbnailUrl}
-                    alt={card.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[#c9c3e6]">
-                      Syariah Quest Module
-                    </span>
-                  </div>
-                )}
+              <div className="relative h-[125px] bg-[#4a3f7a]">
+                <div className="h-full w-full overflow-hidden">
+                  {card.thumbnailUrl ? (
+                    <img
+                      src={card.thumbnailUrl}
+                      alt={card.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#c9c3e6]">
+                        Syariah Quest Module
+                      </span>
+                    </div>
+                  )}
+                </div>
 
                 {/* LEVEL BADGE */}
                 <div
@@ -287,11 +280,10 @@ function ModulPembelajaranContent() {
                 <button
                   type="button"
                   onClick={() => toggleActive(index)}
-                  className={`absolute right-3 top-3 rounded-full px-3.5 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${
-                    isActive
+                  className={`absolute right-3 top-3 rounded-full px-3.5 py-1.5 text-xs font-bold text-white shadow-md backdrop-blur-md transition-all hover:scale-105 active:scale-95 ${isActive
                       ? "bg-rose-500/90 hover:bg-rose-600"
                       : "bg-emerald-500/90 hover:bg-emerald-600"
-                  }`}
+                    }`}
                 >
                   {isActive ? "Nonaktifkan" : "Aktifkan"}
                 </button>

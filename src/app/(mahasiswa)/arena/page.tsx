@@ -124,25 +124,38 @@ export default function ArenaKelas() {
   return (
     <div className="space-y-8">
       {/* BANNER UNGU */}
-      <div className="bg-[#5B5288] rounded-3xl p-12 flex items-center justify-between relative shadow-lg h-80 mt-12">
-        <div className="z-10 text-white space-y-6 max-w-xl">
-          <h1 className="text-5xl font-bold leading-tight">
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-8 shadow-lg shadow-[#3d3466]/25 lg:p-12 flex items-center justify-between mt-12 h-80">
+        
+        {/* Header Banner Background SVGs */}
+        <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+        <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+        
+        {/* Banner Decorative Curved Lines */}
+        <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+          <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+            <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+            <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+          </svg>
+        </div>
+
+        <div className="z-10 text-white space-y-6 max-w-xl relative">
+          <h1 className="text-4xl lg:text-5xl font-black leading-snug tracking-wide">
             Halo, {profile?.namaMahasiswa?.split(' ')[0] || 'Pemain'}! <br />
-            <span className="font-normal text-3xl">
+            <span className="font-semibold text-2xl lg:text-3xl text-[#c9c3e6]">
               Siap menantang teman sekelasmu hari ini?
             </span>
           </h1>
 
-          <div className="flex gap-4 mt-2">
+          <div className="flex flex-wrap gap-4 mt-2">
             <button
               onClick={scrollToTema}
-              className="bg-white text-[#5B5288] font-bold text-lg px-8 py-3 rounded-lg hover:bg-gray-100 transition-all shadow-md"
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-8 py-3 text-sm font-bold text-amber-950 transition-all hover:bg-amber-300 hover:shadow-lg hover:shadow-amber-400/20 active:scale-95"
             >
               Buat Ruang Baru
             </button>
             <button
               onClick={() => setShowJoinModal(true)}
-              className="bg-white/10 border border-white/30 text-white font-bold text-lg px-8 py-3 rounded-lg hover:bg-white/20 transition-all backdrop-blur-sm shadow-md"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-8 py-3 text-sm font-bold text-white backdrop-blur-md border border-white/15 transition-all hover:bg-white/20 active:scale-95"
             >
               Gabung Ruang
             </button>
@@ -150,12 +163,19 @@ export default function ArenaKelas() {
         </div>
 
         {/* GAMBAR HERO */}
-        <div className="absolute right-8 bottom-0 z-0 h-[125%] flex items-end pointer-events-none">
+        <div className="absolute right-8 bottom-[-20px] z-0 h-[125%] flex items-end pointer-events-none opacity-90">
           <img
             src="/images/hero-arenakelas.svg"
             alt="Hero Arena"
             className="h-full w-auto object-contain object-bottom"
           />
+        </div>
+
+        {/* Bottom Wave Decoration */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+          </svg>
         </div>
       </div>
 

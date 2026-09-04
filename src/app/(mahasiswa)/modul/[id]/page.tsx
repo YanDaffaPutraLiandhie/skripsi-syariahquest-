@@ -146,10 +146,42 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
       {/* AREA KIRI */}
       <div className="flex-1 min-w-0">
         <button onClick={() => router.push("/modul")} className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#5B5288] hover:underline">
-          <ArrowLeft className="h-4 w-4" /> Kembali
+          <ArrowLeft className="h-4 w-4" /> Kembali ke Daftar Modul
         </button>
 
-        <h1 className="mb-4 text-2xl font-bold text-[#5B5288]">{course.nama_modul}</h1>
+        {/* =====================================================
+            HEADER BANNER
+        ===================================================== */}
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] px-6 py-8 shadow-lg shadow-[#3d3466]/25 lg:px-8 mb-6 text-white">
+          {/* Header Banner Background SVGs */}
+          <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+          <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+          
+          {/* Banner Decorative Curved Lines */}
+          <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+            <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+              <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+              <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+            </svg>
+          </div>
+
+          <div className="relative z-10">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-[#e2dcff] backdrop-blur-md border border-white/15 shadow-inner mb-2">
+              <span className="text-amber-300">📚</span>
+              Pembelajaran
+            </span>
+            <h1 className="text-2xl font-black leading-snug tracking-wide md:text-3xl">
+              {course.nama_modul}
+            </h1>
+          </div>
+
+          {/* Bottom Wave Decoration */}
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+              <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+            </svg>
+          </div>
+        </div>
 
         {activeTab === "kuis" ? (
           <div className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#5B5288]/50 bg-white p-8 min-h-[600px]">

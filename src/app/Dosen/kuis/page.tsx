@@ -72,16 +72,7 @@ export default function KuisPage() {
       categoryTag="EVALUASI & KUIS"
       title="Kelola Kuis Pembelajaran"
       subtitle="Buat kuis baru otomatis dari modul atau pilih secara manual untuk evaluasi mahasiswa."
-      headerAction={
-        <button
-          type="button"
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-xs font-bold text-amber-950 shadow-md shadow-amber-900/20 hover:bg-amber-300 transition"
-        >
-          <Plus size={16} />
-          Tambah Kuis Baru
-        </button>
-      }
+
     >
       {loading ? (
         <div className="rounded-[28px] bg-white p-12 text-center text-sm font-semibold text-[#8b84a5] shadow-sm">
@@ -116,9 +107,7 @@ export default function KuisPage() {
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-amber-300 backdrop-blur-sm border border-white/10 shadow-sm transition duration-300 group-hover:scale-105">
                   <HelpCircle size={28} />
                 </div>
-                <span className="absolute bottom-3 right-4 rounded-full bg-amber-400/90 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-950 backdrop-blur-sm">
-                  ID #{card.id}
-                </span>
+
               </div>
 
               {/* CARD CONTENT */}

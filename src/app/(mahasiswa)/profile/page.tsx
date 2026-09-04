@@ -63,125 +63,119 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* PROFILE HEADER */}
-      <div className="flex flex-col md:flex-row gap-6 items-start mt-4">
-        {/* AVATAR */}
-        <div className="bg-[#5B5288] rounded-full w-48 h-48 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-md p-2 border-4 border-white">
-          <img
-            src={avatarSrc}
-            alt="Avatar Profil"
-            className="w-full h-full object-cover rounded-full"
-          />
+      {/* PROFILE HEADER BANNER */}
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] shadow-lg shadow-[#3d3466]/25 mt-4 p-8 lg:p-10">
+        
+        {/* Header Banner Background SVGs */}
+        <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+        <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+        
+        {/* Banner Decorative Curved Lines */}
+        <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+          <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+            <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+            <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+          </svg>
         </div>
 
-        {/* PROFILE INFO */}
-        <div className="flex-1 flex flex-col justify-between h-48 w-full relative pt-2">
-          {/* BUTTON EDIT */}
-          <button
-            onClick={() => {
-              if (profile.idMahasiswa !== null) {
-                setShowEditModal(true);
-              } else {
-                console.error(
-                  "ID mahasiswa tidak ditemukan. Tidak dapat membuka edit profil."
-                );
-              }
-            }}
-            className="absolute top-0 right-0 bg-[#5B5288] text-white p-2.5 rounded-xl hover:bg-opacity-80 transition-all shadow-sm"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+        <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center md:items-start">
+          {/* AVATAR */}
+          <div className="relative">
+            <div className="bg-[#5B5288] rounded-full w-40 h-40 md:w-48 md:h-48 flex-shrink-0 flex items-center justify-center overflow-hidden shadow-xl border-4 border-amber-400">
+              <img
+                src={avatarSrc}
+                alt="Avatar Profil"
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
+            {/* BUTTON EDIT */}
+            <button
+              onClick={() => {
+                if (profile.idMahasiswa !== null) {
+                  setShowEditModal(true);
+                } else {
+                  console.error(
+                    "ID mahasiswa tidak ditemukan. Tidak dapat membuka edit profil."
+                  );
+                }
+              }}
+              className="absolute bottom-2 right-2 bg-amber-400 text-amber-950 p-3 rounded-full hover:bg-amber-300 transition-all shadow-md active:scale-95"
             >
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-          </button>
-
-          <div>
-            <h1 className="text-3xl font-extrabold text-[#5B5288]">
-              {profile.namaMahasiswa}
-            </h1>
-
-            <p className="text-gray-400 font-medium text-sm mt-1">
-              {profile.deskripsi || "Belum ada deskripsi"}
-            </p>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+            </button>
           </div>
 
-          {/* STATISTIK */}
-          <div className="grid grid-cols-3 gap-4 mt-auto">
-            {/* MODUL SELESAI */}
-            <div className="bg-[#5B5288] rounded-2xl p-4 flex items-center gap-4 text-white shadow-sm hover:scale-[1.02] transition-transform">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 opacity-80"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
+          {/* PROFILE INFO */}
+          <div className="flex-1 flex flex-col justify-between h-full w-full text-center md:text-left">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-1.5 text-xs font-bold text-[#e2dcff] backdrop-blur-md border border-white/15 shadow-inner mb-3">
+                <span className="text-amber-300">✨</span>
+                Profil Mahasiswa
+              </span>
 
-              <div>
-                <div className="text-2xl font-bold">
-                  {profile.modulSelesai}
-                </div>
+              <h1 className="text-3xl md:text-4xl font-black text-white tracking-wide">
+                {profile.namaMahasiswa}
+              </h1>
 
-                <div className="text-[10px] opacity-80 font-medium tracking-wide">
-                  Modul Selesai
-                </div>
-              </div>
+              <p className="text-[#c9c3e6] font-medium text-sm md:text-base mt-2">
+                {profile.deskripsi || "Belum ada deskripsi"}
+              </p>
             </div>
 
-            {/* TOTAL XP */}
-            <div className="bg-[#5B5288] rounded-2xl p-4 flex items-center gap-4 text-white shadow-sm hover:scale-[1.02] transition-transform">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-10 w-10 opacity-80"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-                />
-              </svg>
-
-              <div>
-                <div className="text-2xl font-bold">
-                  {profile.totalXp}
+            {/* STATISTIK */}
+            <div className="grid grid-cols-3 gap-3 md:gap-4 mt-6">
+              {/* MODUL SELESAI */}
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 md:gap-4 text-white shadow-inner border border-white/15">
+                <div className="bg-white/20 p-2 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
                 </div>
-
-                <div className="text-[10px] opacity-80 font-medium tracking-wide">
-                  Total Poin XP
+                <div className="text-center md:text-left">
+                  <div className="text-xl md:text-2xl font-black">{profile.modulSelesai}</div>
+                  <div className="text-[10px] text-[#c9c3e6] font-bold uppercase tracking-wider">Selesai</div>
                 </div>
               </div>
-            </div>
 
-            {/* PERINGKAT */}
-            <div className="bg-[#5B5288] rounded-2xl p-4 flex items-center gap-4 text-white shadow-sm hover:scale-[1.02] transition-transform">
-              <Trophy className="h-10 w-10 opacity-80" />
-
-              <div>
-                <div className="text-2xl font-bold">
-                  #{profile.peringkat}
+              {/* TOTAL XP */}
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 md:gap-4 text-white shadow-inner border border-white/15">
+                <div className="bg-white/20 p-2 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
                 </div>
+                <div className="text-center md:text-left">
+                  <div className="text-xl md:text-2xl font-black text-amber-300">{profile.totalXp}</div>
+                  <div className="text-[10px] text-[#c9c3e6] font-bold uppercase tracking-wider">Total XP</div>
+                </div>
+              </div>
 
-                <div className="text-[10px] opacity-80 font-medium tracking-wide">
-                  Peringkat Kelas
+              {/* PERINGKAT */}
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 md:gap-4 text-white shadow-inner border border-white/15">
+                <div className="bg-white/20 p-2 rounded-full">
+                  <Trophy className="h-6 w-6 text-amber-300" />
+                </div>
+                <div className="text-center md:text-left">
+                  <div className="text-xl md:text-2xl font-black">#{profile.peringkat}</div>
+                  <div className="text-[10px] text-[#c9c3e6] font-bold uppercase tracking-wider">Peringkat</div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Bottom Wave Decoration */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+          </svg>
         </div>
       </div>
 

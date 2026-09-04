@@ -666,7 +666,7 @@ export default function ProfilDosen() {
           onClick={openEditModal}
           className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-6 py-3 text-xs font-bold text-amber-950 shadow-md shadow-amber-900/20 hover:bg-amber-300 transition"
         >
-          Edit Profil Dosen
+          Edit Profil
         </button>
       }
     >

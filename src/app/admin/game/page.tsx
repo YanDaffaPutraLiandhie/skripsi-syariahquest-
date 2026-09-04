@@ -47,13 +47,6 @@ const emptyForm: GameForm = {
   is_aktif: true,
 }
 
-// =========================================
-// STANDAR UKURAN GAMBAR BOARD
-// =========================================
-// Tidak dibatasi harus persegi — bebas rasio apapun (landscape, portrait,
-// dsb) supaya admin bisa pakai tema board yang bentuknya beragam. Yang
-// dibatasi cuma resolusinya, supaya gambarnya tidak pecah/blur saat
-// ditampilkan besar di halaman mahasiswa, dan tidak kebesaran ukuran filenya.
 const BOARD_MIN_WIDTH = 600
 const BOARD_MIN_HEIGHT = 600
 const BOARD_MAX_WIDTH = 4000
@@ -120,9 +113,6 @@ export default function ManajemenGamePage() {
     setLoading(true)
 
     try {
-      // TODO: sesuaikan nama tabel & kolom dengan skema Supabase Anda.
-      // `posisi_petak` diasumsikan kolom jsonb yang isinya array
-      // [{ nomor, x, y }, ...] dengan x,y dalam persen (0-100).
       const { data, error } = await supabase
         .from('game')
         .select(
@@ -216,7 +206,7 @@ export default function ManajemenGamePage() {
         ...prev,
         boardFile: file,
         boardPreview: URL.createObjectURL(file),
-        posisiPetak: [], // gambar baru -> reset pin lama, tidak relevan lagi
+        posisiPetak: [],
       }))
     } catch (error: any) {
       setBoardImageError(error.message || 'Gagal membaca gambar')
@@ -226,13 +216,8 @@ export default function ManajemenGamePage() {
     }
   }
 
-  // =========================================
-  // BOARD EDITOR — klik berurutan untuk pin posisi petak
-  // =========================================
   function handleBoardEditorClick(e: React.MouseEvent<HTMLDivElement>) {
     if (!boardImageRef.current) return
-
-    // Sudah mencapai jumlah petak yang ditentukan, jangan tambah lagi
     if (form.posisiPetak.length >= form.jumlahPetak) return
 
     const rect = boardImageRef.current.getBoundingClientRect()
@@ -300,7 +285,6 @@ export default function ManajemenGamePage() {
         ? games.find((g) => g.id_game === editingId)?.thumbnail_url ?? null
         : null
 
-      // TODO: sesuaikan nama bucket Storage Anda di Supabase
       if (form.boardFile) {
         const path = `game/${Date.now()}-${form.boardFile.name}`
         const { error: uploadError } = await supabase.storage
@@ -339,8 +323,6 @@ export default function ManajemenGamePage() {
 
       await fetchGames()
       closeModal()
-            await fetchGames()
-      closeModal()
 
       await Swal.fire({
         icon: 'success',
@@ -348,7 +330,7 @@ export default function ManajemenGamePage() {
         text: editingId
           ? 'Data game berhasil diperbarui.'
           : 'Data game berhasil ditambahkan.',
-        confirmButtonColor: '#50427E',
+        confirmButtonColor: '#4a3f7a',
       })
     } catch (error: any) {
       console.error('Gagal menyimpan game:', error)
@@ -391,217 +373,239 @@ export default function ManajemenGamePage() {
   }
 
   async function handleDelete(id: number) {
-  const result = await Swal.fire({
-    title: 'Hapus Game?',
-    text: 'Data game yang dihapus tidak dapat dikembalikan.',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#dc2626',
-    cancelButtonColor: '#6b7280',
-    confirmButtonText: 'Ya, Hapus',
-    cancelButtonText: 'Batal',
-  })
-
-  if (!result.isConfirmed) return
-
-  try {
-    const { error } = await supabase
-      .from('game')
-      .delete()
-      .eq('id_game', id)
-
-    if (error) throw error
-
-    await fetchGames()
-
-    await Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
-      text: 'Data game berhasil dihapus.',
-      confirmButtonColor: '#50427E',
+    const result = await Swal.fire({
+      title: 'Hapus Game?',
+      text: 'Data game yang dihapus tidak dapat dikembalikan.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
     })
-  } catch (error: any) {
-    console.error('Gagal menghapus game:', error)
 
-    await Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: error?.message || 'Terjadi kesalahan saat menghapus game.',
-      confirmButtonColor: '#50427E',
-    })
+    if (!result.isConfirmed) return
+
+    try {
+      const { error } = await supabase.from('game').delete().eq('id_game', id)
+
+      if (error) throw error
+
+      await fetchGames()
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Data game berhasil dihapus.',
+        confirmButtonColor: '#4a3f7a',
+      })
+    } catch (error: any) {
+      console.error('Gagal menghapus game:', error)
+
+      await Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: error?.message || 'Terjadi kesalahan saat menghapus game.',
+        confirmButtonColor: '#4a3f7a',
+      })
+    }
   }
-}
+
   const pinsRemaining = form.jumlahPetak - form.posisiPetak.length
 
+  const inputClass =
+    'h-11 w-full rounded-xl border border-[#e4e2ee] bg-[#f8f7fd] px-3.5 text-sm font-medium text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20'
+
   return (
-    <>
+    <div className="space-y-6">
       {/* BANNER */}
-      <div className="page-banner">
-        <h1>Manajemen Game</h1>
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] to-[#3d3466] px-8 py-7 shadow-lg shadow-[#3d3466]/20 lg:px-10 lg:py-8">
+        <h1 className="text-2xl font-bold text-white lg:text-3xl">
+          Manajemen Game
+        </h1>
       </div>
 
       {/* STAT CARDS */}
-      <div className="admin-stats-grid">
-        <div className="admin-stat-card">
-          <div className="admin-stat-inner">
-            <h2>Total Game</h2>
-            <p>{stats.total}</p>
-          </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-sm font-bold text-[#4a3f7a]">Total Game</h2>
+          <p className="mt-1 text-3xl font-black text-[#3d3466]">{stats.total}</p>
         </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-inner">
-            <h2>Aktif</h2>
-            <p className="stat-aktif">{stats.aktif}</p>
-          </div>
+        <div className="rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-sm font-bold text-emerald-600">Aktif</h2>
+          <p className="mt-1 text-3xl font-black text-emerald-600">{stats.aktif}</p>
         </div>
-
-        <div className="admin-stat-card">
-          <div className="admin-stat-inner">
-            <h2>Nonaktif</h2>
-            <p className="stat-nonaktif">{stats.nonaktif}</p>
-          </div>
+        <div className="rounded-[22px] bg-white p-5 shadow-sm ring-1 ring-black/5">
+          <h2 className="text-sm font-bold text-rose-500">Nonaktif</h2>
+          <p className="mt-1 text-3xl font-black text-rose-500">{stats.nonaktif}</p>
         </div>
       </div>
 
       {/* ADD GAME BUTTON */}
-      <div className="admin-action-row">
-        <button className="btn-add-user" onClick={openAddModal}>
+      <div className="flex justify-end">
+        <button
+          onClick={openAddModal}
+          className="rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-amber-950 shadow-sm shadow-amber-900/20 transition hover:bg-amber-300"
+        >
           + Game
         </button>
       </div>
 
       {/* TABLE */}
-      <div className="admin-table-wrapper">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Nama Game</th>
-              <th>Deskripsi</th>
-              <th>Petak</th>
-              <th>Status</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="admin-table-empty">
-                  Memuat data...
-                </td>
+      <div className="overflow-hidden rounded-[22px] bg-white shadow-sm ring-1 ring-black/5">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#f0edf9] text-xs font-bold uppercase tracking-wide text-[#8b84a5]">
+                <th className="px-5 py-3">Nama Game</th>
+                <th className="px-5 py-3">Deskripsi</th>
+                <th className="px-5 py-3">Petak</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Aksi</th>
               </tr>
-            ) : games.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="admin-table-empty">
-                  Belum ada data game
-                </td>
-              </tr>
-            ) : (
-              games.map((game) => (
-                <tr key={game.id_game}>
-                  <td>
-                    <div className="game-table-name">
-                      {game.thumbnail_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={game.thumbnail_url}
-                          alt={game.nama_game}
-                        />
-                      ) : (
-                        <div className="game-thumb-placeholder" />
-                      )}
-                      <span>{game.nama_game}</span>
-                    </div>
-                  </td>
-                  <td className="game-deskripsi-cell">{game.deskripsi}</td>
-                  <td>{game.jumlah_petak} petak</td>
-                  <td>
-                    <button
-                      type="button"
-                      className={`status-toggle ${
-                        game.is_aktif ? 'active' : ''
-                      }`}
-                      onClick={() => handleToggleAktif(game)}
-                      aria-label={
-                        game.is_aktif ? 'Nonaktifkan game' : 'Aktifkan game'
-                      }
-                    >
-                      <span className="status-toggle-knob" />
-                    </button>
-                    <span
-                      className={`status-label ${
-                        game.is_aktif ? 'label-aktif' : 'label-nonaktif'
-                      }`}
-                    >
-                      {game.is_aktif ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="admin-table-actions">
-                      <button
-                        className="icon-action edit"
-                        onClick={() => openEditModal(game)}
-                        aria-label="Edit game"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="icon-action delete"
-                        onClick={() => handleDelete(game.id_game)}
-                        aria-label="Hapus game"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-[#f0edf9]">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-10 text-center text-sm font-semibold text-[#4a3f7a]">
+                    Memuat data...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : games.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-10 text-center text-sm text-[#a79fd6]">
+                    Belum ada data game
+                  </td>
+                </tr>
+              ) : (
+                games.map((game) => (
+                  <tr key={game.id_game} className="transition hover:bg-[#f8f7fd]">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-3">
+                        {game.thumbnail_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={game.thumbnail_url}
+                            alt={game.nama_game}
+                            className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-black/5"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 shrink-0 rounded-xl bg-[#f4f2fa]" />
+                        )}
+                        <span className="font-semibold text-[#2b2540]">
+                          {game.nama_game}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="max-w-[220px] truncate px-5 py-3.5 text-[#6e6a85]">
+                      {game.deskripsi}
+                    </td>
+                    <td className="px-5 py-3.5 text-[#6e6a85]">
+                      {game.jumlah_petak} petak
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAktif(game)}
+                        aria-label={
+                          game.is_aktif ? 'Nonaktifkan game' : 'Aktifkan game'
+                        }
+                        className={`mr-2 inline-flex h-6 w-11 items-center rounded-full transition ${game.is_aktif ? 'bg-emerald-500' : 'bg-[#e4e2ee]'
+                          }`}
+                      >
+                        <span
+                          className={`h-5 w-5 rounded-full bg-white shadow transition ${game.is_aktif ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
+                        />
+                      </button>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${game.is_aktif
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                          : 'bg-rose-50 text-rose-700 ring-rose-200'
+                          }`}
+                      >
+                        {game.is_aktif ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditModal(game)}
+                          aria-label="Edit game"
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4f2fa] text-[#4a3f7a] transition hover:bg-[#e9e5f7]"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(game.id_game)}
+                          aria-label="Hapus game"
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 transition hover:bg-rose-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* ADD / EDIT MODAL */}
       {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeModal}
+        >
           <div
-            className="modal-box game-modal-box"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
-              <h3>{editingId ? 'Edit Game' : 'Tambah Game'}</h3>
-              <button className="modal-close" onClick={closeModal}>
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#3d3466]">
+                {editingId ? 'Edit Game' : 'Tambah Game'}
+              </h3>
+              <button
+                onClick={closeModal}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[#8b84a5] transition hover:bg-[#f4f2fa]"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="modal-field">
-                <label>Nama Game</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
+                  Nama Game
+                </label>
                 <input
                   type="text"
                   value={form.nama_game}
-                  onChange={(e) =>
-                    setForm({ ...form, nama_game: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, nama_game: e.target.value })}
                   required
+                  className={inputClass}
                 />
               </div>
 
-              <div className="modal-field">
-                <label>Deskripsi</label>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
+                  Deskripsi
+                </label>
                 <input
                   type="text"
                   value={form.deskripsi}
-                  onChange={(e) =>
-                    setForm({ ...form, deskripsi: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
                   placeholder="Deskripsi singkat tema game"
+                  className={inputClass}
                 />
               </div>
 
-              <div className="modal-field">
-                <label>Jumlah Petak</label>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
+                  Jumlah Petak
+                </label>
                 <input
                   type="number"
                   min={2}
@@ -612,38 +616,41 @@ export default function ManajemenGamePage() {
                     setForm((prev) => ({
                       ...prev,
                       jumlahPetak: value,
-                      // kalau jumlah dikurangi di bawah pin yang sudah ada,
-                      // potong kelebihannya supaya tetap konsisten
                       posisiPetak: prev.posisiPetak.slice(0, value),
                     }))
                   }}
+                  className={inputClass}
                 />
               </div>
 
               {/* UPLOAD BOARD */}
-              <div className="modal-field">
-                <label>Gambar Board (dipakai untuk thumbnail & papan main)</label>
-                <p className="board-size-hint">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
+                  Gambar Board (dipakai untuk thumbnail & papan main)
+                </label>
+                <p className="mb-2 text-xs text-[#a79fd6]">
                   Resolusi minimal {BOARD_MIN_WIDTH}×{BOARD_MIN_HEIGHT}px,
-                  maksimal {BOARD_MAX_WIDTH}×{BOARD_MAX_HEIGHT}px. Rasio
-                  bebas (landscape, portrait, atau persegi).
+                  maksimal {BOARD_MAX_WIDTH}×{BOARD_MAX_HEIGHT}px. Rasio bebas
+                  (landscape, portrait, atau persegi).
                 </p>
 
                 {!form.boardPreview ? (
                   <div
-                    className="badge-icon-upload game-thumb-upload"
                     onClick={handleBoardClick}
+                    className="flex h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#c9c3e6] bg-[#f8f7fd] text-center transition hover:bg-[#f0edf9]"
                   >
-                    <div className="badge-icon-upload-placeholder">
-                      {checkingImage ? (
-                        <span>Memeriksa ukuran gambar...</span>
-                      ) : (
-                        <>
-                          <ImagePlus size={26} />
-                          <span>Unggah gambar board</span>
-                        </>
-                      )}
-                    </div>
+                    {checkingImage ? (
+                      <span className="text-sm font-semibold text-[#4a3f7a]">
+                        Memeriksa ukuran gambar...
+                      </span>
+                    ) : (
+                      <>
+                        <ImagePlus size={26} className="text-[#4a3f7a]" />
+                        <span className="text-sm font-semibold text-[#4a3f7a]">
+                          Unggah gambar board
+                        </span>
+                      </>
+                    )}
                     <input
                       ref={boardInputRef}
                       type="file"
@@ -656,9 +663,9 @@ export default function ManajemenGamePage() {
                   <>
                     <button
                       type="button"
-                      className="board-change-image-btn"
                       onClick={handleBoardClick}
                       disabled={checkingImage}
+                      className="mb-3 rounded-full border border-[#e4e2ee] bg-white px-4 py-2 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd] disabled:opacity-50"
                     >
                       {checkingImage ? 'Memeriksa...' : 'Ganti gambar'}
                     </button>
@@ -671,52 +678,48 @@ export default function ManajemenGamePage() {
                     />
 
                     {/* BOARD EDITOR — klik berurutan untuk pin petak */}
-                    <div className="board-editor-header">
-                      <p>
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-xs text-[#8b84a5]">
                         Klik di atas gambar secara berurutan untuk menandai
                         posisi petak 1 sampai {form.jumlahPetak}.
                       </p>
                       <span
-                        className={`board-editor-counter ${
-                          pinsRemaining === 0 ? 'complete' : ''
-                        }`}
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${pinsRemaining === 0
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-[#f4f2fa] text-[#4a3f7a]'
+                          }`}
                       >
                         {form.posisiPetak.length} / {form.jumlahPetak} petak
                       </span>
                     </div>
 
-                    <div className="board-editor-wrapper">
+                    <div className="relative overflow-hidden rounded-2xl ring-1 ring-black/5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={form.boardPreview}
                         alt="Board preview"
-                        className="board-editor-img"
+                        className="w-full select-none"
                         draggable={false}
                       />
 
                       <div
                         ref={boardImageRef}
-                        className="board-editor-click-layer"
                         onClick={handleBoardEditorClick}
+                        className="absolute inset-0"
                         style={{
-                          cursor:
-                            pinsRemaining > 0 ? 'crosshair' : 'not-allowed',
+                          cursor: pinsRemaining > 0 ? 'crosshair' : 'not-allowed',
                         }}
                       >
                         {form.posisiPetak.map((pin) => (
                           <div
                             key={pin.nomor}
-                            className={`board-pin ${
-                              pin.nomor === 1
-                                ? 'board-pin-start'
-                                : pin.nomor === form.jumlahPetak
-                                ? 'board-pin-finish'
-                                : ''
-                            }`}
-                            style={{
-                              left: `${pin.x}%`,
-                              top: `${pin.y}%`,
-                            }}
+                            className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-md ${pin.nomor === 1
+                              ? 'bg-emerald-500'
+                              : pin.nomor === form.jumlahPetak
+                                ? 'bg-red-600'
+                                : 'bg-[#4a3f7a]'
+                              }`}
+                            style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
                           >
                             {pin.nomor}
                           </div>
@@ -724,21 +727,21 @@ export default function ManajemenGamePage() {
                       </div>
                     </div>
 
-                    <div className="board-editor-actions">
+                    <div className="mt-3 flex gap-2">
                       <button
                         type="button"
-                        className="board-editor-btn"
                         onClick={handleUndoPin}
                         disabled={form.posisiPetak.length === 0}
+                        className="flex items-center gap-1.5 rounded-full border border-[#e4e2ee] bg-white px-3.5 py-1.5 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd] disabled:opacity-40"
                       >
                         <Undo2 size={14} />
                         Undo Titik Terakhir
                       </button>
                       <button
                         type="button"
-                        className="board-editor-btn danger"
                         onClick={handleResetPin}
                         disabled={form.posisiPetak.length === 0}
+                        className="flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-40"
                       >
                         <RotateCcw size={14} />
                         Reset Semua Titik
@@ -748,40 +751,46 @@ export default function ManajemenGamePage() {
                 )}
 
                 {boardImageError && (
-                  <p className="board-image-error">{boardImageError}</p>
+                  <p className="mt-2 text-xs font-semibold text-rose-600">
+                    {boardImageError}
+                  </p>
                 )}
               </div>
 
-              <div className="modal-field">
-                <label>Status</label>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
+                  Status
+                </label>
                 <select
                   value={form.is_aktif ? 'aktif' : 'nonaktif'}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      is_aktif: e.target.value === 'aktif',
-                    })
+                    setForm({ ...form, is_aktif: e.target.value === 'aktif' })
                   }
+                  className={inputClass}
                 >
                   <option value="aktif">Aktif</option>
                   <option value="nonaktif">Nonaktif</option>
                 </select>
               </div>
 
-              {formError && <p className="modal-error">{formError}</p>}
+              {formError && (
+                <p className="rounded-2xl bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-600 ring-1 ring-red-200">
+                  {formError}
+                </p>
+              )}
 
-              <div className="modal-actions">
+              <div className="flex justify-end gap-3 border-t border-[#f0edf9] pt-4">
                 <button
                   type="button"
-                  className="btn-modal-cancel"
                   onClick={closeModal}
+                  className="rounded-full border border-[#e4e2ee] bg-white px-6 py-2.5 text-sm font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="btn-modal-save"
                   disabled={saving}
+                  className="rounded-full bg-amber-400 px-6 py-2.5 text-sm font-bold text-amber-950 shadow-sm shadow-amber-900/20 transition hover:bg-amber-300 disabled:opacity-50"
                 >
                   {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>
@@ -790,6 +799,6 @@ export default function ManajemenGamePage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
