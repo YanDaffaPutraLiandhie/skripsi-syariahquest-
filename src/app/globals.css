@@ -208,7 +208,7 @@ body {
   width: calc(100% - 250px);
   min-height: 100vh;
   margin-left: 250px;
-  background-color: var(--background);
+  background: linear-gradient(180deg, #f8f7fd 0%, #f4f1fb 50%, #f0edf9 100%);
 }
 
 
