@@ -145,7 +145,7 @@ export default function GameOverModal({
           className="w-full mt-4 py-3.5 rounded-xl bg-[#5B5288] text-white font-bold hover:bg-[#4A4270] hover:shadow-lg transition-all relative z-10 flex items-center justify-center gap-2"
         >
           {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-          {isLoading ? "Membersihkan Arena..." : "Kembali ke Arena Kelas"}
+          {isLoading ? "Membersihkan Arena..." : "Kembali ke Arena Permainan"}
         </button>
       </div>
     </div>

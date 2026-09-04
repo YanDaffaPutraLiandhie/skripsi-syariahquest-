@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import CreateRoomModal from "@/components/Arena/CreateRoomModal";
 import JoinRoomModal from "@/components/Arena/JoinRoomModal";
 import ThemeCard from "@/components/Arena/ThemeCard";
-import { supabase } from "@/lib/supabase"; 
+import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Loader2 } from "lucide-react";
 
@@ -21,7 +21,7 @@ export default function ArenaKelas() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<number>(0);
-  
+
   const [papanTema, setPapanTema] = useState<GameTema[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,7 +51,7 @@ export default function ArenaKelas() {
     if (!isDragging || !scrollContainerRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5; 
+    const walk = (x - startX) * 1.5;
     scrollContainerRef.current.scrollLeft = scrollLeft - walk;
   };
 
@@ -62,7 +62,7 @@ export default function ArenaKelas() {
         .from("game")
         .select("id_game, nama_game, deskripsi, thumbnail_url")
         .eq("is_aktif", true)
-        .order("created_at", { ascending: true }); 
+        .order("created_at", { ascending: true });
 
       if (data && !error) {
         setPapanTema(data as GameTema[]);
@@ -83,7 +83,7 @@ export default function ArenaKelas() {
         .select("arena_menang, arena_jebakan, arena_main")
         .eq("id_mahasiswa", profile.idMahasiswa)
         .single();
-      
+
       if (data && !error) {
         setStats({
           menang: data.arena_menang || 0,
@@ -113,11 +113,11 @@ export default function ArenaKelas() {
     { id: 'trap', label: 'Kena Jebakan', value: stats.jebakan, color: '#EF4444' },
     { id: 'play', label: 'Total Main', value: stats.main, color: '#3B82F6' },
   ];
-  
+
   const [hoveredStat, setHoveredStat] = useState<typeof statsData[0] | null>(null);
 
   const radius = 35;
-  const circumference = 2 * Math.PI * radius; 
+  const circumference = 2 * Math.PI * radius;
   const totalStats = statsData.reduce((acc, curr) => acc + curr.value, 0);
   let currentOffset = 0;
 
@@ -125,11 +125,11 @@ export default function ArenaKelas() {
     <div className="space-y-8">
       {/* BANNER UNGU */}
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-8 shadow-lg shadow-[#3d3466]/25 lg:p-12 flex items-center justify-between mt-12 h-80">
-        
+
         {/* Header Banner Background SVGs */}
         <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
         <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
-        
+
         {/* Banner Decorative Curved Lines */}
         <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
           <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
@@ -181,14 +181,14 @@ export default function ArenaKelas() {
 
       {/* KONTEN BAWAH */}
       <div id="pilihan-tema" className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
-        
+
         {/* KOLOM KIRI (PILIHAN TEMA) */}
         <div className="lg:col-span-2 flex flex-col">
           <h3 className="text-2xl font-bold text-[#5B5288] mb-4">
             Pilihan Tema Papan
           </h3>
-          
-          <div 
+
+          <div
             ref={scrollContainerRef}
             onMouseDown={handleMouseDown}
             onMouseLeave={handleMouseLeave}
@@ -222,7 +222,7 @@ export default function ArenaKelas() {
             Statistik Pertempuran
           </h3>
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex-1 flex flex-col items-center justify-center">
-            
+
             {isStatsLoading ? (
               <div className="animate-pulse flex flex-col items-center gap-4">
                 <div className="w-40 h-40 rounded-full border-[20px] border-gray-100"></div>
@@ -234,10 +234,10 @@ export default function ArenaKelas() {
                 <div className="relative w-48 h-48 mb-6 flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90 drop-shadow-md" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#F3F4F6" strokeWidth="20" />
-                    
+
                     {totalStats > 0 && statsData.map((stat) => {
                       if (stat.value === 0) return null; // Jangan gambar kalau nilainya 0
-                      
+
                       const strokeDasharray = `${(stat.value / totalStats) * circumference} ${circumference}`;
                       const strokeDashoffset = -currentOffset;
                       currentOffset += (stat.value / totalStats) * circumference;
@@ -274,11 +274,11 @@ export default function ArenaKelas() {
                       </>
                     ) : totalStats === 0 ? (
                       <span className="text-xs font-bold text-gray-400">
-                        Belum <br/> Pernah Main
+                        Belum <br /> Pernah Main
                       </span>
                     ) : (
                       <span className="text-xs font-bold text-gray-400">
-                        Arahkan <br/> Mouse
+                        Arahkan <br /> Mouse
                       </span>
                     )}
                   </div>
@@ -287,8 +287,8 @@ export default function ArenaKelas() {
                 {/* Legenda Bawah */}
                 <div className="flex flex-wrap justify-center gap-4 w-full">
                   {statsData.map((stat) => (
-                    <div 
-                      key={`legend-${stat.id}`} 
+                    <div
+                      key={`legend-${stat.id}`}
                       className={`flex items-center gap-1.5 transition-opacity ${stat.value === 0 ? 'opacity-40' : 'cursor-pointer hover:opacity-80'}`}
                       onMouseEnter={() => stat.value > 0 && setHoveredStat(stat)}
                       onMouseLeave={() => setHoveredStat(null)}
@@ -311,7 +311,7 @@ export default function ArenaKelas() {
           onClose={() => setShowCreateModal(false)}
         />
       )}
-      
+
       {showJoinModal && <JoinRoomModal onClose={() => setShowJoinModal(false)} />}
     </div>
   );

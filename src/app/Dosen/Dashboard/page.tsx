@@ -809,8 +809,14 @@ export default function Dashboard() {
 
           </div>
 
+          {/* PERBAIKAN: tambah "content-start items-start" supaya
+              baris grid TIDAK ikut "stretch" mengisi sisa ruang
+              vertikal container ketika jumlah modul yang tampil
+              sedikit (misal cuma 1 hasil filter). Tanpa ini, kartu
+              modul jadi memanjang penuh mengikuti tinggi 420px. */}
+
           <div
-            className="grid grid-cols-2 gap-3 overflow-y-auto pb-1 pr-1 sm:grid-cols-3 lg:grid-cols-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="grid grid-cols-2 content-start items-start gap-3 overflow-y-auto pb-1 pr-1 sm:grid-cols-3 lg:grid-cols-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ height: `${MODUL_LIST_HEIGHT}px` }}
           >
 
@@ -826,7 +832,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={modul.id_modul}
-                    className="flex shrink-0 flex-col rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:rotate-1 hover:shadow-lg hover:shadow-[#4a3f7a]/10"
+                    className="flex flex-col self-start rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-1 hover:rotate-1 hover:shadow-lg hover:shadow-[#4a3f7a]/10"
                   >
 
                     <div
