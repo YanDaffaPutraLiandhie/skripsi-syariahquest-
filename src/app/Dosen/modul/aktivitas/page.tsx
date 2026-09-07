@@ -26,6 +26,7 @@ function AktivitasModulContent() {
   const [namaModul, setNamaModul] = useState("");
   const [rows, setRows] = useState<AktivitasRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -122,6 +123,80 @@ function AktivitasModulContent() {
     load();
   }, [idModul]);
 
+  // =========================================================
+  // EKSPOR DATA KE CSV (bisa dibuka di Excel)
+  // Format: Nama Modul di baris atas, lalu tabel Nama Mahasiswa,
+  // Progress, Nilai, Status
+  // =========================================================
+  function handleExport() {
+    if (rows.length === 0) return;
+
+    setIsExporting(true);
+
+    try {
+      // Bantu escape koma/kutip agar CSV tidak rusak
+      const escapeCsv = (value: string | number) => {
+        const str = String(value ?? "");
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const lines: string[] = [];
+
+      // Baris judul / metadata
+      lines.push(`Nama Modul,${escapeCsv(namaModul || "Modul")}`);
+      lines.push(`Tanggal Ekspor,${escapeCsv(new Date().toLocaleString("id-ID"))}`);
+      lines.push(`Jumlah Mahasiswa,${escapeCsv(rows.length)}`);
+      lines.push(""); // baris kosong pemisah
+
+      // Header tabel
+      lines.push(
+        ["No", "Nama Mahasiswa", "Progress (%)", "Nilai", "Status"]
+          .map(escapeCsv)
+          .join(",")
+      );
+
+      // Isi tabel
+      rows.forEach((row) => {
+        lines.push(
+          [
+            row.no,
+            row.name,
+            row.progress,
+            row.nilai ?? "-",
+            row.selesai ? "Selesai" : "Belum Selesai",
+          ]
+            .map(escapeCsv)
+            .join(",")
+        );
+      });
+
+      const csvContent = "\uFEFF" + lines.join("\n"); // \uFEFF = BOM agar Excel baca UTF-8 dgn benar
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const safeModulName = (namaModul || "modul")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      const fileName = `aktivitas_${safeModulName}_${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <DosenContainer
       categoryTag="MODUL PEMBELAJARAN"
@@ -140,8 +215,13 @@ function AktivitasModulContent() {
       <div className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
         <div className="mb-6 flex items-center justify-between border-b border-[#f0edf9] pb-4">
           <h2 className="text-xl font-bold text-[#3d3466]">Daftar Mahasiswa Mengakses Modul</h2>
-          <button className="rounded-full bg-emerald-400 px-6 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-300 transition shadow-sm">
-            Ekspor Data (Excel/CSV)
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting || rows.length === 0}
+            className="rounded-full bg-emerald-400 px-6 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-300 transition shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isExporting ? "Mengekspor..." : "Ekspor Data (Excel/CSV)"}
           </button>
         </div>
 
