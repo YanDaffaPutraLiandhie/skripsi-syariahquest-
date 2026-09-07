@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { supabase } from '../../lib/supabase'
 
 // IMPORT CSS DARI FOLDER LOGIN BIAR DESAINNYA KEMBAR 100%
-import '../login/login.css' 
+import '../login/login.css'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -38,16 +38,16 @@ export default function ForgotPasswordPage() {
     <main className="login-page">
       <div className="login-card">
         <div className="login-illustration">
-          <img 
-            src="/images/board-logo.png" 
-            alt="Forgot Password Illustration" 
+          <img
+            src="/images/board-logo.png"
+            alt="Forgot Password Illustration"
             className="illustration-img"
           />
         </div>
 
         <div className="login-form-side">
           <h1 className="login-title">Reset Password</h1>
-          
+
           {/* Teks Instruksi */}
           <p style={{ textAlign: 'center', marginBottom: '24px', color: '#6B7280', fontSize: '14px' }}>
             Masukkan email yang terdaftar. Kami akan mengirimkan tautan untuk membuat password baru.

@@ -237,7 +237,7 @@ export function useRoom(roomId: string) {
     // Kasus 1: Ini pemain terakhir di room -> hapus room sekalian
     if (remainingPlayers.length === 0) {
       await supabase.from("room").delete().eq("id_room", roomId);
-    } 
+    }
     // Kasus 2: Yang keluar adalah host (dan masih ada pemain lain) -> transfer host
     else if (isHost) {
       const nextHost = remainingPlayers[0]; // Oper ke pemain urutan selanjutnya
@@ -265,7 +265,7 @@ export function useRoom(roomId: string) {
       .delete()
       .eq("id_room", roomId)
       .eq("id_user", currentUserId);
-      
+
     // Eksekusi WAJIB: Update mahasiswa status (biar bisa diundang lagi)
     const { data: userData } = await supabase
       .from("user")
@@ -293,6 +293,6 @@ export function useRoom(roomId: string) {
     updateMyPosisi,
     passTurnToNext,
     finishGame,
-    leaveRoom,
+    leaveRoom, // Pastikan ini dipanggil pas tombol keluar di WaitingRoom dipencet!
   };
 }

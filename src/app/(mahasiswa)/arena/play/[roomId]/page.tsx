@@ -171,6 +171,8 @@ export default function BoardGameArena({
   // ==========================================================
   // FITUR BARU: BROADCAST MULTIPLAYER
   // ==========================================================
+  // FITUR BARU: BROADCAST MULTIPLAYER (Kirim notif ke teman)
+  // ==========================================================
   const broadcastChannelRef = useRef<any>(null);
   const [isBroadcastReady, setIsBroadcastReady] = useState(false); 
 
@@ -178,13 +180,17 @@ export default function BoardGameArena({
     if (!roomId || !currentUserId) return;
 
     const channel = supabase.channel(`arena-events-${roomId}`);
-    
+
     channel.on("broadcast", { event: "game_action" }, (payload) => {
       const { message, userId } = payload.payload;
       
+
+      // HANYA tampilkan pesan jika yang ngirim BUKAN kita sendiri
       if (userId !== currentUserId) {
         setToastMsg(message);
         
+
+        // Hapus pesan setelah 4 detik, tapii pastikan pesannya belum diganti yang baru
         setTimeout(() => {
           setToastMsg((prev) => (prev === message ? "" : prev));
         }, 4000);
@@ -205,9 +211,9 @@ export default function BoardGameArena({
   const sendBroadcast = (msg: string) => {
     if (!isBroadcastReady) {
       console.warn("Broadcast belum siap, pesan ditahan:", msg);
-      return; 
+      return;
     }
-    
+
     broadcastChannelRef.current?.send({
       type: "broadcast",
       event: "game_action",
@@ -230,7 +236,7 @@ export default function BoardGameArena({
       }
     }
   }, [room?.status, currentUserId, room?.winner_user_id, playSfx]);
-  
+
   const incrementStat = async (
     idMahasiswa: number,
     statColumn: "arena_main" | "arena_menang" | "arena_jebakan"
@@ -401,6 +407,9 @@ export default function BoardGameArena({
       
       sendBroadcast(`⚔️ ${myName} menggunakan skill Lemparan Ganda!`); 
       
+
+      sendBroadcast(`⚔️ ${myName} menggunakan skill Lemparan Ganda!`); // BROADCAST
+
     } else if (Number(skillId) === 2) {
       setHasShield(true);
       playSfx("skill_shield");
@@ -409,6 +418,9 @@ export default function BoardGameArena({
       
       sendBroadcast(`🛡️ ${myName} mengaktifkan skill Perisai!`); 
       
+
+      sendBroadcast(`🛡️ ${myName} mengaktifkan skill Perisai!`); // BROADCAST
+
     } else if (Number(skillId) === 3) {
       setHasExtraTurn(true);
       playSfx("skill_time");
@@ -417,6 +429,9 @@ export default function BoardGameArena({
       
       sendBroadcast(`❄️ ${myName} meminum Ramuan Waktu! (Dapat giliran ekstra)`); 
       
+
+      sendBroadcast(`❄️ ${myName} meminum Ramuan Waktu! (Dapat giliran ekstra)`); // BROADCAST
+
     } else if (Number(skillId) === 4) {
       const opponentPositions = players
         .filter((p) => p.id_user !== currentUserId)
@@ -435,6 +450,8 @@ export default function BoardGameArena({
         flashSkillEffect(SKILL_EFFECTS[4]);
         
         sendBroadcast(`🔀 ${myName} Teleportasi ke posisi terdepan!`); 
+
+        sendBroadcast(`🔀 ${myName} Teleportasi ke posisi terdepan!`); // BROADCAST
 
         setPlayerPosition(maxOpponentPos);
         setTargetPosition(maxOpponentPos);
@@ -610,6 +627,9 @@ export default function BoardGameArena({
               hasTriggeredTrapRef.current = true; // KUNCI GEMBOK
               
               setTrapTiles((prev) => prev.filter((t) => t !== nextPos));
+          } else if (trapTiles.includes(nextPos)) {
+
+            setTrapTiles((prev) => prev.filter((t) => t !== nextPos));
 
               if (hasShield) {
                 setHasShield(false);
@@ -618,6 +638,13 @@ export default function BoardGameArena({
                 setToastMsg("🛡️ DARR! Tapi Perisaimu menahan ledakan bom!");
                 
                 sendBroadcast(`🛡️ ${myName} berhasil menahan jebakan BOM dengan perisai!`);
+            if (hasShield) {
+              setHasShield(false);
+              playSfx("skill_shield");
+              flashSkillEffect(SHIELD_BLOCK_EFFECT);
+              setToastMsg("🛡️ DARR! Tapi Perisaimu menahan ledakan bom!");
+
+              sendBroadcast(`🛡️ ${myName} berhasil menahan jebakan BOM dengan perisai!`); // BROADCAST
 
                 setTimeout(() => {
                   endTurnOnce();
@@ -638,6 +665,16 @@ export default function BoardGameArena({
                 setCurrentSoal(newSoal);
                 
                 sendBroadcast(`💥 BOOM! ${myName} menginjak Jebakan!`); 
+              let newSoal = pickRandomSoal();
+              let attempts = 0;
+              while (usedSoalIds.includes(newSoal.id_soal) && attempts < 10) {
+                newSoal = pickRandomSoal();
+                attempts++;
+              }
+              setUsedSoalIds((prev) => [...prev, newSoal.id_soal]);
+              setCurrentSoal(newSoal);
+
+              sendBroadcast(`💥 BOOM! ${myName} menginjak Jebakan!`); // BROADCAST
 
                 setTimeout(() => {
                   setShowBoom(true);
@@ -649,6 +686,17 @@ export default function BoardGameArena({
                   }, 1500);
                 }, 300);
               }
+              // TRIGGER BOM
+              setTimeout(() => {
+                setShowBoom(true);
+                playSfx("boom");
+
+                // Durasi 1500ms cocok untuk animasi
+                setTimeout(() => {
+                  setShowBoom(false);
+                  setShowQuestionModal(true);
+                }, 1500);
+              }, 300);
             }
           } else {
             endTurnOnce();
@@ -694,11 +742,15 @@ export default function BoardGameArena({
         setToastMsg("✅ Benar! Kamu maju 1 Langkah.");
         sendBroadcast(`✅ ${myName} menjawab benar dan maju!`);
         
+        sendBroadcast(`✅ ${myName} menjawab benar dan maju!`); // BROADCAST
+
         setTargetPosition((prev) => Math.min(prev + 1, mapCoords.length - 1));
       } else {
         setToastMsg("❌ Salah! Kamu dihukum mundur 2 Langkah.");
         sendBroadcast(`❌ ${myName} menjawab salah dan dihukum mundur!`); 
         
+        sendBroadcast(`❌ ${myName} menjawab salah dan dihukum mundur!`); // BROADCAST
+
         setTargetPosition((prev) => Math.max(0, prev - 2));
       }
 
@@ -782,7 +834,7 @@ export default function BoardGameArena({
       {/* HEADER NAVIGASI */}
       <div className="w-full flex justify-between items-center p-8 shrink-0 z-10 relative">
         <h1 className="text-3xl font-extrabold text-[#5B5288]">
-          Arena Kelas — {boardData.nama_game}
+          Arena permainan — {boardData.nama_game}
         </h1>
 
         <div className="flex items-center gap-6">
@@ -790,6 +842,8 @@ export default function BoardGameArena({
             className={`px-4 py-2 rounded-xl font-bold text-sm ${
               isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-slate-400"
             }`}
+            className={`px-4 py-2 rounded-xl font-bold text-sm ${isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-gray-400"
+              }`}
           >
             {isMyTurn ? "Giliranmu! 🎲" : "Menunggu giliran..."}
           </span>

@@ -2,17 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase'; 
+import { supabase } from '@/lib/supabase';
 
-export default function Sidebar({ 
-  isCollapsed, 
-  setIsCollapsed 
-}: { 
-  isCollapsed: boolean; 
+export default function Sidebar({
+  isCollapsed,
+  setIsCollapsed
+}: {
+  isCollapsed: boolean;
   setIsCollapsed: (val: boolean) => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter(); 
+  const router = useRouter();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -25,12 +25,11 @@ export default function Sidebar({
   };
 
   return (
-    <aside 
-      className={`h-screen bg-sidebar border-r border-secondary/30 flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
+    <aside
+      className={`h-screen bg-sidebar border-r border-secondary/30 flex flex-col fixed left-0 top-0 transition-all duration-300 z-50 ${isCollapsed ? 'w-20' : 'w-64'
+        }`}
     >
-      <button 
+      <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-8 bg-white border border-secondary/30 rounded-full p-1 text-primary hover:bg-secondary/10 shadow-md z-50 transition-transform hover:scale-110"
       >
@@ -41,24 +40,24 @@ export default function Sidebar({
 
       {/* --- BAGIAN LOGO YANG DIPERBARUI UKURANNYA --- */}
       <div className={`py-8 flex items-center transition-all ${isCollapsed ? 'justify-center px-2' : 'justify-center px-6'}`}>
-        <img 
-          src="/images/logo.svg" 
-          alt="Syariah Quest Logo" 
+        <img
+          src="/images/logo.svg"
+          alt="Syariah Quest Logo"
           className={`object-contain transition-all duration-300 ${isCollapsed ? 'w-8' : 'w-28'}`}
         />
       </div>
       {/* ----------------------------------- */}
 
       <nav className="flex flex-col gap-2 px-3 mt-4">
-        
+
         <Link href="/dashboard" className={`flex items-center p-3 rounded-md transition-all ${isCollapsed ? 'justify-center' : 'gap-3'} ${pathname === '/dashboard' ? 'text-primary font-bold bg-secondary/10' : 'text-gray-400 font-medium hover:text-primary hover:bg-secondary/10'}`} title="Dashboard">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
           {!isCollapsed && <span className="truncate text-sm tracking-tight font-semibold">Dashboard</span>}
         </Link>
 
-        <Link href="/arena" className={`flex items-center p-3 rounded-md transition-all ${isCollapsed ? 'justify-center' : 'gap-3'} ${pathname === '/arena' || pathname.startsWith('/arena/play') ? 'text-primary font-bold bg-secondary/10' : 'text-gray-400 font-medium hover:text-primary hover:bg-secondary/10'}`} title="Arena Kelas">
+        <Link href="/arena" className={`flex items-center p-3 rounded-md transition-all ${isCollapsed ? 'justify-center' : 'gap-3'} ${pathname === '/arena' || pathname.startsWith('/arena/play') ? 'text-primary font-bold bg-secondary/10' : 'text-gray-400 font-medium hover:text-primary hover:bg-secondary/10'}`} title="Arena Permainan">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" /></svg>
-          {!isCollapsed && <span className="truncate text-sm tracking-tight font-semibold">Arena Kelas</span>}
+          {!isCollapsed && <span className="truncate text-sm tracking-tight font-semibold">Arena Permainan</span>}
         </Link>
 
         <Link href="/modul" className={`flex items-center p-3 rounded-md transition-all ${isCollapsed ? 'justify-center' : 'gap-3'} ${pathname === '/modul' ? 'text-primary font-bold bg-secondary/10' : 'text-gray-400 font-medium hover:text-primary hover:bg-secondary/10'}`} title="Modul Pembelajaran">
@@ -87,11 +86,10 @@ export default function Sidebar({
       </nav>
 
       <div className="mt-auto p-4 mb-4 flex justify-center">
-        <button 
-          onClick={handleLogout} 
-          className={`flex items-center justify-center text-primary font-bold bg-secondary hover:bg-primary hover:text-white transition-all ${
-            isCollapsed ? 'w-12 h-12 rounded-xl p-0' : 'w-full gap-2 px-4 py-2 rounded-lg'
-          }`}
+        <button
+          onClick={handleLogout}
+          className={`flex items-center justify-center text-primary font-bold bg-secondary hover:bg-primary hover:text-white transition-all ${isCollapsed ? 'w-12 h-12 rounded-xl p-0' : 'w-full gap-2 px-4 py-2 rounded-lg'
+            }`}
           title="LogOut"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform rotate-180 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

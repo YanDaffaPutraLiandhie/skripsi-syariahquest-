@@ -223,11 +223,44 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-3xl">
         
-        <div className="flex items-center justify-between bg-white p-5 rounded-2xl shadow-sm mb-6 border border-gray-100">
-          <h1 className="text-xl font-extrabold text-[#5B5288]">Ujian Mandiri (#{quizId})</h1>
-          <span className="font-bold text-[#5B5288] bg-purple-50 px-4 py-1.5 rounded-lg border border-purple-100">
-            Soal {currentIndex + 1} dari {questions.length}
-          </span>
+        {/* =====================================================
+            HEADER BANNER
+        ===================================================== */}
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] px-6 py-8 shadow-lg shadow-[#3d3466]/25 mb-6 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          {/* Header Banner Background SVGs */}
+          <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+          <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+          
+          {/* Banner Decorative Curved Lines */}
+          <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+            <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+              <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+              <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+            </svg>
+          </div>
+
+          <div className="relative z-10">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-[#e2dcff] backdrop-blur-md border border-white/15 shadow-inner mb-2">
+              <span className="text-amber-300">📝</span>
+              Evaluasi Mandiri
+            </span>
+            <h1 className="text-2xl font-black leading-snug tracking-wide md:text-3xl">
+              Ujian Mandiri (#{quizId})
+            </h1>
+          </div>
+
+          <div className="relative z-10">
+            <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-bold text-white backdrop-blur-md border border-white/20 shadow-inner">
+              Soal {currentIndex + 1} dari {questions.length}
+            </span>
+          </div>
+
+          {/* Bottom Wave Decoration */}
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+              <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+            </svg>
+          </div>
         </div>
 
         {!isSubmitted ? (

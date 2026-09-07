@@ -30,15 +30,37 @@ export default function LeaderboardPage() {
   const rank3 = top3[2];
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
+    <div className="max-w-5xl mx-auto py-10 px-4 relative z-10">
       
-      {/* JUDUL HALAMAN */}
-      <div className="text-center mb-16">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-[#5B5288] rounded-full mb-4 shadow-lg">
-          <Trophy className="w-8 h-8 text-[#FFC107]" />
+      {/* JUDUL HALAMAN (GAMIFIED BANNER) */}
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] shadow-lg shadow-[#3d3466]/25 mb-16 p-8 lg:p-10 text-center flex flex-col items-center">
+        {/* Header Banner Background SVGs */}
+        <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+        <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+        <div className="absolute left-[15%] top-12 h-6 w-6 text-white/20">🏆</div>
+        
+        {/* Banner Decorative Curved Lines */}
+        <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+          <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+            <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+            <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+          </svg>
         </div>
-        <h1 className="text-4xl font-black text-[#5B5288]">Hall of Fame</h1>
-        <p className="text-gray-500 mt-2 font-medium">Peringkat tertinggi mahasiswa Syariah-Quest</p>
+
+        <div className="relative z-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 border border-white/20 rounded-full mb-4 shadow-xl backdrop-blur-sm">
+            <Trophy className="w-8 h-8 text-[#FFC107]" />
+          </div>
+          <h1 className="text-4xl font-black text-white tracking-wide">Hall of Fame</h1>
+          <p className="text-[#c9c3e6] mt-2 font-medium">Peringkat tertinggi mahasiswa Syariah-Quest</p>
+        </div>
+
+        {/* Bottom Wave Decoration */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+          </svg>
+        </div>
       </div>
 
       {/* ARENA PODIUM TOP 3 */}

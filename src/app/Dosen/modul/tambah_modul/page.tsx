@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { logActivity } from "@/lib/logActivity";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 const LEVELS = [
   { key: "easy", label: "Easy", color: "bg-emerald-500" },
@@ -30,15 +31,18 @@ function UploadBox({
 }: UploadBoxProps) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-white">
+      <label className="mb-2 block text-sm font-bold text-[#3d3466]">
         {label}
       </label>
 
       <label
-        className={`flex h-[190px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-white text-center ${borderColor}`}
+        className={`flex h-[180px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-[#f8f7fd] hover:bg-[#f0edf9] transition-all text-center ${borderColor}`}
       >
-        <span className="px-4 text-sm font-semibold text-[#a3a0b5]">
-          {fileName ?? "Unggah File disini"}
+        <span className="px-4 text-sm font-bold text-[#4a3f7a]">
+          {fileName ?? "Klik untuk unggah file di sini"}
+        </span>
+        <span className="mt-1 text-xs text-[#8b84a5]">
+          Format dokumen/gambar yang didukung
         </span>
 
         <input
@@ -54,6 +58,30 @@ function UploadBox({
   );
 }
 
+
+interface ModulForm {
+  idLevel: number | null
+  namaModul: string
+  teksMateri: string
+  linkVideo: string
+  parameterNilai: number
+  dokumenFile: File | null
+  thumbnailFile: File | null
+  dokumenFileName: string
+  thumbnailFileName: string
+}
+
+const emptyForm: ModulForm = {
+  idLevel: null,
+  namaModul: '',
+  teksMateri: '',
+  linkVideo: '',
+  parameterNilai: 80,
+  dokumenFile: null,
+  thumbnailFile: null,
+  dokumenFileName: '',
+  thumbnailFileName: '',
+}
 function TambahModulContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -107,6 +135,10 @@ function TambahModulContent() {
   const [editingModuleId, setEditingModuleId] =
     useState<number | null>(null);
 
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [form, setForm] = useState<ModulForm>(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
   /*
    * =========================================================
    * DATA DOSEN LOGIN
@@ -499,6 +531,7 @@ function TambahModulContent() {
     setNilai(80);
     setLevel("medium");
     setMessage("");
+    setForm(emptyForm);
   }
 
   /*
@@ -555,6 +588,7 @@ function TambahModulContent() {
 
         return;
       }
+
 
       /*
        * =====================================================
@@ -665,6 +699,9 @@ function TambahModulContent() {
 
         id_level:
           LEVEL_VALUE[level],
+
+        teks_materi:
+          form.teksMateri.trim() || null,
 
         video_url:
           linkVideo.trim() || null,
@@ -831,231 +868,202 @@ function TambahModulContent() {
    * =========================================================
    */
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-
-      <main className="flex-1 p-8">
-        <div className="rounded-[24px] bg-[#4a3f7a] p-8">
-
-          {/* =================================================
-              DOSEN
-          ================================================= */}
-          <div className="mb-4 text-sm font-semibold text-white">
-            {loadingDosen ? (
-              "Memuat data dosen..."
-            ) : isEditMode ? (
-              <>
-                Edit modul:{" "}
-                {namaDosen || "Dosen"}
-              </>
-            ) : namaDosen ? (
-              <>
-                Dibuat oleh:{" "}
-                {namaDosen}
-              </>
-            ) : (
-              "Data dosen tidak ditemukan."
-            )}
-          </div>
-
-          {/* =================================================
-              PARAMETER NILAI & LEVEL
-          ================================================= */}
-          <div className="mb-8 flex items-start gap-6">
-
-            {/* PARAMETER NILAI */}
-            <div className="rounded-2xl bg-white px-8 py-4">
-              <label className="mb-2 block text-center text-sm font-bold text-[#2b2540]">
-                Set Parameter Nilai
-              </label>
-
-              <div className="flex items-center justify-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={nilai}
-                  onChange={(e) => {
-                    const rawValue =
-                      e.target.value;
-
-                    if (rawValue === "") {
-                      setNilai(0);
-                      return;
-                    }
-
-                    const value =
-                      Number(rawValue);
-
-                    if (
-                      value >= 0 &&
-                      value <= 100
-                    ) {
-                      setNilai(value);
-                    }
-                  }}
-                  className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-center text-lg font-bold text-[#2b2540] outline-none focus:border-emerald-500"
-                />
-
-                <span className="text-lg font-bold text-[#2b2540]">
-                  %
-                </span>
-              </div>
-            </div>
-
-            {/* LEVEL */}
-            <div className="flex-1 rounded-2xl bg-white px-8 py-4">
-              <p className="mb-3 text-center text-sm font-bold text-[#2b2540]">
-                Level Modul
-              </p>
-
-              <div className="flex justify-center gap-3">
-                {LEVELS.map((lvl) => (
-                  <button
-                    key={lvl.key}
-                    type="button"
-                    onClick={() =>
-                      setLevel(
-                        lvl.key
-                      )
-                    }
-                    className={`rounded-full px-6 py-2 text-sm font-bold text-white transition-opacity ${lvl.color} ${
-                      level === lvl.key
-                        ? "opacity-100"
-                        : "opacity-50 hover:opacity-80"
-                    }`}
-                  >
-                    {lvl.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* =================================================
-              NAMA MODUL
-          ================================================= */}
-          <div className="mb-5">
-            <label className="mb-2 block text-sm font-semibold text-white">
-              Nama Modul
-            </label>
-
-            <input
-              type="text"
-              value={namaModul}
-              onChange={(e) =>
-                setNamaModul(
-                  e.target.value
-                )
-              }
-              placeholder="Tulis nama modul"
-              className="h-11 w-full rounded-full border-2 border-emerald-400 bg-white px-4 text-sm text-[#2b2540] outline-none placeholder:text-[#c9c6d6]"
-            />
-          </div>
-
-          {/* =================================================
-              LINK VIDEO
-          ================================================= */}
-          <div className="mb-6">
-            <label className="mb-2 block text-sm font-semibold text-white">
-              Link Video Pembelajaran
-            </label>
-
-            <input
-              type="text"
-              value={linkVideo}
-              onChange={(e) =>
-                setLinkVideo(
-                  e.target.value
-                )
-              }
-              placeholder="Tempel link video"
-              className="h-11 w-full rounded-full border-2 border-orange-400 bg-white px-4 text-sm text-[#2b2540] outline-none placeholder:text-[#c9c6d6]"
-            />
-          </div>
-
-          {/* =================================================
-              UPLOAD FILE
-          ================================================= */}
-          <div className="mb-8 grid grid-cols-2 gap-6">
-
-            <UploadBox
-              label="Dokumen Pembelajaran (Doc/Pdf)"
-              borderColor="border-sky-400"
-              onFile={setDocFile}
-              fileName={
-                docFile?.name ??
-                docLabel
-              }
-            />
-
-            <UploadBox
-              label="Thumbnail Modul Pembelajaran (Jpg/Png)"
-              borderColor="border-amber-400"
-              onFile={
-                setThumbnailFile
-              }
-              fileName={
-                thumbnailFile?.name ??
-                thumbnailLabel
-              }
-            />
-          </div>
-
-          {/* =================================================
-              PESAN
-          ================================================= */}
-          {message && (
-            <p className="mb-4 text-center text-sm font-semibold text-white">
-              {message}
-            </p>
+    <DosenContainer
+      categoryTag="MODUL PEMBELAJARAN"
+      title={isEditMode ? "Edit Modul Pembelajaran" : "Buat Modul Pembelajaran"}
+      subtitle={
+        isEditMode
+          ? "Perbarui informasi materi, video, atau dokumen pendukung modul."
+          : "Isi formulir di bawah ini untuk membuat modul pembelajaran baru."
+      }
+      headerAction={
+        <button
+          type="button"
+          onClick={() => router.push("/Dosen/modul")}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+        >
+          ← Kembali ke Modul
+        </button>
+      }
+    >
+      <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
+        {/* DOSEN INFO BADGE */}
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#f8f7fd] px-4 py-2 text-xs font-semibold text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10">
+          <span className="h-2 w-2 rounded-full bg-[#4a3f7a]" />
+          {loadingDosen ? (
+            "Memuat data dosen..."
+          ) : isEditMode ? (
+            <>Mode Edit • Pengajar: {namaDosen || "Dosen"}</>
+          ) : namaDosen ? (
+            <>Pembuat Modul: {namaDosen}</>
+          ) : (
+            "Data dosen tidak ditemukan."
           )}
+        </div>
 
-          {/* =================================================
-              BUTTON
-          ================================================= */}
-          <div className="flex justify-end gap-3">
+        {/* PARAMETER NILAI & LEVEL */}
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* PARAMETER NILAI */}
+          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+            <label className="mb-2 block text-center text-sm font-bold text-[#3d3466]">
+              Set Parameter Nilai Kelulusan
+            </label>
+            <div className="flex items-center justify-center gap-2">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={nilai}
+                onChange={(e) => {
+                  const rawValue = e.target.value;
+                  if (rawValue === "") {
+                    setNilai(0);
+                    return;
+                  }
+                  const value = Number(rawValue);
+                  if (value >= 0 && value <= 100) {
+                    setNilai(value);
+                  }
+                }}
+                className="w-24 rounded-xl border border-[#4a3f7a]/20 bg-white px-3 py-2 text-center text-xl font-black text-[#3d3466] outline-none focus:border-[#4a3f7a] focus:ring-2 focus:ring-[#4a3f7a]/20"
+              />
+              <span className="text-xl font-black text-[#3d3466]">%</span>
+            </div>
+          </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (isEditMode) {
-                  router.push(
-                    "/Dosen/modul"
-                  );
-                  return;
-                }
-
-                resetForm();
-              }}
-              className="rounded-full bg-[#3d3466] px-6 py-2 text-sm font-semibold text-white hover:bg-[#342c58]"
-            >
-              {isEditMode
-                ? "Kembali"
-                : "Batal"}
-            </button>
-
-            <button
-              type="button"
-              onClick={
-                handleSubmit
-              }
-              disabled={
-                loading ||
-                loadingDosen ||
-                !idDosen
-              }
-              className="rounded-full bg-emerald-400 px-6 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 disabled:opacity-50"
-            >
-              {loading
-                ? "Menyimpan..."
-                : loadingDosen
-                ? "Memuat..."
-                : "Selesai"}
-            </button>
+          {/* LEVEL MODUL */}
+          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+            <p className="mb-3 text-center text-sm font-bold text-[#3d3466]">
+              Pilih Level Kesulitan Modul
+            </p>
+            <div className="flex justify-center gap-3">
+              {LEVELS.map((lvl) => (
+                <button
+                  key={lvl.key}
+                  type="button"
+                  onClick={() => setLevel(lvl.key)}
+                  className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${lvl.color} ${level === lvl.key
+                    ? "opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]"
+                    : "opacity-40 hover:opacity-80"
+                    }`}
+                >
+                  {lvl.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </main>
-    </div>
+
+        {/* NAMA MODUL */}
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Nama Modul Pembelajaran
+          </label>
+          <input
+            type="text"
+            value={namaModul}
+            onChange={(e) => setNamaModul(e.target.value)}
+            placeholder="Contoh: Pengantar Ekonomi & Keuangan Syariah"
+            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+          />
+        </div>
+
+        {/* TEKS MATERI — sekarang pakai gaya Tailwind yang sama
+            dengan field Nama Modul & Link Video di atas/bawahnya,
+            bukan class CSS eksternal (modul-form-field /
+            modul-textarea-input) yang tidak ada definisinya di
+            sini sehingga tampilannya polos/tidak konsisten. */}
+
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Teks Materi
+          </label>
+          <textarea
+            value={form.teksMateri}
+            onChange={(e) =>
+              setForm({ ...form, teksMateri: e.target.value })
+            }
+            rows={5}
+            placeholder="Tulis isi materi pembelajaran di sini..."
+            className="w-full resize-none rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 py-3 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+          />
+        </div>
+
+        {/* LINK VIDEO */}
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Link Video Pembelajaran (YouTube / Embed URL)
+          </label>
+          <input
+            type="text"
+            value={linkVideo}
+            onChange={(e) => setLinkVideo(e.target.value)}
+            placeholder="Tempelkan link video di sini..."
+            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+          />
+        </div>
+
+        {/* UPLOAD FILE BOXES */}
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <UploadBox
+            label="Dokumen Pembelajaran (Doc/PDF)"
+            borderColor="border-sky-400"
+            onFile={setDocFile}
+            fileName={docFile?.name ?? docLabel}
+          />
+          <UploadBox
+            label="Thumbnail Modul (JPG/PNG)"
+            borderColor="border-amber-400"
+            onFile={setThumbnailFile}
+            fileName={thumbnailFile?.name ?? thumbnailLabel}
+          />
+        </div>
+
+        {/* MESSAGE */}
+        {message && (
+          <div
+            className={`mb-6 rounded-2xl p-4 text-center text-sm font-bold ${message.includes("berhasil")
+              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+              : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+              }`}
+          >
+            {message}
+          </div>
+        )}
+
+        {/* BUTTON ACTIONS */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-[#f0edf9]">
+          <button
+            type="button"
+            onClick={() => {
+              if (isEditMode) {
+                router.push("/Dosen/modul");
+                return;
+              }
+              resetForm();
+            }}
+            className="rounded-full border border-[#e4e2ee] bg-white px-7 py-3 text-sm font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
+          >
+            {isEditMode ? "Kembali" : "Batal"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || loadingDosen || !idDosen}
+            className="rounded-full bg-amber-400 px-8 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 hover:bg-amber-300 transition disabled:opacity-50"
+          >
+            {loading
+              ? "Menyimpan..."
+              : loadingDosen
+                ? "Memuat..."
+                : isEditMode
+                  ? "Simpan Perubahan"
+                  : "Selesai & Simpan"}
+          </button>
+        </div>
+      </div>
+    </DosenContainer>
   );
 }
 

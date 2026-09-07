@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-// import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
+import DosenContainer from "@/components/layout/DosenContainer";
+import { Plus, HelpCircle } from "lucide-react";
 
 type KuisCard = {
   id: number;
@@ -15,31 +16,32 @@ export default function KuisPage() {
   const router = useRouter();
   const [kuisCards, setKuisCards] = useState<KuisCard[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        // Ambil semua kuis dari tabel quis
+        setLoading(true);
         const { data: quisData, error: quisError } = await supabase
           .from("quis")
           .select("id_quis, nama_kuis");
 
         if (quisError) {
           console.error("Supabase quis error:", quisError);
+          setLoading(false);
           return;
         }
 
-        // Ambil detail_kuis untuk menghitung jumlah soal per kuis
         const { data: detailData, error: detailError } = await supabase
           .from("detail_kuis")
           .select("id_quis, id_soal");
 
         if (detailError) {
           console.error("Supabase detail_kuis error:", detailError);
+          setLoading(false);
           return;
         }
 
-        // Hitung jumlah soal unik per kuis
         const soalCountMap: Record<number, Set<number>> = {};
         for (const d of detailData ?? []) {
           if (!soalCountMap[d.id_quis]) soalCountMap[d.id_quis] = new Set();
@@ -57,6 +59,8 @@ export default function KuisPage() {
         setKuisCards(cards);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -64,161 +68,125 @@ export default function KuisPage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-      
+    <DosenContainer
+      categoryTag="EVALUASI & KUIS"
+      title="Kelola Kuis Pembelajaran"
+      subtitle="Buat kuis baru otomatis dari modul atau pilih secara manual untuk evaluasi mahasiswa."
 
-      <main className="flex-1 p-8">
-        {/* Topbar */}
-        {/* <div className="mb-8 flex items-center justify-between">
-          <div className="relative w-64">
-            <input
-              type="text"
-              placeholder="Search"
-              className="w-full rounded-lg border border-[#e4e2ee] bg-white px-4 py-2.5 text-sm text-[#a3a0b5] outline-none focus:border-[#4a3f7a]"
-            />
-
-            <svg
-              className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a3a0b5]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4-4" />
-            </svg>
-          </div>
-
-          <div className="flex items-center gap-5 text-[#5c5775]">
-            <button>
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <rect x="3" y="5" width="18" height="14" rx="2" />
-                <path d="M3 7l9 6 9-6" />
-              </svg>
-            </button>
-
-            <button>
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" />
-                <path d="M10 20a2 2 0 0 0 4 0" />
-              </svg>
-            </button>
-
-            <MiniProfile />
-          </div>
-        </div> */}
-
-        {/* Grid */}
-        <div className="grid grid-cols-3 gap-6">
-          {/* Tambah Kuis */}
+    >
+      {loading ? (
+        <div className="rounded-[28px] bg-white p-12 text-center text-sm font-semibold text-[#8b84a5] shadow-sm">
+          Memuat kuis...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* CARD BUAT KUIS */}
           <button
             onClick={() => setShowModal(true)}
-            className="flex h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-[#ececf3] bg-[#f4f3f7] text-[#a3a0b5] hover:bg-[#eeedf5]"
+            className="group flex h-[280px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-[#4a3f7a]/20 bg-white p-6 transition-all hover:border-[#4a3f7a] hover:bg-[#f8f7fd] hover:shadow-md"
           >
-            <span className="text-4xl">+</span>
-            <span className="text-sm font-medium">Tambah Kuis Baru</span>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f8f7fd] text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10 group-hover:scale-110 transition">
+              <Plus size={28} />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-bold text-[#3d3466]">Buat Kuis Baru</p>
+              <p className="mt-1 text-xs font-medium text-[#8b84a5]">
+                Generatif otomatis atau susun manual
+              </p>
+            </div>
           </button>
 
+          {/* LIST KUIS */}
           {kuisCards.map((card) => (
             <div
               key={card.id}
-              className="flex h-[300px] flex-col overflow-hidden rounded-2xl border border-[#ececf3] bg-white shadow-sm"
+              className="group flex h-[280px] flex-col overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
             >
-              <div className="relative flex h-[110px] items-center justify-center bg-gradient-to-br from-amber-200 via-amber-100 to-orange-200">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-2xl font-extrabold text-[#4a3f7a] shadow-sm">
-                  ?
-                </span>
+              {/* TOP HEADER PATTERN */}
+              <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-amber-300 backdrop-blur-sm border border-white/10 shadow-sm transition duration-300 group-hover:scale-105">
+                  <HelpCircle size={28} />
+                </div>
+
               </div>
 
-              <div className="flex flex-1 flex-col px-4 pb-4 pt-6">
-                <h3 className="text-sm font-bold text-[#3d3466]">
-                  {card.title}
-                </h3>
-
-                <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#9a96ad]">
-                  <span className="h-2 w-2 rounded-full bg-amber-400"></span>
-                  {card.jumlahSoal} Soal
+              {/* CARD CONTENT */}
+              <div className="flex flex-1 flex-col justify-between px-5 pb-5 pt-5">
+                <div>
+                  <h3 className="line-clamp-2 text-base font-bold text-[#2b2540] group-hover:text-[#4a3f7a] transition">
+                    {card.title}
+                  </h3>
+                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#f8f7fd] px-3 py-1 text-xs font-bold text-[#4a3f7a]">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    {card.jumlahSoal} Pertanyaan Soal
+                  </div>
                 </div>
 
-                <div className="mt-auto">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
-                    className="w-full rounded-lg border border-[#e4e2ee] py-2 text-xs font-semibold hover:bg-[#f7f6fb]"
-                  >
-                    Lihat Kuis
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
+                  className="w-full rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#3d3466]"
+                >
+                  Lihat & Kelola Kuis
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
 
-        {/* Modal Pilih Cara Buat Kuis */}
-        {showModal && (
+      {/* MODAL PILIH CARA BUAT KUIS */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => setShowModal(false)}
+        >
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={() => setShowModal(false)}
+            className="w-full max-w-md rounded-[28px] bg-white p-8 shadow-2xl ring-1 ring-black/5"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="w-full max-w-md rounded-[24px] bg-white p-8 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="mb-1 text-center text-2xl font-extrabold text-[#3d3466]">
-                Buat Kuis
-              </h2>
-              <p className="mb-6 text-center text-sm text-[#9a96ad]">
-                Pilih cara untuk membuat kuis baru
-              </p>
+            <h2 className="text-center text-2xl font-bold text-[#3d3466]">
+              Pilih Metode Pembuatan
+            </h2>
+            <p className="mt-1 text-center text-xs font-medium text-[#8b84a5]">
+              Tentukan bagaimana Anda ingin menyusun soal kuis baru
+            </p>
 
-              <div className="flex flex-col gap-4">
-                <button
-                  onClick={() => router.push("/Dosen/kuis/pilih(modul)")}
-                  className="rounded-2xl border border-[#e4e2ee] bg-[#f7f4ff] px-5 py-4 text-left transition hover:bg-[#ede8ff]"
-                >
-                  <p className="text-sm font-bold text-[#4a3f7a]">
-                    Pilih Modul
-                  </p>
-                  <p className="mt-0.5 text-xs text-[#9a96ad]">
-                    Generate soal otomatis dari modul
-                  </p>
-                </button>
-
-                <button
-                  onClick={() => router.push("/Dosen/kuis/pilih(manual)")}
-                  className="rounded-2xl border border-[#e4e2ee] bg-[#f7f4ff] px-5 py-4 text-left transition hover:bg-[#ede8ff]"
-                >
-                  <p className="text-sm font-bold text-[#4a3f7a]">
-                    Buat Kuis Manual
-                  </p>
-                  <p className="mt-0.5 text-xs text-[#9a96ad]">
-                    Menyusun soal secara manual
-                  </p>
-                </button>
-              </div>
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={() => router.push("/Dosen/kuis/pilih(modul)")}
+                className="w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-left transition hover:border-[#4a3f7a] hover:bg-[#f0edf9]"
+              >
+                <p className="text-sm font-bold text-[#4a3f7a]">
+                  ⚡ Generate Otomatis dari Modul
+                </p>
+                <p className="mt-1 text-xs text-[#8b84a5]">
+                  Sistem memilih soal yang tersedia berdasarkan modul pembelajaran.
+                </p>
+              </button>
 
               <button
-                onClick={() => setShowModal(false)}
-                className="mt-6 w-full rounded-full border border-[#e4e2ee] bg-white py-2.5 text-sm font-semibold text-[#4a3f7a] transition hover:bg-[#f8f7ff]"
+                onClick={() => router.push("/Dosen/kuis/pilih(manual)")}
+                className="w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-left transition hover:border-[#4a3f7a] hover:bg-[#f0edf9]"
               >
-                Batal
+                <p className="text-sm font-bold text-[#4a3f7a]">
+                  📝 Susun Kuis Secara Manual
+                </p>
+                <p className="mt-1 text-xs text-[#8b84a5]">
+                  Pilih soal-soal spesifik dari bank soal secara bebas.
+                </p>
               </button>
             </div>
+
+            <button
+              onClick={() => setShowModal(false)}
+              className="mt-6 w-full rounded-full border border-[#e4e2ee] bg-white py-3 text-xs font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
+            >
+              Batal
+            </button>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </DosenContainer>
   );
 }

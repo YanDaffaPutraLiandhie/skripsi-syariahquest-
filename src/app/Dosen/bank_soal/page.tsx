@@ -3,10 +3,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-// import MiniProfile from "@/components/layout/MiniProfile";
 import { supabase } from "@/lib/supabase";
-import { logActivity } from "@/lib/logActivity";
+import DosenContainer from "@/components/layout/DosenContainer";
+import { List } from "lucide-react";
+
+type ModulRow = {
+  id_modul: number | string | null;
+  nama_modul: string | null;
+  id_level: number | string | null;
+  thumbnail_url: string | null;
+  status: boolean | null;
+};
 
 type ModulCard = {
   id: number;
@@ -24,179 +31,225 @@ export default function BankSoalGrid() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadModules() {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("modul")
-        .select(`
-          id_modul,
-          nama_modul,
-          id_level,
-          thumbnail_url,
-          status
-        `)
-        .eq("status", true);
+      try {
+        const { data, error } = await supabase
+          .from("modul")
+          .select(
+            `
+              id_modul,
+              nama_modul,
+              id_level,
+              thumbnail_url,
+              status
+            `
+          )
+          .eq("status", true)
+          .order("id_modul", { ascending: true });
 
-      if (error) {
-        console.error("Gagal mengambil data modul:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
+        if (error) {
+          console.error("Gagal mengambil data modul:", {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          });
 
-        setLoading(false);
-        return;
+          if (mounted) {
+            setModulCards([]);
+          }
+
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          if (mounted) {
+            setModulCards([]);
+          }
+
+          return;
+        }
+
+        const cards: ModulCard[] = data
+          .filter((item: ModulRow) => {
+            const idModul = Number(item.id_modul);
+
+            return (
+              item.id_modul !== null &&
+              Number.isFinite(idModul) &&
+              idModul > 0
+            );
+          })
+          .map((item: ModulRow, index: number) => {
+            const idModul = Number(item.id_modul);
+            const idLevel = Number(item.id_level);
+
+            let badge = "H";
+            let badgeColor = "bg-rose-500";
+
+            if (idLevel === 1) {
+              badge = "E";
+              badgeColor = "bg-emerald-500";
+            } else if (idLevel === 2) {
+              badge = "M";
+              badgeColor = "bg-amber-400";
+            }
+
+            return {
+              id: idModul,
+              title:
+                item.nama_modul?.trim() ||
+                `Modul ${index + 1}`,
+              badge,
+              badgeColor,
+              thumbnailUrl:
+                item.thumbnail_url?.trim() || "",
+              href: `/Dosen/bank_soal/form_soal?id_modul=${idModul}`,
+            };
+          });
+
+        if (mounted) {
+          setModulCards(cards);
+        }
+      } catch (error) {
+        console.error(
+          "Exception saat mengambil data modul:",
+          error
+        );
+
+        if (mounted) {
+          setModulCards([]);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-
-      
-
-      
-
-      const cards: ModulCard[] = (data ?? [])
-        .filter((item) => item.id_modul !== null)
-        .map((item: any, index: number) => {
-          const idLevel = item.id_level;
-          const idModul = Number(item.id_modul);
-
-          return {
-            id: idModul,
-            title: item.nama_modul ?? `Modul ${index + 1}`,
-
-            badge:
-              idLevel === 1
-                ? "E"
-                : idLevel === 2
-                ? "M"
-                : "H",
-
-            badgeColor:
-              idLevel === 1
-                ? "bg-green-500"
-                : idLevel === 2
-                ? "bg-yellow-500"
-                : "bg-red-500",
-
-            thumbnailUrl: item.thumbnail_url ?? "",
-
-            // PENTING:
-            // ID modul dikirim ke halaman form soal
-            href: `/Dosen/bank_soal/form_soal?id_modul=${idModul}`,
-          };
-        });
-
-      console.log("Modul yang berhasil dimuat:", cards);
-
-      setModulCards(cards);
-      setLoading(false);
     }
 
     loadModules();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   function handlePilihModul(card: ModulCard) {
-    console.log("Modul dipilih:", {
-      id_modul: card.id,
-      nama_modul: card.title,
-    });
+    if (!card.id) {
+      console.error(
+        "ID modul tidak valid:",
+        card
+      );
+
+      return;
+    }
 
     router.push(card.href);
   }
 
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-      
+    <DosenContainer
+      categoryTag="BANK SOAL"
+      title="Pilih Modul Pembelajaran"
+      subtitle="Pilih modul untuk menambah, mengedit, atau mengelola bank soal kuis."
 
-      <main className="flex-1 p-8">
+    >
+      {/* LOADING */}
 
-        {/* =========================
-            TOPBAR
-        ========================== */}
-       
+      {loading && (
+        <div className="rounded-[28px] bg-white p-12 text-center text-sm font-semibold text-[#8b84a5] shadow-sm">
+          Memuat daftar modul...
+        </div>
+      )}
 
-        {/* =========================
-            CONTENT
-        ========================== */}
+      {/* EMPTY */}
 
-        {/* Loading */}
-        {loading && (
-          <div className="rounded-2xl border border-[#ececf3] bg-white p-10 text-center text-sm text-[#6a6580]">
-            Memuat modul...
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading && modulCards.length === 0 && (
-          <div className="rounded-2xl border border-[#ececf3] bg-white p-10 text-center text-sm text-[#6a6580]">
+      {!loading && modulCards.length === 0 && (
+        <div className="rounded-[28px] bg-white p-12 text-center shadow-sm">
+          <p className="text-base font-bold text-[#3d3466]">
             Tidak ada modul aktif yang tersedia.
-          </div>
-        )}
+          </p>
 
-        {/* Grid */}
-        {!loading && modulCards.length > 0 && (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <p className="mt-1 text-xs text-[#8b84a5]">
+            Aktifkan atau buat modul terlebih dahulu
+            untuk menambah bank soal.
+          </p>
+        </div>
+      )}
 
-            {modulCards.map((card) => (
-              <div
-                key={card.id}
-                className="flex h-[260px] flex-col overflow-hidden rounded-2xl border border-[#ececf3] bg-white shadow-sm"
-              >
+      {/* MODULE CARDS */}
 
-                {/* =========================
-                    THUMBNAIL
-                ========================== */}
-                <div className="relative h-[110px] shrink-0 bg-[#ececf3]">
+      {!loading && modulCards.length > 0 && (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {modulCards.map((card) => (
+            <div
+              key={card.id}
+              className="group flex h-[280px] flex-col overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
+            >
+              {/* THUMBNAIL */}
 
+              <div className="relative h-[120px] shrink-0 bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
+                <div className="h-full w-full overflow-hidden">
                   {card.thumbnailUrl ? (
                     <img
                       src={card.thumbnailUrl}
                       alt={card.title}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
                     />
                   ) : (
-                    <div className="h-full w-full bg-blue-500" />
+                    <div className="flex h-full w-full items-center justify-center px-4 text-center">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-[#c9c3e6]">
+                        Syariah Quest Bank Soal
+                      </span>
+                    </div>
                   )}
-
-                  {/* Badge */}
-                  <div
-                    className={`absolute -bottom-4 left-4 flex h-9 w-9 items-center justify-center rounded-full border-4 border-white text-sm font-bold text-white ${card.badgeColor}`}
-                  >
-                    {card.badge}
-                  </div>
-
                 </div>
 
-                {/* =========================
-                    CARD CONTENT
-                ========================== */}
-                <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-6">
+                {/* BADGE */}
 
-                  <h3 className="text-sm font-bold text-[#3d3466]">
+                <div
+                  className={`absolute -bottom-4 left-4 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white text-sm font-black text-white shadow-md ${card.badgeColor}`}
+                >
+                  {card.badge}
+                </div>
+              </div>
+
+              {/* CARD CONTENT */}
+
+              <div className="flex flex-1 flex-col justify-between px-5 pb-5 pt-6">
+                <div>
+                  <h3 className="line-clamp-2 text-base font-bold leading-snug text-[#2b2540] transition group-hover:text-[#4a3f7a]">
                     {card.title}
                   </h3>
 
-                  {/* ID Modul untuk debugging */}
-                  <p className="text-xs text-gray-400">
-                    ID Modul: {card.id}
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePilihModul(card)}
-                    className="mt-auto rounded-lg border border-[#e4e2ee] py-2 text-xs font-semibold text-[#6a6580] transition hover:bg-[#f7f6fb]"
-                  >
-                    Pilih Modul
-                  </button>
-
+                  <span className="mt-1 inline-block text-xs font-semibold text-[#8b84a5]">
+                    ID Modul: #{card.id}
+                  </span>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handlePilihModul(card)
+                  }
+                  className="w-full rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#3d3466] active:scale-[0.98]"
+                >
+                  Kelola Soal Modul Ini
+                </button>
               </div>
-            ))}
-
-          </div>
-        )}
-
-      </main>
-    </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </DosenContainer>
   );
 }
+

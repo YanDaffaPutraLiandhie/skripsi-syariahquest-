@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import DosenContainer from "@/components/layout/DosenContainer";
 
 type QuestionItem = {
   id_soal: number;
@@ -36,19 +37,13 @@ export default function DetailKuisPage() {
         setLoading(true);
         setError("");
 
-        // =====================================================
-        // 1. AMBIL NAMA KUIS BERDASARKAN id_quis YANG DIKLIK
-        // =====================================================
         const { data: quizData, error: quizError } = await supabase
           .from("quis")
           .select("id_quis, nama_kuis")
           .eq("id_quis", idKuis)
           .maybeSingle();
 
-        if (quizError) {
-          throw quizError;
-        }
-
+        if (quizError) throw quizError;
         if (!quizData) {
           setError("Kuis tidak ditemukan.");
           return;
@@ -56,69 +51,40 @@ export default function DetailKuisPage() {
 
         setQuizName(quizData.nama_kuis ?? "Kuis");
 
-        // =====================================================
-        // 2. CARI id_quis YANG SAMA DI TABEL detail_kuis
-        //    (fk: id_quis, id_soal, id_jawaban)
-        // =====================================================
         const { data: detailData, error: detailError } = await supabase
           .from("detail_kuis")
           .select("id_soal, id_jawaban")
           .eq("id_quis", idKuis);
 
-        if (detailError) {
-          throw detailError;
-        }
+        if (detailError) throw detailError;
 
-        // Kalau tidak ada baris detail_kuis yang cocok -> tidak ada soal untuk kuis ini
         if (!detailData || detailData.length === 0) {
           setQuestions([]);
           return;
         }
 
-        // Ambil daftar id_soal unik dari detail_kuis
         const soalIds = [...new Set(detailData.map((row) => row.id_soal))];
-
-        // Ambil daftar id_jawaban unik dari detail_kuis
-        const jawabanIds = [
-          ...new Set(detailData.map((row) => row.id_jawaban)),
-        ];
+        const jawabanIds = [...new Set(detailData.map((row) => row.id_jawaban))];
 
         if (soalIds.length === 0) {
           setQuestions([]);
           return;
         }
 
-        // =====================================================
-        // 3. AMBIL DATA SOAL BERDASARKAN id_soal
-        //    tabel soal: (id_soal, id_modul, soal)
-        // =====================================================
         const { data: soalData, error: soalError } = await supabase
           .from("soal")
           .select("id_soal, soal")
           .in("id_soal", soalIds);
 
-        if (soalError) {
-          throw soalError;
-        }
+        if (soalError) throw soalError;
 
-        // =====================================================
-        // 4. AMBIL DATA JAWABAN BERDASARKAN id_jawaban
-        //    yang terdaftar di detail_kuis untuk kuis ini
-        //    tabel jawaban: (id_jawaban, id_soal (fk), jawaban, jawaban_benar)
-        // =====================================================
         const { data: jawabanData, error: jawabanError } = await supabase
           .from("jawaban")
           .select("id_jawaban, id_soal, jawaban, jawaban_benar")
           .in("id_jawaban", jawabanIds);
 
-        if (jawabanError) {
-          throw jawabanError;
-        }
+        if (jawabanError) throw jawabanError;
 
-        // =====================================================
-        // 5. GABUNGKAN JAWABAN KE MASING-MASING SOAL
-        //    berdasarkan id_soal (fk di tabel jawaban)
-        // =====================================================
         const jawabanMap: Record<number, QuestionItem["jawaban"]> = {};
 
         for (const item of jawabanData ?? []) {
@@ -133,13 +99,11 @@ export default function DetailKuisPage() {
           });
         }
 
-        const mappedQuestions: QuestionItem[] = (soalData ?? []).map(
-          (soal) => ({
-            id_soal: soal.id_soal,
-            soal: soal.soal,
-            jawaban: jawabanMap[soal.id_soal] ?? [],
-          })
-        );
+        const mappedQuestions: QuestionItem[] = (soalData ?? []).map((soal) => ({
+          id_soal: soal.id_soal,
+          soal: soal.soal,
+          jawaban: jawabanMap[soal.id_soal] ?? [],
+        }));
 
         setQuestions(mappedQuestions);
       } catch (err: any) {
@@ -154,89 +118,88 @@ export default function DetailKuisPage() {
   }, [idKuis]);
 
   return (
-    <div className="flex min-h-screen bg-white text-[#2b2540]">
-      <main className="flex-1 p-8">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => router.push("/Dosen/kuis")}
-            className="rounded-full border border-[#e4e2ee] bg-white px-4 py-2 text-sm font-semibold text-[#4a3f7a] hover:bg-[#f7f6fb]"
-          >
-            ← Kembali
-          </button>
-
-          <div className="text-right">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8b84a5]">
-              Detail Kuis
-            </p>
-            <h1 className="text-2xl font-bold text-[#2b2540]">
-              {quizName || "Kuis"}
-            </h1>
-          </div>
+    <DosenContainer
+      categoryTag="DETAIL KUIS"
+      title={quizName || "Detail Kuis"}
+      subtitle="Menampilkan seluruh daftar pertanyaan dan kunci jawaban dalam kuis ini."
+      headerAction={
+        <button
+          type="button"
+          onClick={() => router.push("/Dosen/kuis")}
+          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+        >
+          ← Kembali ke Kuis
+        </button>
+      }
+    >
+      {loading ? (
+        <div className="rounded-[28px] bg-white p-12 text-center text-sm font-semibold text-[#8b84a5] shadow-sm">
+          Memuat daftar pertanyaan kuis...
         </div>
+      ) : error ? (
+        <div className="rounded-[28px] bg-rose-50 p-6 text-center text-sm font-bold text-rose-700 ring-1 ring-rose-200">
+          {error}
+        </div>
+      ) : questions.length === 0 ? (
+        <div className="rounded-[28px] bg-white p-12 text-center text-sm font-semibold text-[#8b84a5] shadow-sm">
+          Belum ada soal yang terdaftar pada kuis ini.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {questions.map((question, index) => (
+            <div
+              key={question.id_soal}
+              className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5"
+            >
+              <div className="mb-4 flex items-center justify-between border-b border-[#f0edf9] pb-4">
+                <span className="inline-flex h-8 items-center rounded-full bg-[#f8f7fd] px-3 text-xs font-black text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10">
+                  Pertanyaan #{index + 1}
+                </span>
 
-        {loading ? (
-          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f9f8fc] p-8 text-center text-sm font-medium text-[#5c5775]">
-            Memuat soal kuis...
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-medium text-red-700">
-            {error}
-          </div>
-        ) : questions.length === 0 ? (
-          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f9f8fc] p-8 text-center text-sm font-medium text-[#5c5775]">
-            Belum ada soal untuk kuis ini.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {questions.map((question, index) => (
-              <div
-                key={question.id_soal}
-                className="rounded-[24px] border border-[#e4e2ee] bg-white p-6 shadow-sm"
-              >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#8b84a5]">
-                    Soal {index + 1}
-                  </p>
-                  {question.jawaban.some((answer) => answer.jawaban_benar) && (
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                      Jawaban Benar:{" "}
-                      {String.fromCharCode(
-                        65 +
-                          question.jawaban.findIndex(
-                            (item) => item.jawaban_benar
-                          )
-                      )}
-                    </span>
-                  )}
-                </div>
+                {question.jawaban.some((answer) => answer.jawaban_benar) && (
+                  <span className="rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-extrabold text-emerald-700 ring-1 ring-emerald-200">
+                    Kunci Benar:{" "}
+                    {String.fromCharCode(
+                      65 +
+                        question.jawaban.findIndex(
+                          (item) => item.jawaban_benar
+                        )
+                    )}
+                  </span>
+                )}
+              </div>
 
-                <h2 className="mb-5 text-lg font-bold text-[#2b2540] leading-relaxed">
-                  {question.soal}
-                </h2>
+              <h2 className="mb-6 text-lg font-bold leading-relaxed text-[#2b2540]">
+                {question.soal}
+              </h2>
 
-                <div className="grid gap-3">
-                  {question.jawaban.map((option, optionIndex) => (
-                    <div
-                      key={option.id_jawaban}
-                      className={`rounded-2xl border p-4 text-sm ${
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {question.jawaban.map((option, optionIndex) => (
+                  <div
+                    key={option.id_jawaban}
+                    className={`flex items-center gap-3 rounded-2xl p-4 text-sm font-semibold transition ${
+                      option.jawaban_benar
+                        ? "bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/40"
+                        : "bg-[#f8f7fd] text-[#2b2540] ring-1 ring-[#4a3f7a]/5"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
                         option.jawaban_benar
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                          : "border-[#e4e2ee] bg-[#f9f8fc] text-[#2b2540]"
+                          ? "bg-emerald-500 text-white"
+                          : "bg-[#4a3f7a]/10 text-[#4a3f7a]"
                       }`}
                     >
-                      <span className="mr-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white font-bold text-[#4a3f7a] ring-1 ring-[#e4e2ee]">
-                        {String.fromCharCode(65 + optionIndex)}
-                      </span>
-                      {option.jawaban}
-                    </div>
-                  ))}
-                </div>
+                      {String.fromCharCode(65 + optionIndex)}
+                    </span>
+                    <span className="leading-snug">{option.jawaban}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </DosenContainer>
   );
 }

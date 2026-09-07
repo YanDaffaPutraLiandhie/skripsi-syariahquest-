@@ -14,7 +14,7 @@ export default function ThemeCard({ id_game, nama_game, deskripsi, thumbnail_url
       <div className="w-full h-48 bg-gray-100 rounded-2xl mb-4 overflow-hidden relative">
         {/* Catatan: Pastikan domain Supabase Storage sudah diizinkan di next.config.js jika menggunakan link eksternal */}
         <Image
-          src={thumbnail_url || "/images/placeholder.png"} 
+          src={thumbnail_url || "/images/placeholder.png"}
           alt={nama_game}
           fill
           className="object-cover hover:scale-105 transition-transform duration-500"

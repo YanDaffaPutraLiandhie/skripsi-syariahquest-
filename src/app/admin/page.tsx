@@ -353,9 +353,35 @@ export default function AdminDashboardPage() {
   return (
     <>
       {/* GREETING BANNER */}
-      <div className="dashboard-header">
-        <div className="greeting-banner">
-          <h1>Halo Admin ! Selamat Datang Kembali</h1>
+      <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-8 shadow-lg shadow-[#3d3466]/25 lg:p-10 mb-8 text-white">
+        {/* Header Banner Background SVGs */}
+        <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
+        <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+        
+        {/* Banner Decorative Curved Lines */}
+        <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
+          <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+            <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+            <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
+          </svg>
+        </div>
+
+        <div className="relative z-10">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-[#e2dcff] backdrop-blur-md border border-white/15 shadow-inner mb-2">
+            <span className="text-amber-300">✨</span>
+            Sistem Administrasi
+          </span>
+          <h1 className="text-3xl font-black leading-snug tracking-wide md:text-4xl">
+            Halo Admin ! <br />
+            <span className="text-xl md:text-2xl text-[#c9c3e6] font-semibold mt-1 inline-block">Selamat Datang Kembali</span>
+          </h1>
+        </div>
+
+        {/* Bottom Wave Decoration */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
+          </svg>
         </div>
       </div>
 
