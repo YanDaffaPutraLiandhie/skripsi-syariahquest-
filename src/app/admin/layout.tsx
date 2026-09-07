@@ -398,7 +398,7 @@ export default function AdminLayout({
 
         <div className="sidebar-header">
           <Image
-            src="/logo.png"
+         src="/images/logo.svg"
             alt="Syariah Quest"
             width={56}
             height={56}
