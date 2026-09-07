@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { logActivity } from "@/lib/logActivity";
+import { extractDocumentText } from "@/lib/extractDocumentText";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const LEVELS = [
@@ -62,6 +63,7 @@ function TambahModulContent() {
   const [level, setLevel] = useState<LevelKey>("medium");
   const [namaModul, setNamaModul] = useState("");
   const [linkVideo, setLinkVideo] = useState("");
+  const [teksMateri, setTeksMateri] = useState("");
 
   const [docFile, setDocFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -77,6 +79,18 @@ function TambahModulContent() {
   const [idDosen, setIdDosen] = useState<number | null>(null);
   const [namaDosen, setNamaDosen] = useState("");
   const [loadingDosen, setLoadingDosen] = useState(true);
+  async function handleDocumentFile(file: File | null) {
+    setDocFile(file);
+    if (!file) return;
+
+    try {
+      const text = await extractDocumentText(file);
+      setTeksMateri(text);
+      setMessage("Isi dokumen berhasil dibaca dan dimasukkan ke materi.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Isi dokumen belum dapat dibaca.");
+    }
+  }
 
   const LEVEL_VALUE: Record<LevelKey, number> = {
     easy: 1,
@@ -109,7 +123,7 @@ function TambahModulContent() {
       const { data, error } = await supabase
         .from("modul")
         .select(
-          "id_modul, nama_modul, id_level, video_url, thumbnail_url, dokumen_pendukung, parameter_nilai"
+          "id_modul, nama_modul, id_level, video_url, teks_materi, thumbnail_url, dokumen_pendukung, parameter_nilai"
         )
         .eq("id_modul", id)
         .maybeSingle();
@@ -128,6 +142,7 @@ function TambahModulContent() {
       setNamaModul(data.nama_modul ?? "");
       setLevel(getLevelKeyFromId(data.id_level));
       setLinkVideo(data.video_url ?? "");
+      setTeksMateri(data.teks_materi ?? "");
       setNilai(data.parameter_nilai ?? 80);
       setThumbnailLabel(data.thumbnail_url ? "File thumbnail sudah ada" : null);
       setDocLabel(data.dokumen_pendukung ? "File dokumen sudah ada" : null);
@@ -344,6 +359,7 @@ function TambahModulContent() {
         nama_modul: namaModul.trim(),
         id_level: LEVEL_VALUE[level],
         video_url: linkVideo.trim() || null,
+        teks_materi: teksMateri.trim() || null,
         thumbnail_url: thumbnail_url || null,
         dokumen_pendukung: dokumen_pendukung || null,
         parameter_nilai: nilai,
@@ -540,12 +556,23 @@ function TambahModulContent() {
           />
         </div>
 
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">Isi Materi</label>
+          <textarea
+            value={teksMateri}
+            onChange={(e) => setTeksMateri(e.target.value)}
+            rows={8}
+            placeholder="Isi materi dari dokumen akan muncul di sini dan dapat diedit."
+            className="w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-sm text-[#2b2540] outline-none focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+          />
+        </div>
+
         {/* UPLOAD FILE */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <UploadBox
             label="Dokumen Pembelajaran (Doc/PDF)"
             borderColor="border-sky-400"
-            onFile={setDocFile}
+            onFile={handleDocumentFile}
             fileName={docFile?.name ?? docLabel}
           />
           <UploadBox

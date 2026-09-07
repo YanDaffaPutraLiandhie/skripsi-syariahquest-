@@ -30,9 +30,11 @@ export default function DosenContainer({
   children,
 }: DosenContainerProps) {
   return (
-    <div className="relative isolate space-y-8 rounded-[32px] bg-gradient-to-b from-[#f8f7fd] via-[#f4f1fb] to-[#f0edf9] p-6 lg:p-8 min-h-[calc(100vh-6rem)] overflow-hidden">
+    <div className="relative isolate space-y-8 rounded-[32px] bg-gradient-to-b from-[#f8f7fd] via-[#f4f1fb] to-[#f0edf9] p-6 lg:p-8 min-h-[calc(100vh-6rem)]">
       {/* =========================================================================
           DECORATIVE SVG & SHAPES BACKGROUND LAYER (Rich Visual FX)
+          Catatan: overflow-hidden HANYA di layer ini (bukan di wrapper terluar),
+          supaya position: sticky pada children tidak ikut mati.
       ========================================================================= */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[32px]">
         {/* Ambient Gradient Glows */}
@@ -173,4 +175,3 @@ export default function DosenContainer({
     </div>
   );
 }
-

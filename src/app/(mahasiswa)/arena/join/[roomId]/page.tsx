@@ -141,7 +141,7 @@ export default function ArenaKelas() {
   return (
     <div className="space-y-10">
       {/* BANNER UNGU — sekarang dengan bintang mengambang & tombol ala arcade */}
-      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#6C5CE7] via-[#5142B8] to-[#2A224D] p-8 shadow-xl shadow-[#3d3466]/25 lg:p-12 flex items-center justify-between mt-12 h-80">
+      <div className="relative mt-4 flex min-h-[28rem] items-end justify-between overflow-hidden rounded-[32px] bg-gradient-to-br from-[#6C5CE7] via-[#5142B8] to-[#2A224D] p-5 shadow-xl shadow-[#3d3466]/25 sm:mt-8 sm:p-8 lg:mt-12 lg:h-80 lg:min-h-0 lg:p-12">
         {/* Bintang mengambang */}
         <div className="pointer-events-none absolute right-[30%] top-8 text-2xl text-[#FFC93C] float-slow">
           ✨

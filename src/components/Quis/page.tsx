@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
 import { checkAndAwardModulBadges, type EarnedBadge } from "@/lib/badges";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { calculateMasteryScore, selectAdaptiveQuestions, type AdaptiveProgress } from "@/lib/adaptiveLearning";
 
 type JawabanDB = {
   id_jawaban: number;
@@ -24,7 +25,7 @@ type SoalDB = {
 export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?: (score: number) => void, idModul: number, initialScore?: number | null }) {
   const { profile } = useCurrentUser();
   
-  const [questions, setQuestions] = useState<SoalDB[]>([]);
+  const [allQuestions, setAllQuestions] = useState<SoalDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // BARU: Menyimpan informasi level modul untuk perhitungan XP dinamis
@@ -36,6 +37,7 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
   const [isSaving, setIsSaving] = useState(false);
   const [isRetaking, setIsRetaking] = useState(false);
   const [newBadges, setNewBadges] = useState<EarnedBadge[]>([]);
+  const [masteryScore, setMasteryScore] = useState(0);
 
   const PASSING_GRADE = 70;
 
@@ -51,7 +53,7 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
         .eq('id_modul', idModul);
 
       if (dataSoal && !errSoal) {
-        setQuestions(dataSoal);
+        setAllQuestions(dataSoal);
       } else {
         console.error("Gagal memuat soal:", errSoal);
       }
@@ -67,11 +69,24 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
         setLevelModul(dataModul.id_level);
       }
 
+      if (profile?.idMahasiswa) {
+        const { data: progressData } = await supabase
+          .from("progress_modul")
+          .select("id_modul, nilai, selesai")
+          .eq("id_mahasiswa", profile.idMahasiswa);
+        setMasteryScore(calculateMasteryScore((progressData ?? []) as AdaptiveProgress[]));
+      }
+
       setIsLoading(false);
     }
 
     if (idModul) fetchData();
-  }, [idModul]);
+  }, [idModul, profile?.idMahasiswa]);
+
+  const questions = useMemo(
+    () => selectAdaptiveQuestions(allQuestions, masteryScore),
+    [allQuestions, masteryScore],
+  );
 
   const handleSelectOption = (optionIndex: number) => {
     setSelectedAnswers({ ...selectedAnswers, [currentQuestion]: optionIndex });

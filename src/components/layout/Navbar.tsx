@@ -2,12 +2,18 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, FormEvent, ChangeEvent } from 'react';
-import { Bell, Check, X } from 'lucide-react';
+import { ArrowLeft, Bell, Check, X, Menu } from 'lucide-react';
 import MiniProfile from "@/components/layout/MiniProfile";
 import { useRoomInvitations } from "@/hooks/useRoomInvitations";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
-export default function Navbar() {
+export default function Navbar({
+  onOpenMobileMenu,
+  showBackButton = true,
+}: {
+  onOpenMobileMenu?: () => void;
+  showBackButton?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -48,14 +54,36 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 h-20 bg-white/90 backdrop-blur-md flex items-center justify-between px-8 border-b border-gray-100/80 shadow-sm transition-all">
+    <header className="sticky top-0 z-50 flex min-h-16 items-center justify-between gap-3 border-b border-gray-100/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-md transition-all sm:min-h-20 sm:px-6 lg:px-8">
+
+      <div className="flex shrink-0 items-center gap-1">
+        {showBackButton && (
+          <button
+            type="button"
+            aria-label="Kembali ke halaman sebelumnya"
+            onClick={() => router.back()}
+            className="rounded-lg p-2 text-[#5B5288] transition hover:bg-[#f4f2fa]"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
+
+        <button
+          type="button"
+          aria-label="Buka menu navigasi"
+          onClick={onOpenMobileMenu}
+          className="rounded-lg p-2 text-[#5B5288] hover:bg-[#f4f2fa] md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
 
       {/* BAGIAN KIRI: Search Bar */}
       <div className="flex-1">
         {showSearch && (
           <form
             onSubmit={handleSearch}
-            className="flex items-center border border-gray-300 rounded-full px-4 py-2 w-80 bg-white focus-within:border-primary transition-colors shadow-sm"
+            className="flex w-full max-w-xl items-center rounded-full border border-gray-300 bg-white px-3 py-2 transition-colors shadow-sm focus-within:border-primary sm:px-4"
           >
             <input
               type="text"
@@ -72,7 +100,7 @@ export default function Navbar() {
       </div>
 
       {/* BAGIAN KANAN: Lonceng Notif & Mini Profile */}
-      <div className="flex items-center gap-6 relative">
+      <div className="relative flex shrink-0 items-center gap-2 sm:gap-6">
 
         {/* Lonceng Notifikasi Khusus Mahasiswa */}
         {profile?.role === "mahasiswa" && (
@@ -89,7 +117,7 @@ export default function Navbar() {
 
             {/* Dropdown Notifikasi */}
             {showNotifications && (
-              <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in-down">
+              <div className="absolute right-0 mt-3 w-[min(20rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl animate-fade-in-down">
                 <div className="bg-[#5B5288] px-4 py-3">
                   <h3 className="text-white font-bold text-sm">Undangan Bermain</h3>
                 </div>

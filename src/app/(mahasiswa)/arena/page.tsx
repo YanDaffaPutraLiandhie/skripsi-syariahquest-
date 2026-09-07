@@ -124,7 +124,7 @@ export default function ArenaKelas() {
   return (
     <div className="space-y-8">
       {/* BANNER UNGU */}
-      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-8 shadow-lg shadow-[#3d3466]/25 lg:p-12 flex items-center justify-between mt-12 h-80">
+      <div className="relative mt-4 flex min-h-[28rem] items-end justify-between overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-5 shadow-lg shadow-[#3d3466]/25 sm:mt-8 sm:p-8 lg:mt-12 lg:h-80 lg:min-h-0 lg:p-12">
 
         {/* Header Banner Background SVGs */}
         <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
@@ -138,8 +138,8 @@ export default function ArenaKelas() {
           </svg>
         </div>
 
-        <div className="z-10 text-white space-y-6 max-w-xl relative">
-          <h1 className="text-4xl lg:text-5xl font-black leading-snug tracking-wide">
+        <div className="relative z-10 max-w-xl space-y-5 text-white sm:space-y-6">
+          <h1 className="text-3xl font-black leading-snug tracking-wide sm:text-4xl lg:text-5xl">
             Halo, {profile?.namaMahasiswa?.split(' ')[0] || 'Pemain'}! <br />
             <span className="font-semibold text-2xl lg:text-3xl text-[#c9c3e6]">
               Siap menantang teman sekelasmu hari ini?
@@ -163,7 +163,7 @@ export default function ArenaKelas() {
         </div>
 
         {/* GAMBAR HERO */}
-        <div className="absolute right-8 bottom-[-20px] z-0 h-[125%] flex items-end pointer-events-none opacity-90">
+        <div className="pointer-events-none absolute right-8 bottom-[-20px] z-0 hidden h-[125%] items-end opacity-90 sm:flex">
           <img
             src="/images/hero-arenakelas.svg"
             alt="Hero Arena"
