@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 type JenisAktivitas =
@@ -12,9 +13,12 @@ type JenisAktivitas =
   | 'Delete'
   | 'Error'
 
+type Role = 'Dosen' | 'Mahasiswa'
+
 interface LogRow {
   id_log: number
   nama_pelaku: string
+  role: Role
   fitur: string
   jenis_aktivitas: JenisAktivitas
   keterangan: string | null
@@ -22,26 +26,42 @@ interface LogRow {
   waktu: string // ISO timestamp
 }
 
+interface BackupFile {
+  name: string
+  created_at: string | null
+}
+
 export default function LogActivityPage() {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
 
   const [filterTanggal, setFilterTanggal] = useState('')
-  const [searchDosen, setSearchDosen] = useState('')
+  const [filterRole, setFilterRole] = useState<'Semua' | Role>('Semua')
+  const [searchNama, setSearchNama] = useState('')
+
+  const [backupFiles, setBackupFiles] = useState<BackupFile[]>([])
+  const [loadingBackups, setLoadingBackups] = useState(true)
 
   useEffect(() => {
     fetchLogs()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterTanggal])
+  }, [filterTanggal, filterRole])
+
+  useEffect(() => {
+    fetchBackupFiles()
+  }, [])
 
   async function fetchLogs() {
     setLoading(true)
 
     try {
+      // NOTE skema: kolom `nama_dosen` sudah diganti jadi `nama_pelaku`
+      // dan ditambah kolom `role` ('Dosen' | 'Mahasiswa') supaya log
+      // activity bisa dipakai untuk dua role — lihat migration-log-activity.sql
       let query = supabase
         .from('log_activity')
         .select(
-          'id_log, nama_pelaku, fitur, jenis_aktivitas, keterangan, status, waktu'
+          'id_log, nama_pelaku, role, fitur, jenis_aktivitas, keterangan, status, waktu'
         )
         .order('waktu', { ascending: false })
 
@@ -49,6 +69,10 @@ export default function LogActivityPage() {
         const startOfDay = `${filterTanggal}T00:00:00`
         const endOfDay = `${filterTanggal}T23:59:59`
         query = query.gte('waktu', startOfDay).lte('waktu', endOfDay)
+      }
+
+      if (filterRole !== 'Semua') {
+        query = query.eq('role', filterRole)
       }
 
       const { data, error } = await query
@@ -77,8 +101,56 @@ export default function LogActivityPage() {
     }
   }
 
+  async function fetchBackupFiles() {
+    setLoadingBackups(true)
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('log-backups')
+        .list('', { sortBy: { column: 'created_at', order: 'desc' } })
+
+      if (error) {
+        console.error('FETCH BACKUP FILES ERROR:', error.message)
+        setLoadingBackups(false)
+        return
+      }
+
+      setBackupFiles(
+        (data ?? [])
+          .filter((f) => f.name.endsWith('.csv'))
+          .map((f) => ({ name: f.name, created_at: f.created_at ?? null }))
+      )
+      setLoadingBackups(false)
+    } catch (error: any) {
+      console.error('Gagal memuat daftar backup (exception):', error?.message)
+      setLoadingBackups(false)
+    }
+  }
+
+  async function handleDownloadBackup(fileName: string) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('log-backups')
+        .download(fileName)
+
+      if (error || !data) {
+        console.error('DOWNLOAD BACKUP ERROR:', error?.message)
+        return
+      }
+
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error: any) {
+      console.error('Gagal mengunduh backup (exception):', error?.message)
+    }
+  }
+
   const filteredLogs = logs.filter((log) =>
-    log.nama_pelaku.toLowerCase().includes(searchDosen.toLowerCase())
+    log.nama_pelaku.toLowerCase().includes(searchNama.toLowerCase())
   )
 
   function formatWaktu(iso: string) {
@@ -130,25 +202,41 @@ export default function LogActivityPage() {
         </p>
       </div>
 
+      <p className="badges-subtitle">
+        Pantau aktivitas dosen &amp; login mahasiswa: fitur yang dibuka, aksi
+        CRUD, dan error. Log lebih dari 7 hari otomatis di-backup sebagai
+        file lalu dihapus dari tabel — unduh di panel &quot;Backup Log
+        Lama&quot; di bawah.
+      </p>
+
       {/* FILTERS */}
-      <div className="flex flex-wrap items-end gap-3 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-black/5">
-        <div className="min-w-[200px] flex-1">
-          <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
-            Cari Dosen
-          </label>
+      <div className="log-filter-row">
+        <div className="log-filter-field">
+          <label>Cari Nama</label>
           <input
             type="text"
-            placeholder="Nama dosen..."
-            value={searchDosen}
-            onChange={(e) => setSearchDosen(e.target.value)}
-            className="h-11 w-full rounded-xl border border-[#e4e2ee] bg-[#f8f7fd] px-3.5 text-sm font-medium text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+            placeholder="Nama dosen / mahasiswa..."
+            value={searchNama}
+            onChange={(e) => setSearchNama(e.target.value)}
           />
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
-            Tanggal
-          </label>
+        <div className="log-filter-field">
+          <label>Role</label>
+          <select
+            value={filterRole}
+            onChange={(e) =>
+              setFilterRole(e.target.value as 'Semua' | Role)
+            }
+          >
+            <option value="Semua">Semua</option>
+            <option value="Dosen">Dosen</option>
+            <option value="Mahasiswa">Mahasiswa</option>
+          </select>
+        </div>
+
+        <div className="log-filter-field">
+          <label>Tanggal</label>
           <input
             type="date"
             value={filterTanggal}
@@ -157,12 +245,13 @@ export default function LogActivityPage() {
           />
         </div>
 
-        {(filterTanggal || searchDosen) && (
+        {(filterTanggal || searchNama || filterRole !== 'Semua') && (
           <button
             type="button"
             onClick={() => {
               setFilterTanggal('')
-              setSearchDosen('')
+              setSearchNama('')
+              setFilterRole('Semua')
             }}
             className="h-11 rounded-full border border-[#e4e2ee] bg-white px-5 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
           >
@@ -172,66 +261,118 @@ export default function LogActivityPage() {
       </div>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-[22px] bg-white shadow-sm ring-1 ring-black/5">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-[#f0edf9] text-xs font-bold uppercase tracking-wide text-[#8b84a5]">
-                <th className="px-5 py-3">Dosen</th>
-                <th className="px-5 py-3">Fitur</th>
-                <th className="px-5 py-3">Jenis</th>
-                <th className="px-5 py-3">Keterangan</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Waktu</th>
+      <div className="admin-table-wrapper">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>Role</th>
+              <th>Fitur</th>
+              <th>Jenis</th>
+              <th>Keterangan</th>
+              <th>Status</th>
+              <th>Waktu</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="admin-table-empty">
+                  Memuat data...
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f0edf9]">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm font-semibold text-[#4a3f7a]">
-                    Memuat data...
+            ) : filteredLogs.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="admin-table-empty">
+                  Belum ada aktivitas tercatat
+                </td>
+              </tr>
+            ) : (
+              filteredLogs.map((log) => (
+                <tr key={log.id_log}>
+                  <td>{log.nama_pelaku}</td>
+                  <td>{log.role}</td>
+                  <td>{log.fitur}</td>
+                  <td>
+                    <span className={jenisBadgeClass(log.jenis_aktivitas)}>
+                      {log.jenis_aktivitas}
+                    </span>
                   </td>
-                </tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-sm text-[#a79fd6]">
-                    Belum ada aktivitas tercatat
+                  <td className="game-deskripsi-cell">
+                    {log.keterangan || '-'}
                   </td>
+                  <td>
+                    <span
+                      className={`status-label ${
+                        log.status === 'Sukses'
+                          ? 'label-aktif'
+                          : 'label-nonaktif'
+                      }`}
+                    >
+                      {log.status}
+                    </span>
+                  </td>
+                  <td>{formatWaktu(log.waktu)}</td>
                 </tr>
-              ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log.id_log} className="transition hover:bg-[#f8f7fd]">
-                    <td className="px-5 py-3.5 font-semibold text-[#2b2540]">
-                      {log.nama_pelaku}
-                    </td>
-                    <td className="px-5 py-3.5 text-[#4a3f7a]">{log.fitur}</td>
-                    <td className="px-5 py-3.5">
-                      <span className={jenisBadgeClass(log.jenis_aktivitas)}>
-                        {log.jenis_aktivitas}
-                      </span>
-                    </td>
-                    <td className="max-w-[220px] truncate px-5 py-3.5 text-[#6e6a85]">
-                      {log.keterangan || '-'}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${log.status === 'Sukses'
-                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                          : 'bg-rose-50 text-rose-700 ring-rose-200'
-                          }`}
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* BACKUP LOG LAMA */}
+      <h2 className="section-title" style={{ marginTop: 32 }}>
+        Backup Log Lama
+      </h2>
+
+      <div className="admin-table-wrapper">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Nama File</th>
+              <th>Dibuat</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingBackups ? (
+              <tr>
+                <td colSpan={3} className="admin-table-empty">
+                  Memuat daftar backup...
+                </td>
+              </tr>
+            ) : backupFiles.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="admin-table-empty">
+                  Belum ada file backup
+                </td>
+              </tr>
+            ) : (
+              backupFiles.map((file) => (
+                <tr key={file.name}>
+                  <td>{file.name}</td>
+                  <td>
+                    {file.created_at
+                      ? formatWaktu(file.created_at)
+                      : '-'}
+                  </td>
+                  <td>
+                    <div className="admin-table-actions">
+                      <button
+                        className="icon-action edit"
+                        onClick={() => handleDownloadBackup(file.name)}
+                        aria-label={`Unduh ${file.name}`}
+                        title="Unduh backup"
                       >
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3.5 text-xs text-[#8b84a5]">
-                      {formatWaktu(log.waktu)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <Download size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

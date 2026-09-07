@@ -2282,6 +2282,43 @@ body {
 
 
 /* =========================================
+   MANAJEMEN GAME — PANDUAN SINGKAT DI MODAL
+========================================= */
+
+.game-form-guide {
+  background-color: #F1F0F7;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 0 26px 18px;
+}
+
+.game-form-guide-title {
+  margin: 0 0 8px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.game-form-guide-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-form-guide-list li {
+  color: var(--text-dark);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.game-form-guide-list strong {
+  color: var(--primary);
+}
+
+
+/* =========================================
    LOG ACTIVITY
 ========================================= */
 

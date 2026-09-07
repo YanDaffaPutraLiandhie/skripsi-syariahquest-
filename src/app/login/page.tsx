@@ -354,7 +354,9 @@ function LoginContent() {
         return
       }
 
-      // =================================================
+      
+
+          // =================================================
       // 7. MAHASISWA
       // =================================================
 
@@ -406,9 +408,35 @@ function LoginContent() {
         )
 
         /*
-         * MAHASISWA TIDAK MEMANGGIL
-         * logActivity().
+         * MAHASISWA sekarang DICATAT ke log_activity,
+         * tapi HANYA untuk event Login — aktivitas
+         * mahasiswa lainnya (jawab kuis, buka modul, dll)
+         * TIDAK ikut dicatat.
          */
+
+        try {
+          await logActivity({
+            fitur: 'Login',
+            jenis_aktivitas: 'Login',
+            keterangan:
+              'Berhasil login ke dashboard mahasiswa',
+          })
+
+          console.log(
+            'LOG ACTIVITY MAHASISWA BERHASIL'
+          )
+        } catch (logError) {
+          /*
+           * Kalau logging gagal, login Mahasiswa
+           * tetap dilanjutkan — sama seperti pola
+           * yang sudah dipakai di branch Dosen.
+           */
+
+          console.warn(
+            'LOG ACTIVITY MAHASISWA GAGAL:',
+            logError
+          )
+        }
 
         setLoading(false)
 
@@ -417,6 +445,7 @@ function LoginContent() {
 
         return
       }
+
 
       // =================================================
       // 8. ROLE TIDAK DITEMUKAN
