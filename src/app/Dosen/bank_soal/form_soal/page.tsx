@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import { parseQuestionFile } from "@/lib/parseQuestionFile";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
@@ -212,7 +213,7 @@ function BankSoalPageContent() {
     importInputRef.current?.click();
   }
 
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
 
     if (!file) {
@@ -223,19 +224,12 @@ function BankSoalPageContent() {
     setFormError("");
     setSuccessMessage("");
 
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
+    try {
+      const rows = await parseQuestionFile(file);
 
-      complete: (results) => {
-        try {
-          const rows = results.data;
-
-          if (!rows || rows.length === 0) {
-            throw new Error(
-              "File CSV kosong atau formatnya tidak sesuai.",
-            );
-          }
+      if (rows.length === 0) {
+        throw new Error("File CSV/XLSX kosong atau formatnya tidak sesuai.");
+      }
 
           const parsed: SoalEntry[] = rows.map((row) => {
             const normalizedKunci = (
@@ -263,37 +257,23 @@ function BankSoalPageContent() {
 
           const validRows = parsed.filter((entry) => entry.soal);
 
-          if (validRows.length === 0) {
-            throw new Error(
-              'Tidak ada baris valid ditemukan. Pastikan kolom "soal" terisi.',
-            );
-          }
+      if (validRows.length === 0) {
+        throw new Error(
+          'Tidak ada baris valid ditemukan. Pastikan kolom "soal" terisi.',
+        );
+      }
 
           setSoalEntries(validRows);
 
-          setSuccessMessage(
-            `${validRows.length} soal berhasil diimpor dari CSV.`,
-          );
-        } catch (err: any) {
-          setFormError(err?.message || "Gagal memproses file CSV.");
-        } finally {
-          setImporting(false);
-
-          if (importInputRef.current) {
-            importInputRef.current.value = "";
-          }
-        }
-      },
-
-      error: (err) => {
-        setFormError(err.message || "Gagal membaca file CSV.");
-        setImporting(false);
-
-        if (importInputRef.current) {
-          importInputRef.current.value = "";
-        }
-      },
-    });
+      setSuccessMessage(`${validRows.length} soal berhasil diimpor.`);
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Gagal memproses file CSV/XLSX.",
+      );
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -692,7 +672,7 @@ function BankSoalPageContent() {
       <input
         ref={importInputRef}
         type="file"
-        accept=".csv"
+        accept=".csv,.xlsx,.xls"
         hidden
         onChange={handleImportFile}
       />

@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import { parseQuestionFile } from "@/lib/parseQuestionFile";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
@@ -122,71 +123,57 @@ export default function BankSoalPage() {
     importInputRef.current?.click();
   }
 
-  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setImporting(true);
     setFormError("");
 
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        try {
-          const rows = results.data;
+    try {
+      const rows = await parseQuestionFile(file);
+      if (rows.length === 0) {
+        throw new Error("File CSV/XLSX kosong atau formatnya tidak sesuai.");
+      }
 
-          if (!rows || rows.length === 0) {
-            throw new Error(
-              "File CSV kosong atau formatnya tidak sesuai (pastikan ada baris header)",
-            );
-          }
+      const parsed: SoalEntry[] = rows.map((row) => {
+        const normalizedKunci = (row.kunci_jawaban || row.kunci || "")
+          .trim()
+          .toUpperCase();
+        const validKunci: AnswerKey | null = ANSWER_KEYS.includes(
+          normalizedKunci as AnswerKey,
+        )
+          ? (normalizedKunci as AnswerKey)
+          : null;
 
-          const parsed: SoalEntry[] = rows.map((row) => {
-            const normalizedKunci = (row.kunci_jawaban || row.kunci || "")
-              .trim()
-              .toUpperCase();
-            const validKunci: AnswerKey | null = ANSWER_KEYS.includes(
-              normalizedKunci as AnswerKey,
-            )
-              ? (normalizedKunci as AnswerKey)
-              : null;
+        return {
+          id: crypto.randomUUID(),
+          soal: (row.soal || "").trim(),
+          jawabanA: (row.jawaban_a || "").trim(),
+          jawabanB: (row.jawaban_b || "").trim(),
+          jawabanC: (row.jawaban_c || "").trim(),
+          jawabanD: (row.jawaban_d || "").trim(),
+          kunciJawaban: validKunci,
+        };
+      });
 
-            return {
-              id: crypto.randomUUID(),
-              soal: (row.soal || "").trim(),
-              jawabanA: (row.jawaban_a || "").trim(),
-              jawabanB: (row.jawaban_b || "").trim(),
-              jawabanC: (row.jawaban_c || "").trim(),
-              jawabanD: (row.jawaban_d || "").trim(),
-              kunciJawaban: validKunci,
-            };
-          });
+      const validRows = parsed.filter((entry) => entry.soal);
+      if (validRows.length === 0) {
+        throw new Error(
+          'Tidak ada baris valid ditemukan. Pastikan kolom "soal" terisi.',
+        );
+      }
 
-          const validRows = parsed.filter((entry) => entry.soal);
-          if (validRows.length === 0) {
-            throw new Error(
-              'Tidak ada baris valid ditemukan. Pastikan kolom "soal" terisi.',
-            );
-          }
-
-          setSoalEntries(validRows);
-          setSuccessMessage(
-            `${validRows.length} soal berhasil diimpor dari CSV`,
-          );
-        } catch (err: any) {
-          setFormError(err.message || "Gagal memproses file CSV");
-        } finally {
-          setImporting(false);
-          if (importInputRef.current) importInputRef.current.value = "";
-        }
-      },
-      error: (err) => {
-        setFormError(err.message || "Gagal membaca file CSV");
-        setImporting(false);
-        if (importInputRef.current) importInputRef.current.value = "";
-      },
-    });
+      setSoalEntries(validRows);
+      setSuccessMessage(`${validRows.length} soal berhasil diimpor.`);
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Gagal memproses file CSV/XLSX.",
+      );
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -243,7 +230,6 @@ export default function BankSoalPage() {
         const { data: soalBaru, error: soalError } = await supabase
           .from("soal")
           .insert({
-            id_modul: 8,
             soal: entry.soal,
           })
           .select()
