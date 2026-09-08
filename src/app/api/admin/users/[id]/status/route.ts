@@ -82,12 +82,40 @@ export async function PATCH(
         .select(
           `
           id_user,
+          auth_user_id,
           is_aktif
           `
         )
         .single()
 
     if (error) {
+    const authUserId = (
+      data as { auth_user_id?: string | null } | null
+    )?.auth_user_id
+
+    if (is_aktif && authUserId) {
+      const { error: authError } =
+        await supabaseAdmin.auth.admin.updateUserById(
+          authUserId,
+          { email_confirm: true }
+        )
+
+      if (authError) {
+        console.error(
+          'CONFIRM AUTH USER ERROR:',
+          authError
+        )
+
+        return NextResponse.json(
+          {
+            message:
+              `Status berhasil diubah, tetapi email Auth belum terkonfirmasi: ${authError.message}`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
       console.error(
         'UPDATE STATUS ERROR:',
         error

@@ -9,12 +9,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Data registrasi tidak lengkap." }, { status: 400 });
   }
 
-  const { data, error: signError } = await supabaseAdmin.auth.signUp({
+  const { data, error: signError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`,
-    },
+    email_confirm: true,
   });
 
   if (signError) {
@@ -41,6 +39,7 @@ export async function POST(request: NextRequest) {
     const { error: userError } = await supabaseAdmin.from("user").insert({
       auth_user_id: user.id,
       id_mahasiswa: mahasiswa.id_mahasiswa,
+      is_aktif: true,
     });
 
     if (userError) {
