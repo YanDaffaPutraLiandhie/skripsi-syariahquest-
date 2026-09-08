@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pencil, Trash2, UploadCloud, ChevronLeft, ChevronRight } from 'lucide-react'
 import Swal from 'sweetalert2'
 import { supabase } from '@/lib/supabase'
+import { extractDocumentText } from '@/lib/extractDocumentText'
 
 interface LevelOption {
   id_level: number
@@ -321,11 +322,12 @@ export default function ManajemenModulPage() {
   function handleDokumenSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setForm((prev) => ({
-      ...prev,
-      dokumenFile: file,
-      dokumenFileName: file.name,
-    }))
+    setForm((prev) => ({ ...prev, dokumenFile: file, dokumenFileName: file.name }))
+    void extractDocumentText(file)
+      .then((text) => setForm((prev) => ({ ...prev, teksMateri: text })))
+      .catch((error: unknown) => {
+        setFormError(error instanceof Error ? error.message : 'Isi dokumen belum dapat dibaca.')
+      })
   }
 
   function handleThumbnailSelect(e: React.ChangeEvent<HTMLInputElement>) {

@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { getModuleAccess, getAdaptiveFeedback, type AdaptiveProgress } from "@/lib/adaptiveLearning";
 
 type ModulDB = {
   id_modul: number;
@@ -14,10 +16,14 @@ type ModulDB = {
   status: boolean; // BARU: Tambahan status aktif/nonaktif
 };
 
+type ProgressDB = AdaptiveProgress;
+
 function ModulPembelajaranContent() {
   const [filter, setFilter] = useState("all");
   const [daftarModul, setDaftarModul] = useState<ModulDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [progress, setProgress] = useState<ProgressDB[]>([]);
+  const { profile } = useCurrentUser();
 
   const searchParams = useSearchParams();
 
@@ -50,6 +56,14 @@ function ModulPembelajaranContent() {
         if (!mounted) return;
 
         setDaftarModul(data ?? []);
+
+        if (profile?.idMahasiswa) {
+          const { data: progressData } = await supabase
+            .from("progress_modul")
+            .select("id_modul, nilai, selesai")
+            .eq("id_mahasiswa", profile.idMahasiswa);
+          if (mounted) setProgress((progressData ?? []) as ProgressDB[]);
+        }
       } catch (error) {
         console.error(
           "Terjadi kesalahan saat mengambil modul:",
@@ -67,7 +81,7 @@ function ModulPembelajaranContent() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [profile?.idMahasiswa]);
 
   // =========================================================
   // LEVEL / DIFFICULTY
@@ -173,7 +187,7 @@ function ModulPembelajaranContent() {
             <p className="mt-1.5 text-sm text-[#c9c3e6] lg:text-base font-medium">
               Menampilkan hasil untuk pencarian:{" "}
               <span className="font-bold text-white">
-                "{searchQuery}"
+                &quot;{searchQuery}&quot;
               </span>
             </p>
           ) : (
@@ -252,6 +266,7 @@ function ModulPembelajaranContent() {
 
             const diffInfo =
               getDifficulty(modul.id_level);
+            const access = getModuleAccess(modul, daftarModul, progress);
 
             return (
               <div
@@ -310,12 +325,22 @@ function ModulPembelajaranContent() {
                   </div>
 
                   {/* BUTTON */}
-                  <Link
-                    href={`/modul/${modul.id_modul}`}
-                    className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-[#5B5288]/50 py-2.5 text-sm font-bold text-[#5B5288] transition-all hover:bg-[#5B5288]/10"
-                  >
-                    Lihat Modul
-                  </Link>
+                  {access.isUnlocked ? (
+                    <Link
+                      href={`/modul/${modul.id_modul}`}
+                      className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-[#5B5288]/50 py-2.5 text-sm font-bold text-[#5B5288] transition-all hover:bg-[#5B5288]/10"
+                    >
+                      Lihat Modul
+                    </Link>
+                  ) : (
+                    <div className="mt-auto rounded-lg bg-gray-100 px-3 py-2.5 text-center text-xs font-bold text-gray-500" title={access.reason}>
+                      Terkunci · butuh {access.requiredScore}%
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-center text-[11px] font-medium text-gray-400">
+                    {access.isUnlocked ? getAdaptiveFeedback(access.masteryScore) : access.reason}
+                  </p>
 
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 import {
   Sparkles,
   ChevronRight,
@@ -23,12 +24,6 @@ type Modul = {
   id_modul: number;
   nama_modul: string;
   id_level: number;
-};
-
-type LeaderboardRow = {
-  no: number;
-  name: string;
-  score: number;
 };
 
 const DEFAULT_MODULES: Modul[] = [
@@ -81,12 +76,15 @@ export default function Dashboard() {
   const router = useRouter();
 
   const [modules, setModules] = useState<Modul[]>(DEFAULT_MODULES);
-  const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("Semua");
 
   // Nama dosen yang sedang login
   const [userName, setUserName] = useState("Dosen");
+
+  // Leaderboard sekarang pakai hook yang sama dengan dashboard
+  // mahasiswa, supaya "Total XP" tampil konsisten di kedua sisi.
+  const { leaderboard, isLoading: isLeaderboardLoading } = useLeaderboard();
 
   const filteredModules = useMemo(() => {
     if (levelFilter === "Semua") return modules;
@@ -203,43 +201,10 @@ export default function Dashboard() {
       }
 
       // =====================================================
-      // 5. AMBIL DATA LEADERBOARD MAHASISWA
+      // 5. LEADERBOARD
+      // Sudah ditangani oleh useLeaderboard(), jadi tidak perlu
+      // fetch manual ke tabel "mahasiswa" di sini lagi.
       // =====================================================
-
-      const {
-        data: mahasiswaData,
-        error: mahasiswaError,
-      } = await supabase
-        .from("mahasiswa")
-        .select("nama_mahasiswa, Nilai")
-        .order("Nilai", {
-          ascending: false,
-        })
-        .limit(10);
-
-      if (mahasiswaError) {
-        console.error(
-          "Supabase mahasiswa error:",
-          mahasiswaError
-        );
-      } else if (mahasiswaData) {
-        const leaderboardRows: LeaderboardRow[] =
-          mahasiswaData.map(
-            (item: any, index: number) => ({
-              no: index + 1,
-
-              name:
-                item.nama_mahasiswa ??
-                item.name ??
-                "Mahasiswa",
-
-              score:
-                Number(item.Nilai) || 0,
-            })
-          );
-
-        setRows(leaderboardRows);
-      }
 
       setLoading(false);
     }
@@ -889,7 +854,9 @@ export default function Dashboard() {
         </div>
 
         {/* =================================================
-            KOLOM 2: LEADERBOARD
+            KOLOM 2: LEADERBOARD — sekarang dari useLeaderboard(),
+            sama persis dengan yang dipakai dashboard mahasiswa,
+            sehingga "Total XP" konsisten di kedua sisi.
         ================================================= */}
 
         <div className="flex flex-col gap-4">
@@ -912,15 +879,15 @@ export default function Dashboard() {
 
           <div className="flex flex-col gap-1 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-black/5">
 
-            {loading ? (
+            {isLeaderboardLoading ? (
               <p className="py-8 text-center text-sm text-[#4a3f7a]">
                 Memuat papan peringkat...
               </p>
-            ) : rows.length > 0 ? (
-              rows.slice(0, 5).map((row) => {
-                const isTop1 = row.no === 1;
-                const isTop2 = row.no === 2;
-                const isTop3 = row.no === 3;
+            ) : leaderboard.length > 0 ? (
+              leaderboard.slice(0, 5).map((player) => {
+                const isTop1 = player.rank === 1;
+                const isTop2 = player.rank === 2;
+                const isTop3 = player.rank === 3;
 
                 const podiumTint = isTop1
                   ? "bg-amber-50"
@@ -930,24 +897,26 @@ export default function Dashboard() {
                       ? "bg-orange-50"
                       : "";
 
-                const avatarSrc = `https://api.dicebear.com/7.x/micah/svg?seed=${encodeURIComponent(
-                  row.name
-                )}&backgroundColor=transparent`;
+                const avatarSrc =
+                  player.avatar_url ||
+                  `https://api.dicebear.com/7.x/micah/svg?seed=${encodeURIComponent(
+                    player.nama_mahasiswa
+                  )}&backgroundColor=transparent`;
 
                 return (
                   <div
-                    key={row.no}
+                    key={player.id_mahasiswa}
                     className={`flex items-center gap-3 rounded-2xl p-2.5 transition hover:bg-[#f4f2fa] ${podiumTint}`}
                   >
 
                     <span className="w-4 shrink-0 text-center text-xs font-bold text-[#c9c3e6]">
-                      {String(row.no).padStart(2, "0")}
+                      {String(player.rank).padStart(2, "0")}
                     </span>
 
                     <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-100 shadow-sm ring-2 ring-white">
                       <img
                         src={avatarSrc}
-                        alt={row.name}
+                        alt={player.nama_mahasiswa}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -955,7 +924,7 @@ export default function Dashboard() {
                     <div className="min-w-0 flex-1">
 
                       <p className="truncate text-sm font-semibold text-[#2b2540]">
-                        {row.name}
+                        {player.nama_mahasiswa}
                       </p>
 
                       <p
@@ -968,7 +937,7 @@ export default function Dashboard() {
                               : "text-[#a79fd6]"
                           }`}
                       >
-                        {row.score} pts
+                        {player.total_xp} XP
                       </p>
 
                     </div>

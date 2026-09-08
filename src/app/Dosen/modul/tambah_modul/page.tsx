@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { logActivity } from "@/lib/logActivity";
+import { extractDocumentText } from "@/lib/extractDocumentText";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const LEVELS = [
@@ -152,6 +153,19 @@ function TambahModulContent() {
 
   const [loadingDosen, setLoadingDosen] =
     useState(true);
+
+  async function handleDocumentFile(file: File | null) {
+    setDocFile(file);
+    if (!file) return;
+
+    try {
+      const text = await extractDocumentText(file);
+      setForm((previous) => ({ ...previous, teksMateri: text }));
+      setMessage("Isi dokumen berhasil dibaca dan dimasukkan ke materi.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Isi dokumen belum dapat dibaca.");
+    }
+  }
 
   /*
    * =========================================================
@@ -1006,9 +1020,9 @@ function TambahModulContent() {
         {/* UPLOAD FILE BOXES */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <UploadBox
-            label="Dokumen Pembelajaran (Doc/PDF)"
+            label="Dokumen Pembelajaran (Doc)"
             borderColor="border-sky-400"
-            onFile={setDocFile}
+            onFile={handleDocumentFile}
             fileName={docFile?.name ?? docLabel}
           />
           <UploadBox

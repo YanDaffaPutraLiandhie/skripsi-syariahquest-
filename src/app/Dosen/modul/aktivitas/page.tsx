@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import DosenContainer from "@/components/layout/DosenContainer";
 
@@ -10,28 +10,67 @@ type AktivitasRow = {
   no: number;
   name: string;
   progress: number;
+  nilai: number | null;
+  selesai: boolean;
 };
 
-export default function Aktivitas() {
+function AktivitasModulContent() {
   const route = useRouter();
+  const searchParams = useSearchParams();
+
+  // id modul dikirim lewat URL, contoh:
+  // /Dosen/modul/aktivitas?id=12
+  const idParam = searchParams.get("id");
+  const idModul = idParam && /^\d+$/.test(idParam) ? Number(idParam) : null;
+
+  const [namaModul, setNamaModul] = useState("");
   const [rows, setRows] = useState<AktivitasRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     async function load() {
+      if (!idModul) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
 
-      const { data, error } = await supabase.from("progress_modul").select(
-        `
-        id_mahasiswa,
-        nilai,
-        selesai,
-        mahasiswa:id_mahasiswa (
+      // =========================================================
+      // 1. AMBIL NAMA MODUL (untuk judul halaman)
+      // =========================================================
+      const { data: modulData, error: modulError } = await supabase
+        .from("modul")
+        .select("nama_modul")
+        .eq("id_modul", idModul)
+        .maybeSingle();
+
+      if (modulError) {
+        console.error("Gagal fetch nama modul:", modulError);
+      }
+
+      setNamaModul(modulData?.nama_modul ?? "Modul");
+
+      // =========================================================
+      // 2. AMBIL SEMUA MAHASISWA YANG MENGAKSES MODUL INI SAJA
+      // =========================================================
+      const { data, error } = await supabase
+        .from("progress_modul")
+        .select(
+          `
           id_mahasiswa,
-          nama_mahasiswa
+          nilai,
+          selesai,
+          materi_dilihat,
+          kuis_dicoba,
+          mahasiswa:id_mahasiswa (
+            id_mahasiswa,
+            nama_mahasiswa
+          )
+        `
         )
-      `
-      );
+        .eq("id_modul", idModul);
 
       if (error) {
         console.error("Gagal fetch progress_modul:", error);
@@ -39,43 +78,130 @@ export default function Aktivitas() {
         return;
       }
 
-      const grouped = new Map<number, { name: string; totalNilai: number; count: number }>();
+      // =========================================================
+      // 3. HITUNG PERSENTASE PROGRESS PER MAHASISWA UNTUK MODUL INI
+      // =========================================================
+      const mapped: AktivitasRow[] = (data ?? [])
+        .filter((row: any) => row.id_mahasiswa)
+        .map((row: any) => {
+          const mhs = Array.isArray(row.mahasiswa) ? row.mahasiswa[0] : row.mahasiswa;
+          const name = mhs?.nama_mahasiswa ?? "Mahasiswa";
 
-      (data ?? []).forEach((row: any) => {
-        const idM = row.id_mahasiswa;
-        if (!idM) return;
+          let persentase = 0;
+          if (row.selesai) {
+            persentase = 100;
+          } else if (row.kuis_dicoba) {
+            persentase = 40 + Math.round(((row.nilai || 0) / 100) * 60);
+          } else if (row.materi_dilihat) {
+            persentase = 40;
+          }
 
-        const mhs = Array.isArray(row.mahasiswa) ? row.mahasiswa[0] : row.mahasiswa;
-        const name = mhs?.nama_mahasiswa ?? "Mahasiswa";
+          return {
+            id: row.id_mahasiswa,
+            no: 0, // diisi ulang setelah sorting
+            name,
+            progress: persentase,
+            nilai: row.nilai,
+            selesai: row.selesai,
+          };
+        });
 
-        const existing = grouped.get(idM);
-        if (existing) {
-          existing.totalNilai += Number(row.nilai) || 0;
-          existing.count += 1;
-        } else {
-          grouped.set(idM, { name, totalNilai: Number(row.nilai) || 0, count: 1 });
-        }
-      });
+      // =========================================================
+      // 4. URUTKAN DARI PROGRESS TERBESAR KE TERKECIL
+      // =========================================================
+      mapped.sort((a, b) => b.progress - a.progress);
 
-      const mapped: AktivitasRow[] = Array.from(grouped.entries()).map(([idM, val], index) => ({
-        id: idM,
+      const numbered = mapped.map((row, index) => ({
+        ...row,
         no: index + 1,
-        name: val.name,
-        progress: val.count ? Math.round(val.totalNilai / val.count) : 0,
       }));
 
-      setRows(mapped);
+      setRows(numbered);
       setIsLoading(false);
     }
 
     load();
-  }, []);
+  }, [idModul]);
+
+  // =========================================================
+  // EKSPOR DATA KE CSV (bisa dibuka di Excel)
+  // Format: Nama Modul di baris atas, lalu tabel Nama Mahasiswa,
+  // Progress, Nilai, Status
+  // =========================================================
+  function handleExport() {
+    if (rows.length === 0) return;
+
+    setIsExporting(true);
+
+    try {
+      // Bantu escape koma/kutip agar CSV tidak rusak
+      const escapeCsv = (value: string | number) => {
+        const str = String(value ?? "");
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const lines: string[] = [];
+
+      // Baris judul / metadata
+      lines.push(`Nama Modul,${escapeCsv(namaModul || "Modul")}`);
+      lines.push(`Tanggal Ekspor,${escapeCsv(new Date().toLocaleString("id-ID"))}`);
+      lines.push(`Jumlah Mahasiswa,${escapeCsv(rows.length)}`);
+      lines.push(""); // baris kosong pemisah
+
+      // Header tabel
+      lines.push(
+        ["No", "Nama Mahasiswa", "Progress (%)", "Nilai", "Status"]
+          .map(escapeCsv)
+          .join(",")
+      );
+
+      // Isi tabel
+      rows.forEach((row) => {
+        lines.push(
+          [
+            row.no,
+            row.name,
+            row.progress,
+            row.nilai ?? "-",
+            row.selesai ? "Selesai" : "Belum Selesai",
+          ]
+            .map(escapeCsv)
+            .join(",")
+        );
+      });
+
+      const csvContent = "\uFEFF" + lines.join("\n"); // \uFEFF = BOM agar Excel baca UTF-8 dgn benar
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+
+      const safeModulName = (namaModul || "modul")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      const fileName = `aktivitas_${safeModulName}_${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   return (
     <DosenContainer
       categoryTag="MODUL PEMBELAJARAN"
-      title="Aktivitas Pembelajaran Mahasiswa"
-      subtitle="Pantau pencapaian progress dan nilai rata-rata modul seluruh mahasiswa."
+      title={`Aktivitas Modul${namaModul ? `: ${namaModul}` : ""}`}
+      subtitle="Daftar mahasiswa yang mengakses modul ini beserta progress-nya."
       headerAction={
         <button
           type="button"
@@ -88,13 +214,22 @@ export default function Aktivitas() {
     >
       <div className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
         <div className="mb-6 flex items-center justify-between border-b border-[#f0edf9] pb-4">
-          <h2 className="text-xl font-bold text-[#3d3466]">Daftar Progress Mahasiswa</h2>
-          <button className="rounded-full bg-emerald-400 px-6 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-300 transition shadow-sm">
-            Ekspor Data (Excel/CSV)
+          <h2 className="text-xl font-bold text-[#3d3466]">Daftar Mahasiswa Mengakses Modul</h2>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting || rows.length === 0}
+            className="rounded-full bg-emerald-400 px-6 py-2.5 text-xs font-bold text-emerald-950 hover:bg-emerald-300 transition shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isExporting ? "Mengekspor..." : "Ekspor Data (Excel/CSV)"}
           </button>
         </div>
 
-        {isLoading ? (
+        {!idModul ? (
+          <div className="py-12 text-center text-sm font-semibold text-rose-600">
+            Modul tidak ditemukan. Kembali ke daftar modul dan pilih modul terlebih dahulu.
+          </div>
+        ) : isLoading ? (
           <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
             Memuat aktivitas mahasiswa...
           </div>
@@ -109,7 +244,7 @@ export default function Aktivitas() {
                 <tr className="border-b border-[#f0edf9] text-xs font-bold uppercase tracking-wider text-[#8b84a5]">
                   <th className="pb-3 px-4">No</th>
                   <th className="pb-3 px-4">Nama Mahasiswa</th>
-                  <th className="pb-3 px-4 text-center">Rata-rata Progress</th>
+                  <th className="pb-3 px-4 text-center">Progress</th>
                   <th className="pb-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
@@ -125,7 +260,11 @@ export default function Aktivitas() {
                     </td>
                     <td className="py-4 px-4 text-right">
                       <button
-                        onClick={() => route.push(`/Dosen/modul/aktivitas/detail_aktivitas/${row.id}`)}
+                        onClick={() =>
+                          route.push(
+                            `/Dosen/modul/aktivitas/detail_aktivitas/${row.id}?id_modul=${idModul}`
+                          )
+                        }
                         className="rounded-full bg-amber-400 px-5 py-2 text-xs font-bold text-amber-950 hover:bg-amber-300 transition shadow-sm"
                       >
                         Detail Aktivitas
@@ -139,5 +278,19 @@ export default function Aktivitas() {
         )}
       </div>
     </DosenContainer>
+  );
+}
+
+export default function AktivitasModulPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-sm font-semibold text-[#4a3f7a]">Memuat halaman aktivitas...</p>
+        </div>
+      }
+    >
+      <AktivitasModulContent />
+    </Suspense>
   );
 }

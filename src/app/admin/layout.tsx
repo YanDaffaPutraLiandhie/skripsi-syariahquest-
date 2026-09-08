@@ -27,6 +27,7 @@ import {
   CircleUserRound,
   ChevronLeft,
   ChevronRight,
+  ArrowLeft,
   Diamond,
   Star,
   Shield,
@@ -46,6 +47,9 @@ export default function AdminLayout({
   const router = useRouter()
 
   const [isCollapsed, setIsCollapsed] =
+    useState(false)
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] =
     useState(false)
 
   const [checkingSession, setCheckingSession] =
@@ -362,9 +366,9 @@ export default function AdminLayout({
           : ''
           }`}
         onClick={() =>
-          setIsCollapsed(
-            (prev) => !prev
-          )
+          window.matchMedia('(max-width: 700px)').matches
+            ? setIsMobileMenuOpen((prev) => !prev)
+            : setIsCollapsed((prev) => !prev)
         }
         aria-label={
           isCollapsed
@@ -383,6 +387,15 @@ export default function AdminLayout({
         )}
       </button>
 
+      {isMobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu admin"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="admin-mobile-backdrop"
+        />
+      )}
+
       {/* =================================================
           SIDEBAR
       ================================================= */}
@@ -391,14 +404,14 @@ export default function AdminLayout({
         className={`sidebar ${isCollapsed
           ? 'collapsed'
           : ''
-          }`}
+          } ${isMobileMenuOpen ? 'mobile-open' : ''}`}
       >
 
         {/* LOGO */}
 
         <div className="sidebar-header">
           <Image
-            src="/logo.png"
+         src="/images/logo.svg"
             alt="Syariah Quest"
             width={56}
             height={56}
@@ -423,6 +436,7 @@ export default function AdminLayout({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
                   className={
                     isActive
                       ? 'menu-item active'
@@ -492,6 +506,17 @@ export default function AdminLayout({
         ================================================= */}
 
         <header className="top-navbar">
+
+          {pathname !== "/admin" && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Kembali ke halaman sebelumnya"
+              onClick={() => router.back()}
+            >
+              <ArrowLeft size={22} strokeWidth={1.8} />
+            </button>
+          )}
 
           <div className="navbar-icons">
 

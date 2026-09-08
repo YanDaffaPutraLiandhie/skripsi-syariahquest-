@@ -74,36 +74,70 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Hanya Dosen yang dicatat di log_activity
-    if (!userData.id_dosen) {
+    // log_activity sekarang mencatat Dosen MAUPUN Mahasiswa.
+    // Admin tetap tidak dicatat (sesuai desain awal).
+    if (userData.id_admin) {
       return NextResponse.json(
         {
           success: false,
-          message: 'User ini bukan Dosen',
+          message: 'Admin tidak dicatat di log_activity',
         },
         { status: 403 }
       )
     }
 
-    // Ambil nama Dosen
-    const {
-      data: dosen,
-      error: dosenError,
-    } = await supabaseAdmin
-      .from('dosen')
-      .select('nama_dosen')
-      .eq('id_dosen', userData.id_dosen)
-      .single()
+    let namaPelaku: string | null = null
+    let role: 'Dosen' | 'Mahasiswa' | null = null
 
-    if (dosenError || !dosen) {
-      console.error('DOSEN LOG ERROR:', dosenError)
+    if (userData.id_dosen) {
+      const { data: dosen, error: dosenError } = await supabaseAdmin
+        .from('dosen')
+        .select('nama_dosen')
+        .eq('id_dosen', userData.id_dosen)
+        .single()
 
+      if (dosenError || !dosen) {
+        console.error('DOSEN LOG ERROR:', dosenError)
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Data dosen tidak ditemukan',
+          },
+          { status: 404 }
+        )
+      }
+
+      namaPelaku = dosen.nama_dosen
+      role = 'Dosen'
+    } else if (userData.id_mahasiswa) {
+      const { data: mahasiswa, error: mahasiswaError } = await supabaseAdmin
+        .from('mahasiswa')
+        .select('nama_mahasiswa')
+        .eq('id_mahasiswa', userData.id_mahasiswa)
+        .single()
+
+      if (mahasiswaError || !mahasiswa) {
+        console.error('MAHASISWA LOG ERROR:', mahasiswaError)
+
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Data mahasiswa tidak ditemukan',
+          },
+          { status: 404 }
+        )
+      }
+
+      namaPelaku = mahasiswa.nama_mahasiswa
+      role = 'Mahasiswa'
+    } else {
       return NextResponse.json(
         {
           success: false,
-          message: 'Data dosen tidak ditemukan',
+          message: 'Role user tidak dikenali',
         },
-        { status: 404 }
+        { status: 403 }
       )
     }
 
@@ -126,15 +160,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // INSERT LOG
+    // INSERT LOG — pakai kolom nama_pelaku + role
+    // (nama_dosen sudah di-rename jadi nama_pelaku lewat migration)
     const {
       data: log,
       error: logError,
     } = await supabaseAdmin
       .from('log_activity')
       .insert({
-        // Nama kolom tabel log_activity adalah nama_pelaku
-        nama_pelaku: dosen.nama_dosen,
+        nama_pelaku: namaPelaku,
+        role,
         fitur,
         jenis_aktivitas,
         keterangan: keterangan || null,

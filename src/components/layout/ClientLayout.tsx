@@ -6,7 +6,7 @@ import Sidebar from "./Sidebar";
 import DosenSidebar from "@/components/sidebar";
 import Navbar from "./Navbar";
 
-import { 
+import {
   Diamond,
   Star,
   Shield,
@@ -14,8 +14,9 @@ import {
   Hexagon,
   Trophy,
   Award,
-  Zap 
+  Zap
 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export default function ClientLayout({
   children,
@@ -23,11 +24,10 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
   const isGameMode = pathname.startsWith("/arena/play");
-
-  const isProfilePage = pathname.startsWith("/profile");
 
   const isAuthPage =
     pathname.startsWith("/login") ||
@@ -75,22 +75,66 @@ export default function ClientLayout({
         <DosenSidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
+          isMobileOpen={isMobileMenuOpen}
+          setIsMobileOpen={setIsMobileMenuOpen}
         />
       ) : (
         <Sidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
+          isMobileOpen={isMobileMenuOpen}
+          setIsMobileOpen={setIsMobileMenuOpen}
         />
       )}
 
+      {isMobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/40 md:hidden"
+        />
+      )}
+
+      {isGameMode && (
+        <button
+          type="button"
+          aria-label="Kembali ke halaman sebelumnya"
+          onClick={() => window.history.back()}
+          className="fixed left-4 top-4 z-[100] rounded-xl bg-white/90 p-2 text-[#5B5288] shadow-lg backdrop-blur-sm transition hover:bg-white"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+      )}
+
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? "ml-20" : "ml-64"
+        className={`min-w-0 flex-1 flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? "md:ml-20" : "md:ml-64"
           }`}
       >
-        {!isGameMode && !isProfilePage && <Navbar />}
+        {!isGameMode && (
+          <Navbar
+            onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+            showBackButton={
+              pathname !== "/dashboard" && pathname !== "/Dosen/Dashboard"
+            }
+          />
+        )}
 
+        {/*
+          Catatan perbaikan sticky:
+          overflow-x-hidden sebelumnya membuat browser otomatis menghitung
+          overflow-y menjadi "auto" (karena spec CSS: jika salah satu axis
+          overflow bukan "visible", axis yang lain ikut berubah dari
+          "visible" -> "auto"). Ini menjadikan <main> sebagai scroll
+          container tersendiri, yang bisa mengacaukan referensi
+          position: sticky pada children di dalamnya.
+
+          overflow-x-clip memberi efek visual yang sama (memotong overflow
+          horizontal) tanpa membuat elemen ini jadi scroll container baru,
+          sehingga sticky tetap mengacu ke scroll window seperti biasa.
+        */}
         <main
-          className={`flex-1 overflow-x-hidden ${isGameMode ? "p-0" : "p-8"} relative isolate`}
+          className={`min-w-0 flex-1 overflow-x-clip ${isGameMode ? "p-0" : "p-4 sm:p-6 lg:p-8"} relative isolate`}
         >
           {(!isDosen && !isGameMode) && (
             <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-[#f8f7fd] via-[#f4f1fb] to-[#f0edf9] overflow-hidden">
@@ -127,7 +171,7 @@ export default function ClientLayout({
               <BookOpen className="absolute left-[3%] top-[48%] h-7 w-7 text-[#4a3f7a]/30 rotate-6" strokeWidth={1.8} />
               <Hexagon className="absolute left-[12%] top-[54%] h-8 w-8 text-amber-300/40 rotate-45" strokeWidth={2} />
               <Trophy className="absolute right-[4%] top-[52%] h-7 w-7 text-amber-400/50 -rotate-12" strokeWidth={1.8} />
-              
+
               <div className="absolute right-[12%] top-[60%] opacity-40">
                 <svg width="80" height="40" viewBox="0 0 80 40" fill="none">
                   <path d="M0 20 Q 20 5, 40 20 T 80 20" stroke="#8a80b8" strokeWidth="3" strokeLinecap="round" fill="none" />

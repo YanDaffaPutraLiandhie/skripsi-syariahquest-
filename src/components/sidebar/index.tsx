@@ -27,6 +27,8 @@ type SidebarProps = {
   navItems?: SidebarNavItem[];
   isCollapsed?: boolean;
   setIsCollapsed?: (val: boolean) => void;
+  isMobileOpen?: boolean;
+  setIsMobileOpen?: (val: boolean) => void;
 };
 
 const DEFAULT_NAV_ITEMS: SidebarNavItem[] = [
@@ -183,12 +185,16 @@ function SidebarContent({
   collapsed,
   toggle,
   handleLogout,
+  isMobileOpen,
+  setIsMobileOpen,
 }: {
   activeLabel: string;
   navItems: SidebarNavItem[];
   collapsed: boolean;
   toggle: () => void;
   handleLogout: () => void;
+  isMobileOpen?: boolean;
+  setIsMobileOpen?: (val: boolean) => void;
 }) {
   const pathname = usePathname();
 
@@ -208,6 +214,7 @@ function SidebarContent({
         transition-all
         duration-300
         ${collapsed ? "w-20" : "w-64"}
+        ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
     >
       {/* =====================================================
@@ -321,6 +328,7 @@ function SidebarContent({
           return (
             <Link
               href={href}
+              onClick={() => setIsMobileOpen?.(false)}
               key={item.label}
               title={item.label}
               className={`
@@ -472,6 +480,8 @@ export default function Sidebar({
   navItems = DEFAULT_NAV_ITEMS,
   isCollapsed,
   setIsCollapsed,
+  isMobileOpen,
+  setIsMobileOpen,
 }: SidebarProps) {
   const router = useRouter();
 
@@ -545,6 +555,8 @@ export default function Sidebar({
         collapsed={collapsed}
         toggle={toggle}
         handleLogout={handleLogout}
+        isMobileOpen={isMobileOpen}
+        setIsMobileOpen={setIsMobileOpen}
       />
     </Suspense>
   );

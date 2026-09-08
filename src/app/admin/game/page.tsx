@@ -393,14 +393,27 @@ export default function ManajemenGamePage() {
 
       await fetchGames()
 
+    await Swal.fire({
+      icon: 'success',
+      title: 'Berhasil',
+      text: 'Data game berhasil dihapus.',
+      confirmButtonColor: '#50427E',
+    })
+  } catch (error: any) {
+    console.error('Gagal menghapus game:', error)
+
+    // Postgres foreign key violation (23503): game ini masih dipakai
+    // di tabel lain (misal room permainan). Kasih pesan yang jelas &
+    // actionable, bukan error mentah database.
+    if (error?.code === '23503') {
       await Swal.fire({
-        icon: 'success',
-        title: 'Berhasil',
-        text: 'Data game berhasil dihapus.',
-        confirmButtonColor: '#4a3f7a',
+        icon: 'warning',
+        title: 'Game Masih Dipakai',
+        text: 'Game ini masih terhubung dengan data ruang permainan (room) yang pernah/sedang dibuat, jadi tidak bisa dihapus. Gunakan tombol "Nonaktifkan" di tabel kalau game ini tidak ingin dipakai lagi, tanpa menghapus histori datanya.',
+        confirmButtonColor: '#50427E',
       })
-    } catch (error: any) {
-      console.error('Gagal menghapus game:', error)
+      return
+    }
 
       await Swal.fire({
         icon: 'error',
@@ -575,11 +588,34 @@ export default function ManajemenGamePage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
-                  Nama Game
-                </label>
+            {/* PANDUAN SINGKAT — cara membuat game */}
+            <div className="game-form-guide">
+              <p className="game-form-guide-title">Cara membuat game papan:</p>
+              <ol className="game-form-guide-list">
+                <li>Isi nama, deskripsi, dan jumlah petak jalur permainan.</li>
+                <li>Unggah gambar background papan (board) di bawah.</li>
+                <li>
+                  Setelah gambar muncul, klik <strong>berurutan</strong> di
+                  atas gambar untuk menandai posisi tiap petak, dari petak
+                  awal sampai petak terakhir.
+                </li>
+                <li>
+                  Titik pertama otomatis jadi <strong>Start</strong> (hijau),
+                  titik terakhir jadi <strong>Finish</strong> (merah).
+                  Urutan klik menentukan urutan jalur pemain — pastikan
+                  klik sesuai alur papan yang diinginkan.
+                </li>
+                <li>
+                  Salah klik? Pakai <strong>Undo Titik Terakhir</strong>{' '}
+                  untuk membatalkan satu per satu, atau{' '}
+                  <strong>Reset Semua Titik</strong> untuk mulai ulang.
+                </li>
+              </ol>
+            </div>
+
+            <form onSubmit={handleSubmit} className="modal-form">
+              <div className="modal-field">
+                <label>Nama Game</label>
                 <input
                   type="text"
                   value={form.nama_game}
@@ -681,7 +717,8 @@ export default function ManajemenGamePage() {
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-xs text-[#8b84a5]">
                         Klik di atas gambar secara berurutan untuk menandai
-                        posisi petak 1 sampai {form.jumlahPetak}.
+                        posisi petak 1 (Start) sampai {form.jumlahPetak}{' '}
+                        (Finish).
                       </p>
                       <span
                         className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${pinsRemaining === 0
