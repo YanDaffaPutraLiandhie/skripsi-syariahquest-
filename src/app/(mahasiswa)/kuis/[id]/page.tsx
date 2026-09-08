@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Loader2, ArrowLeft, ArrowRight, CheckCircle, XCircle, ShieldAlert } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { calculateMasteryScore, selectAdaptiveQuestions, type AdaptiveProgress } from "@/lib/adaptiveLearning";
 
 interface Option {
   id_jawaban: number;
@@ -31,6 +32,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   const { profile } = useCurrentUser();
 
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [masteryScore, setMasteryScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   
@@ -103,6 +105,15 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           setAllQuestions(Array.from(qMap.values()));
         }
 
+        const mahasiswaId = profile?.idMahasiswa;
+        if (!mahasiswaId) return;
+
+        const { data: progressData } = await supabase
+          .from("progress_modul")
+          .select("id_modul, nilai, selesai")
+          .eq("id_mahasiswa", mahasiswaId);
+        setMasteryScore(calculateMasteryScore((progressData ?? []) as AdaptiveProgress[]));
+
       } catch (err) {
         console.error("Gagal memuat ujian:", err);
       } finally {
@@ -115,7 +126,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     }
   }, [quizId, profile?.idMahasiswa]);
 
-  const questions = allQuestions;
+  const questions = useMemo(
+    () => selectAdaptiveQuestions(allQuestions, masteryScore),
+    [allQuestions, masteryScore],
+  );
 
   const handleSelectOption = (idSoal: number, idJawaban: number) => {
     if (isSubmitted) return;
