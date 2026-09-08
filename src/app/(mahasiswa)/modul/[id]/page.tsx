@@ -6,7 +6,6 @@ import { Play, CheckCircle2, ArrowLeft, BookOpen } from "lucide-react";
 import Quiz from "@/components/Quis/page";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { getModuleAccess, type AdaptiveModule, type AdaptiveProgress } from "@/lib/adaptiveLearning";
 
 type DetailModulDB = {
   id_modul: number;
@@ -15,7 +14,6 @@ type DetailModulDB = {
   teks_materi: string;
   dokumen_pendukung: string | null;
   id_level: number;
-  parameter_nilai: number | null;
 };
 
 function getYouTubeEmbedUrl(url: string) {
@@ -43,8 +41,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
 
   const [activeTab, setActiveTab] = useState<"materi" | "kuis">("materi");
   const [quizScore, setQuizScore] = useState<number | null>(null);
-  const [isUnlocked, setIsUnlocked] = useState(true);
-  const [accessReason, setAccessReason] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -58,23 +54,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
 
       if (modulData && isMounted) {
         setCourse(modulData);
-      }
-
-      if (modulData && profile?.idMahasiswa && isMounted) {
-        const [{ data: modules }, { data: progress }] = await Promise.all([
-          supabase.from("modul").select("id_modul, id_level, parameter_nilai"),
-          supabase
-            .from("progress_modul")
-            .select("id_modul, nilai, selesai")
-            .eq("id_mahasiswa", profile.idMahasiswa),
-        ]);
-        const access = getModuleAccess(
-          modulData as AdaptiveModule,
-          (modules ?? []) as AdaptiveModule[],
-          (progress ?? []) as AdaptiveProgress[],
-        );
-        setIsUnlocked(access.isUnlocked);
-        setAccessReason(access.reason);
       }
 
       if (profile?.idMahasiswa && isMounted) {
@@ -167,22 +146,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
           className="flex items-center gap-2 rounded-lg border border-[#5B5288]/50 px-4 py-2 text-sm font-bold text-[#5B5288] hover:bg-[#5B5288]/10"
         >
           <ArrowLeft className="h-4 w-4" /> Kembali ke Modul Pembelajaran
-        </button>
-      </div>
-    );
-  }
-
-  if (!isUnlocked) {
-    return (
-      <div className="mx-auto flex max-w-lg flex-col items-center gap-4 p-10 text-center">
-        <div className="rounded-full bg-amber-100 px-5 py-3 text-3xl">🔒</div>
-        <h1 className="text-2xl font-black text-[#5B5288]">Modul belum terbuka</h1>
-        <p className="text-sm text-gray-500">{accessReason}</p>
-        <button
-          onClick={() => router.push("/modul")}
-          className="rounded-lg bg-[#5B5288] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#4a3f7a]"
-        >
-          Kembali ke Daftar Modul
         </button>
       </div>
     );
