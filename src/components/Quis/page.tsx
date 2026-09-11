@@ -41,6 +41,12 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
 
   const PASSING_GRADE = 70;
 
+  const getBaseXpByLevel = (level: number) => {
+    if (level === 2) return 50;
+    if (level === 3) return 100;
+    return 20;
+  };
+
   // 1. FETCH SOAL & LEVEL MODUL DARI DATABASE
   useEffect(() => {
     async function fetchData() {
@@ -121,12 +127,9 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
     const scorePercentage = Math.round((correctCount / questions.length) * 100);
     const isPassed = scorePercentage >= PASSING_GRADE;
 
-    // BARU: Penentuan XP berdasarkan tingkat kesulitan (Level)
-    let xpMultiplier = 10; // Default (Level 1 / Easy)
-    if (levelModul === 2) xpMultiplier = 20; // Level 2 (Medium)
-    if (levelModul === 3) xpMultiplier = 30; // Level 3 (Hard)
-
-    const earnedPoints = correctCount * xpMultiplier;
+    const baseXp = getBaseXpByLevel(levelModul);
+    const isRetry = initialScore !== null && initialScore !== undefined;
+    const earnedPoints = Math.round(baseXp * (isRetry ? 0.5 : 1));
 
     if (profile?.idMahasiswa) {
       try {
@@ -140,7 +143,7 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
           tanggal_selesai: new Date().toISOString()
         }, { onConflict: 'id_mahasiswa, id_modul' });
 
-        if (isPassed && !initialScore) {
+        if (isPassed) {
           const { data: mhsData } = await supabase
             .from('mahasiswa')
             .select('total_xp')
@@ -225,10 +228,9 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
     const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
     const isPassed = scorePercentage >= PASSING_GRADE;
 
-    let xpMultiplier = 10;
-    if (levelModul === 2) xpMultiplier = 20;
-    if (levelModul === 3) xpMultiplier = 30;
-    const earnedPoints = correctCount * xpMultiplier;
+    const baseXp = getBaseXpByLevel(levelModul);
+    const isRetry = initialScore !== null && initialScore !== undefined;
+    const earnedPoints = Math.round(baseXp * (isRetry ? 0.5 : 1));
 
     const displayAvatar = profile?.avatarUrl || "https://api.dicebear.com/7.x/micah/svg?seed=Pemain&backgroundColor=transparent";
     const displayName = profile?.namaMahasiswa || "Pemain Misterius";
@@ -238,7 +240,7 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
         
         <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 mt-4 drop-shadow-md">
           {isPassed 
-            ? (initialScore ? "Skor Kuis Berhasil Diperbarui!" : `Selamat! Kamu Meraih +${earnedPoints} XP`) 
+            ? (initialScore ? `Selamat! Kamu Meraih +${earnedPoints} XP` : `Selamat! Kamu Meraih +${earnedPoints} XP`) 
             : "Yah, Nilaimu Belum Cukup :("}
         </h1>
 

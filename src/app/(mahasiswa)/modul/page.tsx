@@ -94,7 +94,7 @@ function ModulPembelajaranContent() {
           label: "E",
           name: "Easy",
           color: "bg-green-500",
-          xp: 50,
+          xp: 20,
         };
 
       case 2:
@@ -102,7 +102,7 @@ function ModulPembelajaranContent() {
           label: "M",
           name: "Medium",
           color: "bg-yellow-500",
-          xp: 100,
+          xp: 50,
         };
 
       case 3:
@@ -110,7 +110,7 @@ function ModulPembelajaranContent() {
           label: "H",
           name: "Hard",
           color: "bg-red-500",
-          xp: 150,
+          xp: 100,
         };
 
       default:
