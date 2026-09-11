@@ -276,25 +276,15 @@ function SidebarContent({
         className={`
           flex
           items-center
-          p-8
           transition-all
-          ${collapsed ? "justify-center px-0" : ""}
+          ${collapsed ? "justify-center px-2 py-6" : "justify-center px-6 py-8"}
         `}
       >
-        <h1
-          className="
-            whitespace-nowrap
-            overflow-hidden
-            text-xl
-            font-extrabold
-            tracking-wide
-            text-primary
-          "
-        >
-          {collapsed
-            ? "SQ"
-            : "SYARIAH-QUEST"}
-        </h1>
+        <img
+          src="/images/logo.svg"
+          alt="Syariah Quest Logo"
+          className={`object-contain transition-all duration-300 ${collapsed ? "w-8" : "w-28"}`}
+        />
       </div>
 
       {/* =====================================================
@@ -453,19 +443,19 @@ function SidebarFallback({
         className={`
           flex
           items-center
-          p-8
+          transition-all
           ${
             collapsed
-              ? "justify-center px-0"
-              : ""
+              ? "justify-center px-2 py-6"
+              : "justify-center px-6 py-8"
           }
         `}
       >
-        <h1 className="whitespace-nowrap text-xl font-extrabold tracking-wide text-primary">
-          {collapsed
-            ? "SQ"
-            : "SYARIAH-QUEST"}
-        </h1>
+        <img
+          src="/images/logo.svg"
+          alt="Syariah Quest Logo"
+          className={`object-contain transition-all duration-300 ${collapsed ? "w-8" : "w-28"}`}
+        />
       </div>
     </aside>
   );
