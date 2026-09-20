@@ -141,7 +141,7 @@ export default function BankSoalGrid() {
   function handlePilihModul(card: ModulCard) {
     if (!card.id) {
       console.error(
-        "ID modul tidak valid:",
+        // "ID modul tidak valid:",
         card
       );
 
@@ -231,7 +231,7 @@ export default function BankSoalGrid() {
                   </h3>
 
                   <span className="mt-1 inline-block text-xs font-semibold text-[#8b84a5]">
-                    ID Modul: #{card.id}
+                    {/* ID Modul: #{card.id} */}
                   </span>
                 </div>
 

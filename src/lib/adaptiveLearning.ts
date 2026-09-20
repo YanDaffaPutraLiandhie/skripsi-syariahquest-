@@ -19,9 +19,21 @@ export type AdaptiveDecision = {
 };
 
 const DEFAULT_REQUIRED_SCORE = 70;
+export const MAX_QUESTION_COUNT = 50;
 
 function clampScore(score: number | null | undefined) {
   return Math.max(0, Math.min(100, Number(score) || 0));
+}
+
+export function shuffleQuestions<T>(items: T[]): T[] {
+  const shuffled = [...items];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+
+  return shuffled;
 }
 
 export function calculateMasteryScore(progress: AdaptiveProgress[]) {
@@ -71,15 +83,17 @@ export function selectAdaptiveQuestions<T extends { id_soal: number }>(
   questions: T[],
   masteryScore: number,
 ) {
-  if (questions.length <= 5 || masteryScore >= 85) return questions;
+  const limitedQuestions = shuffleQuestions(questions).slice(0, MAX_QUESTION_COUNT);
+
+  if (limitedQuestions.length <= 5 || masteryScore >= 85) {
+    return limitedQuestions;
+  }
 
   const targetCount = masteryScore < 60
-    ? Math.max(5, Math.ceil(questions.length * 0.7))
-    : Math.max(5, Math.ceil(questions.length * 0.85));
+    ? Math.max(5, Math.ceil(limitedQuestions.length * 0.7))
+    : Math.max(5, Math.ceil(limitedQuestions.length * 0.85));
 
-  return [...questions]
-    .sort((first, second) => (first.id_soal % 7) - (second.id_soal % 7))
-    .slice(0, Math.min(targetCount, questions.length));
+  return shuffleQuestions(limitedQuestions).slice(0, Math.min(targetCount, limitedQuestions.length));
 }
 
 export function getAdaptiveFeedback(masteryScore: number) {

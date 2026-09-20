@@ -6,7 +6,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
 import { checkAndAwardModulBadges, type EarnedBadge } from "@/lib/badges";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { calculateMasteryScore, selectAdaptiveQuestions, type AdaptiveProgress } from "@/lib/adaptiveLearning";
+import { calculateMasteryScore, selectAdaptiveQuestions, shuffleQuestions, MAX_QUESTION_COUNT, type AdaptiveProgress } from "@/lib/adaptiveLearning";
 
 type JawabanDB = {
   id_jawaban: number;
@@ -56,10 +56,12 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
       const { data: dataSoal, error: errSoal } = await supabase
         .from('soal')
         .select('*, jawaban(*)')
-        .eq('id_modul', idModul);
+        .eq('id_modul', idModul)
+        .limit(MAX_QUESTION_COUNT);
 
       if (dataSoal && !errSoal) {
-        setAllQuestions(dataSoal);
+        const shuffledQuestions = shuffleQuestions(dataSoal).slice(0, MAX_QUESTION_COUNT);
+        setAllQuestions(shuffledQuestions);
       } else {
         console.error("Gagal memuat soal:", errSoal);
       }
@@ -295,10 +297,18 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
                 <h3 className="font-bold text-[15px] mb-4 pr-10">{i + 1}. {q.soal}</h3>
                 <div className="flex flex-col gap-1.5 pl-4">
                   {q.jawaban.map((opt, optIdx) => {
+                    // Jawaban benar hanya ditandai hijau jika user memang menjawab
+                    // pertanyaan ini dengan benar. Jika salah, kunci jawaban tidak
+                    // diperlihatkan sama sekali — hanya pilihan yang dipilih user
+                    // (yang salah) yang ditandai merah.
                     let textStyle = "text-[#5B5288]/70 text-sm";
-                    if (opt.jawaban_benar) textStyle = "text-[#39C936] font-bold text-sm";
-                    else if (optIdx === selectedJawabanIndex && !isCorrect) textStyle = "text-[#E73131] font-bold text-sm";
-                    
+
+                    if (isCorrect && opt.jawaban_benar) {
+                      textStyle = "text-[#39C936] font-bold text-sm";
+                    } else if (optIdx === selectedJawabanIndex && !isCorrect) {
+                      textStyle = "text-[#E73131] font-bold text-sm";
+                    }
+
                     return <span key={optIdx} className={textStyle}>{String.fromCharCode(97 + optIdx)}. {opt.jawaban}</span>;
                   })}
                 </div>

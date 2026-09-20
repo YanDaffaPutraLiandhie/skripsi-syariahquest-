@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import { todayInputValue } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
 import { Check, ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
@@ -23,6 +24,7 @@ export default function PilihModul() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [namaKuis, setNamaKuis] = useState("");
+  const [deadline, setDeadline] = useState("");
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -96,6 +98,11 @@ export default function PilihModul() {
       return;
     }
 
+    if (deadline && deadline < todayInputValue()) {
+      setErrorMessage("Deadline tidak boleh sebelum hari ini.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -138,7 +145,7 @@ export default function PilihModul() {
 
       const { data: quisBaru, error: quisError } = await supabase
         .from("quis")
-        .insert({ nama_kuis: kuisName })
+        .insert({ nama_kuis: kuisName, deadline: deadline || null })
         .select()
         .single();
 
@@ -179,7 +186,9 @@ export default function PilihModul() {
       await logActivity({
         fitur: "Kuis",
         jenis_aktivitas: "Tambah Kuis",
-        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal`,
+        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal${
+          deadline ? ` (deadline ${deadline})` : ""
+        }`,
       });
 
       setSuccessMessage(
@@ -187,6 +196,7 @@ export default function PilihModul() {
       );
       setSelected([]);
       setNamaKuis("");
+      setDeadline("");
     } catch (err: any) {
       console.error(err);
       setErrorMessage(err?.message || "Terjadi kesalahan saat membuat kuis.");
@@ -197,6 +207,7 @@ export default function PilihModul() {
 
   const handleCancel = () => {
     setSelected([]);
+    setDeadline("");
     setErrorMessage("");
     setSuccessMessage("");
   };
@@ -230,17 +241,47 @@ export default function PilihModul() {
       }
     >
       <div className="space-y-6">
-        <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
-          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
-            Nama Kuis Baru
-          </label>
-          <input
-            type="text"
-            value={namaKuis}
-            onChange={(e) => setNamaKuis(e.target.value)}
-            placeholder="Contoh: Kuis Evaluasi Pekan 1..."
-            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
-          />
+        <div className="grid grid-cols-1 gap-5 rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Nama Kuis Baru
+            </label>
+            <input
+              type="text"
+              value={namaKuis}
+              onChange={(e) => setNamaKuis(e.target.value)}
+              placeholder="Contoh: Kuis Evaluasi Pekan 1..."
+              className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Deadline (opsional)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={deadline}
+                min={todayInputValue()}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="h-12 w-full flex-1 rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+              />
+              {deadline && (
+                <button
+                  type="button"
+                  onClick={() => setDeadline("")}
+                  className="h-12 shrink-0 rounded-2xl border border-[#e4e2ee] bg-white px-4 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+              Setelah deadline, nilai kuis yang lolos akan dipatok ke nilai
+              minimal.
+            </p>
+          </div>
         </div>
 
         <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">

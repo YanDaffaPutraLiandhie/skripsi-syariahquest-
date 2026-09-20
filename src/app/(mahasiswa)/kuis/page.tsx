@@ -5,16 +5,22 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
+import {
+  KUIS_NILAI_MINIMAL,
+  formatDeadline,
+  isPastDeadline,
+} from "@/lib/deadline";
 
 type QuizDB = {
   id_quis: number;
   nama_kuis: string; // Mengikuti kolom di tabel databasemu
+  deadline: string | null;
 };
 
 function DaftarKuisContent() {
   const [daftarKuis, setDaftarKuis] = useState<QuizDB[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q")?.toLowerCase() || "";
 
@@ -25,7 +31,7 @@ function DaftarKuisContent() {
       try {
         const { data, error } = await supabase
           .from('quis')
-          .select('id_quis, nama_kuis')
+          .select('id_quis, nama_kuis, deadline')
           .order('id_quis', { ascending: true });
 
         if (data && !error) {
@@ -49,7 +55,6 @@ function DaftarKuisContent() {
   });
 
   return (
-    // Wrapper disamakan persis dengan ModulPembelajaran (tanpa max-w padding berlebih)
     <div className="space-y-8">
       {/* =====================================================
           HEADER BANNER
@@ -58,7 +63,7 @@ function DaftarKuisContent() {
         {/* Header Banner Background SVGs */}
         <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
         <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
-        
+
         {/* Banner Decorative Curved Lines */}
         <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
           <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
@@ -114,41 +119,68 @@ function DaftarKuisContent() {
       ) : (
         /* GRID KARTU KUIS */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredKuis.map((kuis) => (
-            <div
-              key={kuis.id_quis}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col overflow-hidden group"
-            >
-              {/* GAMBAR THUMBNAIL */}
-              <div className="relative h-48 w-full bg-[#E6E4F0]">
-                {/* Menggunakan pattern shapes dari dicebear agar otomatis dinamis & estetik */}
-                <img
-                  src={`https://api.dicebear.com/7.x/shapes/svg?seed=quiz${kuis.id_quis}&backgroundColor=5B5288`}
-                  alt={kuis.nama_kuis || `Kuis ${kuis.id_quis}`}
-                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                />
-              </div>
+          {filteredKuis.map((kuis) => {
+            const late = isPastDeadline(kuis.deadline);
 
-              {/* KONTEN CARD */}
-              <div className="p-5 pt-6 flex flex-col flex-1">
-                <h3 className="text-xl font-bold text-[#5B5288] line-clamp-2">
-                  {kuis.nama_kuis || `Evaluasi Pemahaman #${kuis.id_quis}`}
-                </h3>
-
-                <div className="flex items-center gap-1 mt-1 text-[#D97706] font-bold text-sm mb-4">
-                  <span>⚡ Kumpulkan XP Ujian</span>
+            return (
+              <div
+                key={kuis.id_quis}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col overflow-hidden group"
+              >
+                {/* GAMBAR THUMBNAIL */}
+                <div className="relative h-48 w-full bg-[#E6E4F0]">
+                  {/* Menggunakan pattern shapes dari dicebear agar otomatis dinamis & estetik */}
+                  <img
+                    src={`https://api.dicebear.com/7.x/shapes/svg?seed=quiz${kuis.id_quis}&backgroundColor=5B5288`}
+                    alt={kuis.nama_kuis || `Kuis ${kuis.id_quis}`}
+                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                  />
                 </div>
 
-                {/* TOMBOL AKSI */}
-                <Link
-                  href={`/kuis/${kuis.id_quis}`}
-                  className="mt-auto w-full py-2.5 rounded-lg border border-[#5B5288]/50 text-[#5B5288] hover:bg-[#5B5288]/10 flex items-center justify-center gap-2 font-bold text-sm transition-all"
-                >
-                  Kerjakan Kuis
-                </Link>
+                {/* KONTEN CARD */}
+                <div className="p-5 pt-6 flex flex-col flex-1">
+                  <h3 className="text-xl font-bold text-[#5B5288] line-clamp-2">
+                    {kuis.nama_kuis || `Evaluasi Pemahaman #${kuis.id_quis}`}
+                  </h3>
+
+                  <div className="flex items-center gap-1 mt-1 text-[#D97706] font-bold text-sm mb-2">
+                    <span>⚡ Kumpulkan XP Ujian</span>
+                  </div>
+
+                  {/* DEADLINE */}
+                  {kuis.deadline && (
+                    <div className="mb-4">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
+                          late
+                            ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                            : "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
+                        }`}
+                      >
+                        🗓 Deadline: {formatDeadline(kuis.deadline)}
+                        {late && " (lewat)"}
+                      </span>
+                      {late && (
+                        <p className="mt-2 text-[11px] font-medium leading-snug text-gray-500">
+                          Deadline sudah lewat. Nilai yang lolos (minimal{" "}
+                          {KUIS_NILAI_MINIMAL}%) akan dipatok ke {KUIS_NILAI_MINIMAL}%.
+                          Nilai di bawahnya harus mengulang kuis.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TOMBOL AKSI */}
+                  <Link
+                    href={`/kuis/${kuis.id_quis}`}
+                    className="mt-auto w-full py-2.5 rounded-lg border border-[#5B5288]/50 text-[#5B5288] hover:bg-[#5B5288]/10 flex items-center justify-center gap-2 font-bold text-sm transition-all"
+                  >
+                    Kerjakan Kuis
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

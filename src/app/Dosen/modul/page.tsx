@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import { formatDeadline, isPastDeadline } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 type ModulCard = {
@@ -15,6 +16,7 @@ type ModulCard = {
   thumbnailUrl: string;
   dibuat_oleh: string;
   status: boolean;
+  deadline: string | null;
 };
 
 function ModulPembelajaranContent() {
@@ -43,6 +45,7 @@ function ModulPembelajaranContent() {
             id_level,
             status,
             dibuat_oleh,
+            deadline,
             level!id_level (
               xp
             )
@@ -55,6 +58,42 @@ function ModulPembelajaranContent() {
         }
 
         console.log("DATA MODUL:", data);
+
+        if (!mounted) return;
+
+        // ---------------------------------------------------------
+        // AMBIL NAMA DOSEN (query terpisah, tidak mengubah query modul di atas)
+        // dibuat_oleh di tabel modul menyimpan id_dosen, jadi perlu
+        // dicocokkan ke nama_dosen di tabel dosen.
+        // ---------------------------------------------------------
+        const idDosenList = Array.from(
+          new Set(
+            (data ?? [])
+              .map((item: any) => item.dibuat_oleh)
+              .filter((id: any) => id !== null && id !== undefined)
+          )
+        );
+
+        let namaDosenMap: Record<string, string> = {};
+
+        if (idDosenList.length > 0) {
+          const { data: dosenRows, error: dosenError } = await supabase
+            .from("dosen")
+            .select("id_dosen, nama_dosen")
+            .in("id_dosen", idDosenList);
+
+          if (dosenError) {
+            console.error("Gagal mengambil nama dosen:", dosenError);
+          } else {
+            namaDosenMap = (dosenRows ?? []).reduce(
+              (acc: Record<string, string>, row: any) => {
+                acc[String(row.id_dosen)] = row.nama_dosen ?? "Admin";
+                return acc;
+              },
+              {}
+            );
+          }
+        }
 
         if (!mounted) return;
 
@@ -82,8 +121,10 @@ function ModulPembelajaranContent() {
             badge,
             badgeColor,
             thumbnailUrl: item.thumbnail_url ?? "",
-            dibuat_oleh: item.dibuat_oleh ?? "Admin",
+            dibuat_oleh:
+              namaDosenMap[String(item.dibuat_oleh)] ?? "Admin",
             status: item.status !== false,
+            deadline: item.deadline ?? null,
           };
         });
 
@@ -229,7 +270,7 @@ function ModulPembelajaranContent() {
         <button
           type="button"
           onClick={() => router.push("/Dosen/modul/tambah_modul")}
-          className="group flex h-[310px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-[#8a80b8]/30 bg-white/60 p-6 text-[#4a3f7a] shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-[#4a3f7a] hover:bg-white hover:shadow-md hover:scale-[1.01]"
+          className="group flex h-[340px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-[#8a80b8]/30 bg-white/60 p-6 text-[#4a3f7a] shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-[#4a3f7a] hover:bg-white hover:shadow-md hover:scale-[1.01]"
         >
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#4a3f7a]/10 text-2xl font-bold text-[#4a3f7a] transition group-hover:bg-[#4a3f7a] group-hover:text-white">
             +
@@ -245,14 +286,15 @@ function ModulPembelajaranContent() {
         {/* DAFTAR MODUL CARDS */}
         {modulCards.map((card, index) => {
           const isActive = activeStates[index] ?? true;
+          const late = isPastDeadline(card.deadline);
 
           return (
             <div
               key={card.id}
-              className="group flex h-[310px] flex-col overflow-hidden rounded-[24px] bg-white ring-1 ring-black/5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
+              className="group flex h-[340px] flex-col overflow-hidden rounded-[24px] bg-white ring-1 ring-black/5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
             >
               {/* THUMBNAIL */}
-              <div className="relative h-[125px] bg-[#4a3f7a]">
+              <div className="relative h-[125px] shrink-0 bg-[#4a3f7a]">
                 <div className="h-full w-full overflow-hidden">
                   {card.thumbnailUrl ? (
                     <img
@@ -302,9 +344,23 @@ function ModulPembelajaranContent() {
                   </div>
 
                   <span className="truncate text-xs font-medium text-[#8b84a5]">
-                    Dosen: <strong className="text-[#3d3466]">{card.dibuat_oleh}</strong>
+                    dibuat oleh : <strong className="text-[#3d3466]">{card.dibuat_oleh}</strong>
                   </span>
                 </div>
+
+                {/* DEADLINE */}
+                {card.deadline && (
+                  <span
+                    className={`mt-2 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-bold ${
+                      late
+                        ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                        : "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
+                    }`}
+                  >
+                    🗓 Deadline: {formatDeadline(card.deadline)}
+                    {late && " (lewat)"}
+                  </span>
+                )}
 
                 {/* BUTTONS */}
                 <div className="mt-auto flex gap-2.5 pt-4 border-t border-[#f0edf9]">

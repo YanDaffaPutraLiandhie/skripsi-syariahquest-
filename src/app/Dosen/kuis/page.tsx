@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { formatDeadline, isPastDeadline } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
 import { Plus, HelpCircle } from "lucide-react";
 
@@ -10,6 +11,7 @@ type KuisCard = {
   id: number;
   title: string;
   jumlahSoal: number;
+  deadline: string | null;
 };
 
 export default function KuisPage() {
@@ -24,7 +26,7 @@ export default function KuisPage() {
         setLoading(true);
         const { data: quisData, error: quisError } = await supabase
           .from("quis")
-          .select("id_quis, nama_kuis");
+          .select("id_quis, nama_kuis, deadline");
 
         if (quisError) {
           console.error("Supabase quis error:", quisError);
@@ -49,10 +51,11 @@ export default function KuisPage() {
         }
 
         const cards: KuisCard[] = (quisData ?? []).map(
-          (q: { id_quis: number; nama_kuis: string }) => ({
+          (q: { id_quis: number; nama_kuis: string; deadline: string | null }) => ({
             id: q.id_quis,
             title: q.nama_kuis ?? "Kuis",
             jumlahSoal: soalCountMap[q.id_quis]?.size ?? 0,
+            deadline: q.deadline ?? null,
           }),
         );
 
@@ -72,7 +75,6 @@ export default function KuisPage() {
       categoryTag="EVALUASI & KUIS"
       title="Kelola Kuis Pembelajaran"
       subtitle="Buat kuis baru otomatis dari modul atau pilih secara manual untuk evaluasi mahasiswa."
-
     >
       {loading ? (
         <div className="rounded-[28px] bg-white p-12 text-center text-sm font-semibold text-[#8b84a5] shadow-sm">
@@ -83,7 +85,7 @@ export default function KuisPage() {
           {/* CARD BUAT KUIS */}
           <button
             onClick={() => setShowModal(true)}
-            className="group flex h-[280px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-[#4a3f7a]/20 bg-white p-6 transition-all hover:border-[#4a3f7a] hover:bg-[#f8f7fd] hover:shadow-md"
+            className="group flex h-[310px] flex-col items-center justify-center gap-3 rounded-[24px] border-2 border-dashed border-[#4a3f7a]/20 bg-white p-6 transition-all hover:border-[#4a3f7a] hover:bg-[#f8f7fd] hover:shadow-md"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f8f7fd] text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10 group-hover:scale-110 transition">
               <Plus size={28} />
@@ -97,41 +99,59 @@ export default function KuisPage() {
           </button>
 
           {/* LIST KUIS */}
-          {kuisCards.map((card) => (
-            <div
-              key={card.id}
-              className="group flex h-[280px] flex-col overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
-            >
-              {/* TOP HEADER PATTERN */}
-              <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-amber-300 backdrop-blur-sm border border-white/10 shadow-sm transition duration-300 group-hover:scale-105">
-                  <HelpCircle size={28} />
-                </div>
+          {kuisCards.map((card) => {
+            const late = isPastDeadline(card.deadline);
 
-              </div>
-
-              {/* CARD CONTENT */}
-              <div className="flex flex-1 flex-col justify-between px-5 pb-5 pt-5">
-                <div>
-                  <h3 className="line-clamp-2 text-base font-bold text-[#2b2540] group-hover:text-[#4a3f7a] transition">
-                    {card.title}
-                  </h3>
-                  <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#f8f7fd] px-3 py-1 text-xs font-bold text-[#4a3f7a]">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                    {card.jumlahSoal} Pertanyaan Soal
+            return (
+              <div
+                key={card.id}
+                className="group flex h-[310px] flex-col overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
+              >
+                {/* TOP HEADER PATTERN */}
+                <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-amber-300 backdrop-blur-sm border border-white/10 shadow-sm transition duration-300 group-hover:scale-105">
+                    <HelpCircle size={28} />
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
-                  className="w-full rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#3d3466]"
-                >
-                  Lihat & Kelola Kuis
-                </button>
+                {/* CARD CONTENT */}
+                <div className="flex flex-1 flex-col justify-between px-5 pb-5 pt-5">
+                  <div>
+                    <h3 className="line-clamp-2 text-base font-bold text-[#2b2540] group-hover:text-[#4a3f7a] transition">
+                      {card.title}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-[#f8f7fd] px-3 py-1 text-xs font-bold text-[#4a3f7a]">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {card.jumlahSoal} Pertanyaan Soal
+                      </div>
+
+                      {card.deadline && (
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
+                            late
+                              ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                              : "bg-sky-50 text-sky-700 ring-1 ring-sky-200"
+                          }`}
+                        >
+                          🗓 {formatDeadline(card.deadline)}
+                          {late && " (lewat)"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
+                    className="w-full rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#3d3466]"
+                  >
+                    Lihat & Kelola Kuis
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

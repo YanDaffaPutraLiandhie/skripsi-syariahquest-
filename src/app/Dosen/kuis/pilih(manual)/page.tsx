@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { Plus, Trash2, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
 import { parseQuestionFile } from "@/lib/parseQuestionFile";
+import { todayInputValue } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
@@ -52,12 +53,49 @@ type SavedQuiz = {
   jawaban_benar: boolean;
 };
 
+// =============================================
+// TEXTAREA YANG OTOMATIS MEMANJANG SESUAI ISI
+// =============================================
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`resize-none overflow-hidden ${className ?? ""}`}
+    />
+  );
+}
+
 export default function BankSoalPage() {
   const router = useRouter();
   const [soalEntries, setSoalEntries] = useState<SoalEntry[]>([
     makeEmptyEntry(),
   ]);
   const [namaKuis, setNamaKuis] = useState("");
+  const [deadline, setDeadline] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -189,13 +227,19 @@ export default function BankSoalPage() {
       return;
     }
 
+    if (deadline && deadline < todayInputValue()) {
+      setFormError("Deadline tidak boleh sebelum hari ini.");
+      setSaving(false);
+      return;
+    }
+
     try {
       const kuisName = namaKuis.trim();
       const quizRows: SavedQuiz[] = [];
 
       const { data: quisBaru, error: quisError } = await supabase
         .from("quis")
-        .insert({ nama_kuis: kuisName })
+        .insert({ nama_kuis: kuisName, deadline: deadline || null })
         .select()
         .single();
 
@@ -304,11 +348,14 @@ export default function BankSoalPage() {
       await logActivity({
         fitur: "Kuis",
         jenis_aktivitas: "Tambah",
-        keterangan: `Menambahkan kuis "${kuisName}" secara manual dengan ${soalEntries.length} soal`,
+        keterangan: `Menambahkan kuis "${kuisName}" secara manual dengan ${soalEntries.length} soal${
+          deadline ? ` (deadline ${deadline})` : ""
+        }`,
       });
 
       setSoalEntries([makeEmptyEntry()]);
       setNamaKuis("");
+      setDeadline("");
     } catch (err: any) {
       setFormError(
         err?.message || err?.details || err?.hint || "Terjadi kesalahan.",
@@ -345,17 +392,47 @@ export default function BankSoalPage() {
       }
     >
       <form onSubmit={handleSubmit}>
-        <div className="mb-6 rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
-          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
-            Nama Kuis
-          </label>
-          <input
-            type="text"
-            value={namaKuis}
-            onChange={(e) => setNamaKuis(e.target.value)}
-            placeholder="Tulis nama kuis di sini..."
-            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
-          />
+        <div className="mb-6 grid grid-cols-1 gap-5 rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Nama Kuis
+            </label>
+            <input
+              type="text"
+              value={namaKuis}
+              onChange={(e) => setNamaKuis(e.target.value)}
+              placeholder="Tulis nama kuis di sini..."
+              className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Deadline (opsional)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={deadline}
+                min={todayInputValue()}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="h-12 w-full flex-1 rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+              />
+              {deadline && (
+                <button
+                  type="button"
+                  onClick={() => setDeadline("")}
+                  className="h-12 shrink-0 rounded-2xl border border-[#e4e2ee] bg-white px-4 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+              Setelah deadline, nilai kuis yang lolos akan dipatok ke nilai
+              minimal.
+            </p>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -406,66 +483,53 @@ export default function BankSoalPage() {
                   <label className="mb-2 block text-xs font-bold text-[#4a3f7a]">
                     Teks Pertanyaan
                   </label>
-                  <input
-                    type="text"
+                  <AutoResizeTextarea
                     value={entry.soal}
-                    onChange={(e) =>
-                      updateEntry(entry.id, { soal: e.target.value })
-                    }
+                    onChange={(val) => updateEntry(entry.id, { soal: val })}
                     placeholder="Tulis pertanyaan soal..."
-                    className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+                    className="w-full min-h-[3rem] rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 py-3 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {OPTION_FIELDS.map((field) => (
-                    <div key={field.key}>
-                      <label className="mb-2 block text-xs font-bold text-[#4a3f7a]">
-                        {field.label}
-                      </label>
-                      <input
-                        type="text"
-                        value={
-                          field.key === "A"
-                            ? entry.jawabanA
-                            : field.key === "B"
-                              ? entry.jawabanB
-                              : field.key === "C"
-                                ? entry.jawabanC
-                                : entry.jawabanD
-                        }
-                        onChange={(e) =>
-                          updateEntry(entry.id, {
-                            jawabanA:
-                              field.key === "A"
-                                ? e.target.value
-                                : entry.jawabanA,
-                            jawabanB:
-                              field.key === "B"
-                                ? e.target.value
-                                : entry.jawabanB,
-                            jawabanC:
-                              field.key === "C"
-                                ? e.target.value
-                                : entry.jawabanC,
-                            jawabanD:
-                              field.key === "D"
-                                ? e.target.value
-                                : entry.jawabanD,
-                          })
-                        }
-                        placeholder={`Pilihan ${field.key}...`}
-                        className="h-11 w-full rounded-xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-xs font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
-                      />
-                    </div>
-                  ))}
+                  {OPTION_FIELDS.map((field) => {
+                    const value =
+                      field.key === "A"
+                        ? entry.jawabanA
+                        : field.key === "B"
+                          ? entry.jawabanB
+                          : field.key === "C"
+                            ? entry.jawabanC
+                            : entry.jawabanD;
+
+                    return (
+                      <div key={field.key}>
+                        <label className="mb-2 block text-xs font-bold text-[#4a3f7a]">
+                          {field.label}
+                        </label>
+                        <AutoResizeTextarea
+                          value={value}
+                          onChange={(val) =>
+                            updateEntry(entry.id, {
+                              jawabanA: field.key === "A" ? val : entry.jawabanA,
+                              jawabanB: field.key === "B" ? val : entry.jawabanB,
+                              jawabanC: field.key === "C" ? val : entry.jawabanC,
+                              jawabanD: field.key === "D" ? val : entry.jawabanD,
+                            })
+                          }
+                          placeholder={`Pilihan ${field.key}...`}
+                          className="w-full min-h-[2.75rem] rounded-xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 py-2.5 text-xs font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </section>
           ))}
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-6">
           <button
             type="button"
             onClick={addEntry}
@@ -474,23 +538,6 @@ export default function BankSoalPage() {
             <Plus size={16} />
             Tambah Pertanyaan Lain
           </button>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.push("/Dosen/kuis")}
-              className="rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-xs font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-full bg-emerald-400 px-8 py-3 text-xs font-bold text-emerald-950 shadow-md shadow-emerald-900/20 hover:bg-emerald-300 transition disabled:opacity-70"
-            >
-              {saving ? "Menyimpan..." : "Simpan Kuis"}
-            </button>
-          </div>
         </div>
 
         {formError && (
@@ -503,6 +550,27 @@ export default function BankSoalPage() {
             {successMessage}
           </p>
         )}
+
+        {/* Spacer agar konten terakhir tidak tertutup floating action bar */}
+        <div className="h-24" />
+
+        {/* FLOATING ACTION BAR: Batal & Simpan mengambang di pojok kanan bawah */}
+        <div className="fixed bottom-6 right-6 z-30 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.push("/Dosen/kuis")}
+            className="rounded-full border border-[#e4e2ee] bg-white px-7 py-3.5 text-sm font-bold text-[#4a3f7a] shadow-lg shadow-black/10 hover:bg-[#f8f7fd] transition"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-full bg-emerald-400 px-10 py-3.5 text-sm font-bold text-emerald-950 shadow-lg shadow-emerald-900/25 hover:bg-emerald-300 transition disabled:opacity-70"
+          >
+            {saving ? "Menyimpan..." : "Simpan Kuis"}
+          </button>
+        </div>
       </form>
 
       <input

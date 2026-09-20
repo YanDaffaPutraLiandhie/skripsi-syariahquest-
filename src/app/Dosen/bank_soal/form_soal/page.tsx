@@ -45,6 +45,42 @@ function makeEmptyEntry(): SoalEntry {
 }
 
 // =============================================
+// TEXTAREA YANG OTOMATIS MEMANJANG SESUAI ISI
+// =============================================
+function AutoResizeTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`resize-none overflow-hidden ${className ?? ""}`}
+    />
+  );
+}
+
+// =============================================
 // KOMPONEN UTAMA (dipisah dari default export)
 // =============================================
 function BankSoalPageContent() {
@@ -501,7 +537,7 @@ function BankSoalPageContent() {
             Kunci Jawaban Pilihan Ganda
           </span>
           <h2 className="text-lg font-bold text-white">
-            Target Modul: {namaModul} (ID: #{idModul})
+            Target Modul: {namaModul} 
           </h2>
         </div>
 
@@ -573,12 +609,11 @@ function BankSoalPageContent() {
                   <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#4a3f7a]">
                     Teks Pertanyaan Soal
                   </label>
-                  <textarea
-                    rows={2}
+                  <AutoResizeTextarea
                     value={entry.soal}
-                    onChange={(e) => updateEntry(entry.id, { soal: e.target.value })}
+                    onChange={(val) => updateEntry(entry.id, { soal: val })}
                     placeholder="Tuliskan pertanyaan soal di sini..."
-                    className="w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+                    className="w-full min-h-[3.5rem] rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
                   />
                 </div>
 
@@ -598,22 +633,20 @@ function BankSoalPageContent() {
                         <label className="mb-1.5 block text-xs font-bold text-[#3d3466]">
                           {field.label}
                         </label>
-                        <div className="relative flex items-center">
-                          <span className="absolute left-4 flex h-6 w-6 items-center justify-center rounded-full bg-[#4a3f7a]/10 text-xs font-black text-[#4a3f7a]">
+                        <div className="relative flex items-start">
+                          <span className="absolute left-4 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#4a3f7a]/10 text-xs font-black text-[#4a3f7a]">
                             {field.key}
                           </span>
-                          <input
-                            type="text"
+                          <AutoResizeTextarea
                             value={value}
-                            onChange={(e) => {
-                              const newValue = e.target.value;
-                              if (field.key === "A") updateEntry(entry.id, { jawabanA: newValue });
-                              if (field.key === "B") updateEntry(entry.id, { jawabanB: newValue });
-                              if (field.key === "C") updateEntry(entry.id, { jawabanC: newValue });
-                              if (field.key === "D") updateEntry(entry.id, { jawabanD: newValue });
+                            onChange={(val) => {
+                              if (field.key === "A") updateEntry(entry.id, { jawabanA: val });
+                              if (field.key === "B") updateEntry(entry.id, { jawabanB: val });
+                              if (field.key === "C") updateEntry(entry.id, { jawabanC: val });
+                              if (field.key === "D") updateEntry(entry.id, { jawabanD: val });
                             }}
                             placeholder={`Isi pilihan ${field.key}`}
-                            className="h-11 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] pl-12 pr-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+                            className="w-full min-h-[2.75rem] rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] pl-12 pr-4 py-2.5 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
                           />
                         </div>
                       </div>
@@ -649,12 +682,15 @@ function BankSoalPageContent() {
           </div>
         )}
 
-        {/* ACTION BUTTONS */}
-        <div className="mt-8 flex justify-end gap-3 border-t border-[#f0edf9] pt-6">
+        {/* Spacer agar konten terakhir tidak tertutup floating action bar */}
+        <div className="h-24" />
+
+        {/* FLOATING ACTION BAR: Batal & Simpan mengambang di pojok kanan bawah */}
+        <div className="fixed bottom-6 right-6 z-30 flex items-center gap-3">
           <button
             type="button"
             onClick={() => router.push("/Dosen/bank_soal")}
-            className="rounded-full border border-[#e4e2ee] bg-white px-7 py-3 text-sm font-bold text-[#4a3f7a] hover:bg-[#f8f7fd] transition"
+            className="rounded-full border border-[#e4e2ee] bg-white px-7 py-3.5 text-sm font-bold text-[#4a3f7a] shadow-lg shadow-black/10 hover:bg-[#f8f7fd] transition"
           >
             Batal
           </button>
@@ -662,7 +698,7 @@ function BankSoalPageContent() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-full bg-amber-400 px-8 py-3 text-sm font-bold text-amber-950 shadow-md shadow-amber-900/20 hover:bg-amber-300 transition disabled:opacity-50"
+            className="rounded-full bg-amber-400 px-10 py-3.5 text-sm font-bold text-amber-950 shadow-lg shadow-amber-900/25 hover:bg-amber-300 transition disabled:opacity-50"
           >
             {saving ? "Menyimpan Soal..." : "Simpan Semua Soal"}
           </button>
