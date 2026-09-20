@@ -599,7 +599,7 @@ function TambahModulContent() {
         {/* UPLOAD FILE */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <UploadBox
-            label="Dokumen Pembelajaran (Doc/PDF)"
+            label="Dokumen Pembelajaran (docx/pdf)"
             borderColor="border-sky-400"
             onFile={handleDocumentFile}
             fileName={docFile?.name ?? docLabel}
@@ -610,7 +610,13 @@ function TambahModulContent() {
             onFile={setThumbnailFile}
             fileName={thumbnailFile?.name ?? thumbnailLabel}
           />
+         
         </div>
+         <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+            catatan : <br />
+            - bila dokumen yang di unggah berformat docx, maka sistem akan otomatis mengekstrak teksnya dan menaruhnya di kolom Teks Materi.<br />
+            - bila dokumen yang di unggah berformat pdf, maka sistem tidak dapat mengekstrak teksnya, sehingga kolom Teks Materi harus diisi secara manual. <br />
+          </p>
 
         {message && (
           <div
