@@ -30,10 +30,10 @@ export default function LeaderboardPage() {
   const rank3 = top3[2];
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4 relative z-10">
+    <div className="mx-auto w-full max-w-5xl px-3 py-6 relative z-10 sm:px-4 sm:py-10">
       
       {/* JUDUL HALAMAN (GAMIFIED BANNER) */}
-      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] shadow-lg shadow-[#3d3466]/25 mb-16 p-8 lg:p-10 text-center flex flex-col items-center">
+      <div className="relative mb-10 flex flex-col items-center overflow-hidden rounded-[24px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-5 text-center shadow-lg shadow-[#3d3466]/25 sm:mb-16 sm:rounded-[28px] sm:p-8 lg:p-10">
         {/* Header Banner Background SVGs */}
         <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
         <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
@@ -48,11 +48,11 @@ export default function LeaderboardPage() {
         </div>
 
         <div className="relative z-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 border border-white/20 rounded-full mb-4 shadow-xl backdrop-blur-sm">
-            <Trophy className="w-8 h-8 text-[#FFC107]" />
+          <div className="mb-3 inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-xl backdrop-blur-sm sm:mb-4 sm:h-16 sm:w-16">
+            <Trophy className="h-7 w-7 text-[#FFC107] sm:h-8 sm:w-8" />
           </div>
-          <h1 className="text-4xl font-black text-white tracking-wide">Hall of Fame</h1>
-          <p className="text-[#c9c3e6] mt-2 font-medium">Peringkat tertinggi mahasiswa Syariah-Quest</p>
+          <h1 className="text-3xl font-black tracking-wide text-white sm:text-4xl">Hall of Fame</h1>
+          <p className="mt-2 max-w-xs text-sm font-medium leading-relaxed text-[#c9c3e6] sm:max-w-none">Peringkat tertinggi mahasiswa Syariah-Quest</p>
         </div>
 
         {/* Bottom Wave Decoration */}
@@ -64,88 +64,88 @@ export default function LeaderboardPage() {
       </div>
 
       {/* ARENA PODIUM TOP 3 */}
-      <div className="flex flex-col md:flex-row justify-center items-end gap-4 md:gap-8 mb-16">
+      <div className="mb-10 grid grid-cols-3 items-end justify-center gap-2 sm:flex sm:gap-4 md:mb-16 md:gap-8">
         
         {/* JUARA 2 (KIRI) */}
         {rank2 && (
-          <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+          <div className="order-1 flex min-w-0 flex-col items-center animate-fade-in-up sm:order-none" style={{ animationDelay: "0.2s" }}>
             <div className="relative mb-4">
-              <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-full border-4 border-gray-300 shadow-xl overflow-hidden z-10 relative">
+              <div className="relative z-10 h-16 w-16 overflow-hidden rounded-full border-4 border-gray-300 bg-gray-100 shadow-xl sm:h-20 sm:w-20 md:h-24 md:w-24">
                 <img src={getAvatar(rank2.avatar_url, rank2.nama_mahasiswa)} alt="Rank 2" className="w-full h-full object-cover p-1" />
               </div>
-              <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-gray-300 text-gray-800 font-black text-xs px-3 py-1 rounded-full border-2 border-white z-20">
+              <div className="absolute -bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border-2 border-white bg-gray-300 px-2 py-1 text-[10px] font-black text-gray-800 sm:px-3 sm:text-xs">
                 #2
               </div>
             </div>
-            <div className="text-center mb-4">
-              <p className="font-bold text-[#5B5288] truncate w-24 md:w-32">{rank2.nama_mahasiswa}</p>
+            <div className="mb-3 w-full min-w-0 text-center sm:mb-4">
+              <p className="mx-auto w-full max-w-[88px] truncate text-xs font-bold text-[#5B5288] sm:max-w-[128px] sm:text-base">{rank2.nama_mahasiswa}</p>
               <p className="text-[#39C936] font-extrabold text-sm">{rank2.total_xp} XP</p>
             </div>
-            <div className="w-24 md:w-32 h-24 md:h-32 bg-gradient-to-t from-gray-300 to-gray-200 rounded-t-2xl shadow-lg border border-gray-300"></div>
+            <div className="h-20 w-full max-w-[88px] rounded-t-2xl border border-gray-300 bg-gradient-to-t from-gray-300 to-gray-200 shadow-lg sm:h-24 sm:max-w-[128px] md:h-32"></div>
           </div>
         )}
 
         {/* JUARA 1 (TENGAH) */}
         {rank1 && (
-          <div className="flex flex-col items-center animate-fade-in-up z-10">
+          <div className="order-2 z-10 flex min-w-0 flex-col items-center animate-fade-in-up sm:order-none">
             <div className="relative mb-4">
-              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-4xl drop-shadow-md z-30">👑</div>
-              <div className="w-28 h-28 md:w-36 md:h-36 bg-yellow-50 rounded-full border-[6px] border-[#FFC107] shadow-2xl overflow-hidden z-10 relative">
+              <div className="absolute -top-5 left-1/2 z-30 -translate-x-1/2 text-3xl drop-shadow-md sm:-top-6 sm:text-4xl">👑</div>
+              <div className="relative z-10 h-20 w-20 overflow-hidden rounded-full border-[5px] border-[#FFC107] bg-yellow-50 shadow-2xl sm:h-28 sm:w-28 md:h-36 md:w-36">
                 <img src={getAvatar(rank1.avatar_url, rank1.nama_mahasiswa)} alt="Rank 1" className="w-full h-full object-cover p-2" />
               </div>
-              <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-[#FFC107] text-[#5B5288] font-black text-sm px-4 py-1 rounded-full border-2 border-white z-20 shadow-md">
+              <div className="absolute -bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full border-2 border-white bg-[#FFC107] px-3 py-1 text-xs font-black text-[#5B5288] shadow-md sm:px-4 sm:text-sm">
                 #1
               </div>
             </div>
-            <div className="text-center mb-4">
-              <p className="font-black text-[#5B5288] text-lg truncate w-32 md:w-40">{rank1.nama_mahasiswa}</p>
+            <div className="mb-3 w-full min-w-0 text-center sm:mb-4">
+              <p className="mx-auto w-full max-w-[100px] truncate text-sm font-black text-[#5B5288] sm:max-w-[160px] sm:text-lg">{rank1.nama_mahasiswa}</p>
               <p className="text-[#39C936] font-extrabold">{rank1.total_xp} XP</p>
             </div>
-            <div className="w-32 md:w-40 h-32 md:h-44 bg-gradient-to-t from-[#FFC107] to-yellow-300 rounded-t-2xl shadow-xl border border-yellow-400"></div>
+            <div className="h-28 w-full max-w-[100px] rounded-t-2xl border border-yellow-400 bg-gradient-to-t from-[#FFC107] to-yellow-300 shadow-xl sm:h-32 sm:max-w-[160px] md:h-44"></div>
           </div>
         )}
 
         {/* JUARA 3 (KANAN) */}
         {rank3 && (
-          <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+          <div className="order-3 flex min-w-0 flex-col items-center animate-fade-in-up sm:order-none" style={{ animationDelay: "0.4s" }}>
             <div className="relative mb-4">
-              <div className="w-20 h-20 md:w-24 md:h-24 bg-orange-50 rounded-full border-4 border-[#CD7F32] shadow-xl overflow-hidden z-10 relative">
+              <div className="relative z-10 h-16 w-16 overflow-hidden rounded-full border-4 border-[#CD7F32] bg-orange-50 shadow-xl sm:h-20 sm:w-20 md:h-24 md:w-24">
                 <img src={getAvatar(rank3.avatar_url, rank3.nama_mahasiswa)} alt="Rank 3" className="w-full h-full object-cover p-1" />
               </div>
-              <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-[#CD7F32] text-white font-black text-xs px-3 py-1 rounded-full border-2 border-white z-20">
+              <div className="absolute -bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border-2 border-white bg-[#CD7F32] px-2 py-1 text-[10px] font-black text-white sm:px-3 sm:text-xs">
                 #3
               </div>
             </div>
-            <div className="text-center mb-4">
-              <p className="font-bold text-[#5B5288] truncate w-24 md:w-32">{rank3.nama_mahasiswa}</p>
+            <div className="mb-3 w-full min-w-0 text-center sm:mb-4">
+              <p className="mx-auto w-full max-w-[88px] truncate text-xs font-bold text-[#5B5288] sm:max-w-[128px] sm:text-base">{rank3.nama_mahasiswa}</p>
               <p className="text-[#39C936] font-extrabold text-sm">{rank3.total_xp} XP</p>
             </div>
-            <div className="w-24 md:w-32 h-16 md:h-20 bg-gradient-to-t from-[#CD7F32] to-orange-300 rounded-t-2xl shadow-lg border border-orange-400"></div>
+            <div className="h-14 w-full max-w-[88px] rounded-t-2xl border border-orange-400 bg-gradient-to-t from-[#CD7F32] to-orange-300 shadow-lg sm:h-16 sm:max-w-[128px] md:h-20"></div>
           </div>
         )}
 
       </div>
 
       {/* DAFTAR PERINGKAT 4 dst... */}
-      <div className="max-w-2xl mx-auto flex flex-col gap-3">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 sm:gap-3">
         {rest.length > 0 ? (
           rest.map((player) => {
             const isMe = player.id_mahasiswa === profile?.idMahasiswa;
             return (
               <div 
                 key={player.id_mahasiswa} 
-                className={`flex items-center justify-between p-4 md:p-5 rounded-2xl shadow-sm transition-all hover:scale-[1.01] ${isMe ? 'bg-easy/10 border-2 border-easy/50' : 'bg-white border border-gray-100'}`}
+                className={`flex min-w-0 items-center justify-between gap-2 rounded-2xl p-3 shadow-sm transition-all sm:p-4 md:p-5 ${isMe ? 'border-2 border-easy/50 bg-easy/10' : 'border border-gray-100 bg-white'}`}
               >
-                <div className="flex items-center gap-4 md:gap-6">
-                  <span className="font-black text-gray-400 w-6 text-center">#{player.rank}</span>
-                  <div className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden shadow-inner border border-gray-200 shrink-0">
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4 md:gap-6">
+                  <span className="w-5 shrink-0 text-center text-xs font-black text-gray-400 sm:w-6 sm:text-base">#{player.rank}</span>
+                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100 shadow-inner sm:h-10 sm:w-10">
                     <img src={getAvatar(player.avatar_url, player.nama_mahasiswa)} alt="Avatar" className="w-full h-full object-cover" />
                   </div>
-                  <span className={`font-bold text-sm md:text-base ${isMe ? 'text-[#39C936]' : 'text-[#5B5288]'}`}>
+                  <span className={`min-w-0 truncate text-xs font-bold sm:text-sm md:text-base ${isMe ? 'text-[#39C936]' : 'text-[#5B5288]'}`}>
                     {player.nama_mahasiswa} {isMe && <span className="ml-1 text-xs text-white bg-[#39C936] px-2 py-0.5 rounded-md">Kamu</span>}
                   </span>
                 </div>
-                <span className="text-sm md:text-base font-black text-[#5B5288] bg-gray-50 px-4 py-2 rounded-xl">
+                <span className="shrink-0 rounded-lg bg-gray-50 px-2 py-1.5 text-xs font-black text-[#5B5288] sm:rounded-xl sm:px-4 sm:py-2 sm:text-sm md:text-base">
                   {player.total_xp} XP
                 </span>
               </div>

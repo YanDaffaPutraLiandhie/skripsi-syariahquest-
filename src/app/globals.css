@@ -3465,3 +3465,160 @@ a {
     padding: 16px;
   }
 }
+
+/* Shared mobile sizing for pages that use Tailwind and legacy admin CSS. */
+@media (max-width: 640px) {
+  html,
+  body {
+    min-width: 0;
+  }
+
+  body {
+    font-size: 14px;
+  }
+
+  .content,
+  .admin-layout .content {
+    padding: 12px;
+  }
+
+  .main-area,
+  .main-area.full-width {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .top-navbar {
+    min-height: 60px;
+    gap: 8px;
+    padding: 10px 12px 10px 56px;
+  }
+
+  .top-navbar h3 {
+    font-size: 16px;
+  }
+
+  .search-input {
+    min-width: 0;
+    max-width: none;
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .navbar-icons {
+    gap: 8px;
+  }
+
+  .admin-layout {
+    display: block;
+  }
+
+  .admin-layout .sidebar {
+    width: min(84vw, 250px);
+  }
+
+  .greeting-banner,
+  .dashboard-chart,
+  .dashboard-card,
+  .level-panel {
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .greeting-banner h1 {
+    font-size: 21px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+
+  .level-card {
+    padding: 16px;
+  }
+
+  .level-card h2 {
+    font-size: 24px;
+  }
+
+  .chart-wrapper {
+    height: 260px;
+    padding: 10px;
+  }
+
+  .card-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-header h3 {
+    font-size: 16px;
+  }
+
+  .admin-table-wrapper,
+  .overflow-x-auto {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-table {
+    min-width: 620px;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  .modal-box {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    border-radius: 14px;
+    padding: 18px 16px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 380px) {
+  .content,
+  .admin-layout .content {
+    padding: 8px;
+  }
+
+  .top-navbar {
+    padding-left: 52px;
+  }
+
+  .greeting-banner,
+  .dashboard-chart,
+  .dashboard-card,
+  .level-panel {
+    padding: 12px;
+  }
+
+  .admin-pagination-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

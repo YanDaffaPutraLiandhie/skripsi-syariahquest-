@@ -37,8 +37,6 @@ interface Question {
 interface DetailKuisRow {
   id_soal: number;
   id_jawaban: number;
-  soal: { soal: string }[];
-  jawaban: { jawaban: string; jawaban_benar: boolean }[];
 }
 
 type ExamResult = {
@@ -103,45 +101,59 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
 
         setDeadline(quizMeta?.deadline ?? null);
 
-        // 3. Tarik data soal dari detail_kuis
-        const { data, error } = await supabase
+        // 3. Ambil relasi soal dan jawaban dari kuis.
+        // Data jawaban disimpan sebagai baris terpisah di detail_kuis, jadi
+        // limit harus diterapkan setelah soal dikelompokkan, bukan di query ini.
+        const { data: detailData, error: detailError } = await supabase
           .from('detail_kuis')
-          .select(`
-            id_soal,
-            id_jawaban,
-            soal ( soal ),
-            jawaban ( jawaban, jawaban_benar )
-          `)
-          .eq('id_quis', quizId)
-          .limit(MAX_QUESTION_COUNT);
+          .select('id_soal, id_jawaban')
+          .eq('id_quis', quizId);
 
-        if (error) throw error;
+        if (detailError) throw detailError;
 
-        if (data) {
-          const qMap = new Map<number, Question>();
+        const detailRows = (detailData ?? []) as DetailKuisRow[];
+        const soalIds = [...new Set(detailRows.map((row) => row.id_soal))];
+        const jawabanIds = [...new Set(detailRows.map((row) => row.id_jawaban))];
 
-          data.forEach((row: DetailKuisRow) => {
-            const soal = row.soal?.[0];
-            const jawaban = row.jawaban?.[0];
-            if (!qMap.has(row.id_soal)) {
-              qMap.set(row.id_soal, {
-                id_soal: row.id_soal,
-                teks_soal: soal?.soal || "Teks soal tidak tersedia",
-                opsi: []
-              });
-            }
+        if (soalIds.length > 0) {
+          const { data: soalData, error: soalError } = await supabase
+            .from('soal')
+            .select('id_soal, soal')
+            .in('id_soal', soalIds);
 
-            if (jawaban) {
-              qMap.get(row.id_soal)?.opsi.push({
-                id_jawaban: row.id_jawaban,
-                teks_jawaban: jawaban.jawaban,
-                is_benar: jawaban.jawaban_benar
-              });
-            }
-          });
+          if (soalError) throw soalError;
 
-          const shuffledQuestions = shuffleQuestions(Array.from(qMap.values())).slice(0, MAX_QUESTION_COUNT);
-          setAllQuestions(shuffledQuestions);
+          const { data: jawabanData, error: jawabanError } = await supabase
+            .from('jawaban')
+            .select('id_jawaban, id_soal, jawaban, jawaban_benar')
+            .in('id_jawaban', jawabanIds);
+
+          if (jawabanError) throw jawabanError;
+
+          const soalTextMap = new Map(
+            (soalData ?? []).map((row) => [row.id_soal, row.soal]),
+          );
+          const jawabanMap = new Map<number, Option[]>();
+
+          for (const answer of jawabanData ?? []) {
+            const options = jawabanMap.get(answer.id_soal) ?? [];
+            options.push({
+              id_jawaban: answer.id_jawaban,
+              teks_jawaban: answer.jawaban,
+              is_benar: Boolean(answer.jawaban_benar),
+            });
+            jawabanMap.set(answer.id_soal, options);
+          }
+
+          const questions = soalIds
+            .map((idSoal) => ({
+              id_soal: idSoal,
+              teks_soal: soalTextMap.get(idSoal) || "Teks soal tidak tersedia",
+              opsi: jawabanMap.get(idSoal) ?? [],
+            }))
+            .filter((question) => question.opsi.length > 0);
+
+          setAllQuestions(shuffleQuestions(questions).slice(0, MAX_QUESTION_COUNT));
         }
 
         const mahasiswaId = profile?.idMahasiswa;
@@ -328,7 +340,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
               Evaluasi Mandiri
             </span>
             <h1 className="text-2xl font-black leading-snug tracking-wide md:text-3xl">
-              Ujian Mandiri (#{quizId})
+              Ujian Mandiri
             </h1>
           </div>
 

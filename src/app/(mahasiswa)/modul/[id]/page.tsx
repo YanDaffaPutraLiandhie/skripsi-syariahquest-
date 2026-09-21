@@ -370,6 +370,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
               onClaimXP={(score: number) => handleClaimXP(score)}
               idModul={course.id_modul}
               initialScore={quizScore}
+              passingGrade={course.parameter_nilai ?? 80}
             />
           </div>
         ) : (
