@@ -6,7 +6,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
 import { checkAndAwardModulBadges, type EarnedBadge } from "@/lib/badges";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { calculateMasteryScore, selectAdaptiveQuestions, type AdaptiveProgress } from "@/lib/adaptiveLearning";
+import { calculateMasteryScore, selectAdaptiveQuestions, shuffleQuestions, MAX_QUESTION_COUNT, type AdaptiveProgress } from "@/lib/adaptiveLearning";
 
 type JawabanDB = {
   id_jawaban: number;
@@ -41,6 +41,12 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
 
   const PASSING_GRADE = 70;
 
+  const getBaseXpByLevel = (level: number) => {
+    if (level === 2) return 50;
+    if (level === 3) return 100;
+    return 20;
+  };
+
   // 1. FETCH SOAL & LEVEL MODUL DARI DATABASE
   useEffect(() => {
     async function fetchData() {
@@ -50,10 +56,12 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
       const { data: dataSoal, error: errSoal } = await supabase
         .from('soal')
         .select('*, jawaban(*)')
-        .eq('id_modul', idModul);
+        .eq('id_modul', idModul)
+        .limit(MAX_QUESTION_COUNT);
 
       if (dataSoal && !errSoal) {
-        setAllQuestions(dataSoal);
+        const shuffledQuestions = shuffleQuestions(dataSoal).slice(0, MAX_QUESTION_COUNT);
+        setAllQuestions(shuffledQuestions);
       } else {
         console.error("Gagal memuat soal:", errSoal);
       }
@@ -121,12 +129,9 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
     const scorePercentage = Math.round((correctCount / questions.length) * 100);
     const isPassed = scorePercentage >= PASSING_GRADE;
 
-    // BARU: Penentuan XP berdasarkan tingkat kesulitan (Level)
-    let xpMultiplier = 10; // Default (Level 1 / Easy)
-    if (levelModul === 2) xpMultiplier = 20; // Level 2 (Medium)
-    if (levelModul === 3) xpMultiplier = 30; // Level 3 (Hard)
-
-    const earnedPoints = correctCount * xpMultiplier;
+    const baseXp = getBaseXpByLevel(levelModul);
+    const isRetry = initialScore !== null && initialScore !== undefined;
+    const earnedPoints = Math.round(baseXp * (isRetry ? 0.5 : 1));
 
     if (profile?.idMahasiswa) {
       try {
@@ -140,7 +145,7 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
           tanggal_selesai: new Date().toISOString()
         }, { onConflict: 'id_mahasiswa, id_modul' });
 
-        if (isPassed && !initialScore) {
+        if (isPassed) {
           const { data: mhsData } = await supabase
             .from('mahasiswa')
             .select('total_xp')
@@ -225,10 +230,9 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
     const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
     const isPassed = scorePercentage >= PASSING_GRADE;
 
-    let xpMultiplier = 10;
-    if (levelModul === 2) xpMultiplier = 20;
-    if (levelModul === 3) xpMultiplier = 30;
-    const earnedPoints = correctCount * xpMultiplier;
+    const baseXp = getBaseXpByLevel(levelModul);
+    const isRetry = initialScore !== null && initialScore !== undefined;
+    const earnedPoints = Math.round(baseXp * (isRetry ? 0.5 : 1));
 
     const displayAvatar = profile?.avatarUrl || "https://api.dicebear.com/7.x/micah/svg?seed=Pemain&backgroundColor=transparent";
     const displayName = profile?.namaMahasiswa || "Pemain Misterius";
@@ -238,7 +242,7 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
         
         <h1 className="text-3xl md:text-4xl font-bold text-center mb-6 mt-4 drop-shadow-md">
           {isPassed 
-            ? (initialScore ? "Skor Kuis Berhasil Diperbarui!" : `Selamat! Kamu Meraih +${earnedPoints} XP`) 
+            ? (initialScore ? `Selamat! Kamu Meraih +${earnedPoints} XP` : `Selamat! Kamu Meraih +${earnedPoints} XP`) 
             : "Yah, Nilaimu Belum Cukup :("}
         </h1>
 
@@ -293,10 +297,18 @@ export default function Quiz({ onClaimXP, idModul, initialScore }: { onClaimXP?:
                 <h3 className="font-bold text-[15px] mb-4 pr-10">{i + 1}. {q.soal}</h3>
                 <div className="flex flex-col gap-1.5 pl-4">
                   {q.jawaban.map((opt, optIdx) => {
+                    // Jawaban benar hanya ditandai hijau jika user memang menjawab
+                    // pertanyaan ini dengan benar. Jika salah, kunci jawaban tidak
+                    // diperlihatkan sama sekali — hanya pilihan yang dipilih user
+                    // (yang salah) yang ditandai merah.
                     let textStyle = "text-[#5B5288]/70 text-sm";
-                    if (opt.jawaban_benar) textStyle = "text-[#39C936] font-bold text-sm";
-                    else if (optIdx === selectedJawabanIndex && !isCorrect) textStyle = "text-[#E73131] font-bold text-sm";
-                    
+
+                    if (isCorrect && opt.jawaban_benar) {
+                      textStyle = "text-[#39C936] font-bold text-sm";
+                    } else if (optIdx === selectedJawabanIndex && !isCorrect) {
+                      textStyle = "text-[#E73131] font-bold text-sm";
+                    }
+
                     return <span key={optIdx} className={textStyle}>{String.fromCharCode(97 + optIdx)}. {opt.jawaban}</span>;
                   })}
                 </div>

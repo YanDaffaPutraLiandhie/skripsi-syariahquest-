@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { logActivity } from "@/lib/logActivity";
 import { extractDocumentText } from "@/lib/extractDocumentText";
+import { todayInputValue } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const LEVELS = [
@@ -59,30 +60,30 @@ function UploadBox({
   );
 }
 
-
 interface ModulForm {
-  idLevel: number | null
-  namaModul: string
-  teksMateri: string
-  linkVideo: string
-  parameterNilai: number
-  dokumenFile: File | null
-  thumbnailFile: File | null
-  dokumenFileName: string
-  thumbnailFileName: string
+  idLevel: number | null;
+  namaModul: string;
+  teksMateri: string;
+  linkVideo: string;
+  parameterNilai: number;
+  dokumenFile: File | null;
+  thumbnailFile: File | null;
+  dokumenFileName: string;
+  thumbnailFileName: string;
 }
 
 const emptyForm: ModulForm = {
   idLevel: null,
-  namaModul: '',
-  teksMateri: '',
-  linkVideo: '',
+  namaModul: "",
+  teksMateri: "",
+  linkVideo: "",
   parameterNilai: 80,
   dokumenFile: null,
   thumbnailFile: null,
-  dokumenFileName: '',
-  thumbnailFileName: '',
-}
+  dokumenFileName: "",
+  thumbnailFileName: "",
+};
+
 function TambahModulContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,63 +97,34 @@ function TambahModulContent() {
    */
   const idParam = searchParams.get("id");
 
-  const editId =
-    idParam && /^\d+$/.test(idParam)
-      ? Number(idParam)
-      : 0;
+  const editId = idParam && /^\d+$/.test(idParam) ? Number(idParam) : 0;
 
   const [nilai, setNilai] = useState(80);
+  const [level, setLevel] = useState<LevelKey>("medium");
+  const [namaModul, setNamaModul] = useState("");
+  const [linkVideo, setLinkVideo] = useState("");
+  const [deadline, setDeadline] = useState("");
 
-  const [level, setLevel] =
-    useState<LevelKey>("medium");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [docLabel, setDocLabel] = useState<string | null>(null);
+  const [thumbnailLabel, setThumbnailLabel] = useState<string | null>(null);
 
-  const [namaModul, setNamaModul] =
-    useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingModuleId, setEditingModuleId] = useState<number | null>(null);
 
-  const [linkVideo, setLinkVideo] =
-    useState("");
+  const [form, setForm] = useState<ModulForm>(emptyForm);
 
-  const [docFile, setDocFile] =
-    useState<File | null>(null);
-
-  const [thumbnailFile, setThumbnailFile] =
-    useState<File | null>(null);
-
-  const [docLabel, setDocLabel] =
-    useState<string | null>(null);
-
-  const [thumbnailLabel, setThumbnailLabel] =
-    useState<string | null>(null);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  const [isEditMode, setIsEditMode] =
-    useState(false);
-
-  const [editingModuleId, setEditingModuleId] =
-    useState<number | null>(null);
-
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [form, setForm] = useState<ModulForm>(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState('')
   /*
    * =========================================================
    * DATA DOSEN LOGIN
    * =========================================================
    */
-  const [idDosen, setIdDosen] =
-    useState<number | null>(null);
-
-  const [namaDosen, setNamaDosen] =
-    useState("");
-
-  const [loadingDosen, setLoadingDosen] =
-    useState(true);
+  const [idDosen, setIdDosen] = useState<number | null>(null);
+  const [namaDosen, setNamaDosen] = useState("");
+  const [loadingDosen, setLoadingDosen] = useState(true);
 
   async function handleDocumentFile(file: File | null) {
     setDocFile(file);
@@ -163,7 +135,8 @@ function TambahModulContent() {
       setForm((previous) => ({ ...previous, teksMateri: text }));
       setMessage("Isi dokumen berhasil dibaca dan dimasukkan ke materi.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Isi dokumen belum dapat dibaca.");
+      // Error dicatat di console saja, tidak ditampilkan ke user.
+      console.error("Gagal membaca dokumen:", error);
     }
   }
 
@@ -178,9 +151,7 @@ function TambahModulContent() {
     hard: 3,
   };
 
-  function getLevelKeyFromId(
-    idLevel: number | null
-  ): LevelKey {
+  function getLevelKeyFromId(idLevel: number | null): LevelKey {
     switch (idLevel) {
       case 1:
         return "easy";
@@ -215,10 +186,7 @@ function TambahModulContent() {
       setMessage("");
 
       try {
-        const {
-          data,
-          error,
-        } = await supabase
+        const { data, error } = await supabase
           .from("modul")
           .select(
             `
@@ -226,9 +194,11 @@ function TambahModulContent() {
               nama_modul,
               id_level,
               video_url,
+              teks_materi,
               thumbnail_url,
               dokumen_pendukung,
-              parameter_nilai
+              parameter_nilai,
+              deadline
             `
           )
           .eq("id_modul", editId)
@@ -239,64 +209,43 @@ function TambahModulContent() {
         }
 
         if (error) {
-          console.error(
-            "Gagal memuat modul:",
-            error
-          );
-
-          setMessage(
-            `Gagal memuat data modul: ${error.message}`
-          );
-
+          // Error dicatat di console saja, tidak ditampilkan ke user.
+          console.error("Gagal memuat modul:", error);
           return;
         }
 
         if (!data) {
-          setMessage(
-            "Modul yang dipilih tidak ditemukan."
+          // Dicatat di console saja, tidak ditampilkan ke user.
+          console.error(
+            "Modul yang dipilih tidak ditemukan (id_modul:",
+            editId,
+            ")"
           );
-
           return;
         }
 
-        setNamaModul(
-          data.nama_modul ?? ""
-        );
+        setNamaModul(data.nama_modul ?? "");
+        setLevel(getLevelKeyFromId(data.id_level));
+        setLinkVideo(data.video_url ?? "");
+        setNilai(data.parameter_nilai ?? 80);
+        setDeadline(data.deadline ? String(data.deadline).slice(0, 10) : "");
 
-        setLevel(
-          getLevelKeyFromId(data.id_level)
-        );
-
-        setLinkVideo(
-          data.video_url ?? ""
-        );
-
-        setNilai(
-          data.parameter_nilai ?? 80
-        );
+        // teks_materi ikut dimuat supaya tidak tertimpa kosong saat disimpan
+        setForm((previous) => ({
+          ...previous,
+          teksMateri: data.teks_materi ?? "",
+        }));
 
         setThumbnailLabel(
-          data.thumbnail_url
-            ? "File thumbnail sudah ada"
-            : null
+          data.thumbnail_url ? "File thumbnail sudah ada" : null
         );
 
         setDocLabel(
-          data.dokumen_pendukung
-            ? "File dokumen sudah ada"
-            : null
+          data.dokumen_pendukung ? "File dokumen sudah ada" : null
         );
       } catch (error) {
-        console.error(
-          "Gagal memuat modul untuk edit:",
-          error
-        );
-
-        if (!cancelled) {
-          setMessage(
-            "Gagal memuat data modul yang akan diedit."
-          );
-        }
+        // Error dicatat di console saja, tidak ditampilkan ke user.
+        console.error("Gagal memuat modul untuk edit:", error);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -332,72 +281,47 @@ function TambahModulContent() {
         } = await supabase.auth.getUser();
 
         if (authError || !user) {
+          // Error dicatat di console saja, tidak ditampilkan ke user.
           console.error(
             "Gagal mendapatkan user yang sedang login:",
             authError
           );
 
-          if (!cancelled) {
-            setMessage(
-              "Gagal mendapatkan data user yang sedang login."
-            );
-          }
-
           return;
         }
 
-        console.log(
-          "Auth User ID:",
-          user.id
-        );
+        console.log("Auth User ID:", user.id);
 
         /*
          * =====================================================
          * 2. CARI id_dosen DI TABEL user
          * =====================================================
          */
-        const {
-          data: userData,
-          error: userError,
-        } = await supabase
+        const { data: userData, error: userError } = await supabase
           .from("user")
           .select("id_dosen")
           .eq("auth_user_id", user.id)
           .maybeSingle();
 
         if (userError) {
-          console.error(
-            "Gagal mendapatkan id_dosen:",
-            userError
-          );
-
-          if (!cancelled) {
-            setMessage(
-              "Gagal mengambil data dosen dari akun Anda."
-            );
-          }
+          // Error dicatat di console saja, tidak ditampilkan ke user.
+          console.error("Gagal mendapatkan id_dosen:", userError);
 
           return;
         }
 
         if (!userData?.id_dosen) {
-          if (!cancelled) {
-            setMessage(
-              "Akun yang sedang login belum terhubung dengan data dosen."
-            );
-          }
+          // Dicatat di console saja, tidak ditampilkan ke user.
+          console.error(
+            "Akun yang sedang login belum terhubung dengan data dosen."
+          );
 
           return;
         }
 
-        const dosenId = Number(
-          userData.id_dosen
-        );
+        const dosenId = Number(userData.id_dosen);
 
-        console.log(
-          "ID Dosen:",
-          dosenId
-        );
+        console.log("ID Dosen:", dosenId);
 
         if (cancelled) {
           return;
@@ -410,61 +334,34 @@ function TambahModulContent() {
          * 3. AMBIL NAMA DOSEN
          * =====================================================
          */
-        const {
-          data: dosenData,
-          error: dosenError,
-        } = await supabase
+        const { data: dosenData, error: dosenError } = await supabase
           .from("dosen")
           .select("nama_dosen")
           .eq("id_dosen", dosenId)
           .maybeSingle();
 
         if (dosenError) {
-          console.error(
-            "Gagal mendapatkan data dosen:",
-            dosenError
-          );
-
-          if (!cancelled) {
-            setMessage(
-              "Data dosen tidak ditemukan."
-            );
-          }
+          // Error dicatat di console saja, tidak ditampilkan ke user.
+          console.error("Gagal mendapatkan data dosen:", dosenError);
 
           return;
         }
 
         if (!dosenData?.nama_dosen) {
-          if (!cancelled) {
-            setMessage(
-              "Nama dosen belum tersedia di database."
-            );
-          }
+          // Dicatat di console saja, tidak ditampilkan ke user.
+          console.error("Nama dosen belum tersedia di database.");
 
           return;
         }
 
-        console.log(
-          "Nama Dosen:",
-          dosenData.nama_dosen
-        );
+        console.log("Nama Dosen:", dosenData.nama_dosen);
 
         if (!cancelled) {
-          setNamaDosen(
-            dosenData.nama_dosen
-          );
+          setNamaDosen(dosenData.nama_dosen);
         }
       } catch (error) {
-        console.error(
-          "Terjadi kesalahan saat mengambil data dosen:",
-          error
-        );
-
-        if (!cancelled) {
-          setMessage(
-            "Terjadi kesalahan saat mengambil data dosen."
-          );
-        }
+        // Error dicatat di console saja, tidak ditampilkan ke user.
+        console.error("Terjadi kesalahan saat mengambil data dosen:", error);
       } finally {
         if (!cancelled) {
           setLoadingDosen(false);
@@ -498,33 +395,21 @@ function TambahModulContent() {
 
       const filePath = `${folder}/${Date.now()}-${safeFileName}`;
 
-      const {
-        error: uploadError,
-      } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(BUCKET)
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error(
-          "Upload error:",
-          uploadError
-        );
+        console.error("Upload error:", uploadError);
 
         return null;
       }
 
-      const {
-        data,
-      } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(filePath);
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
 
       return data?.publicUrl ?? null;
     } catch (error) {
-      console.error(
-        "Unexpected upload error:",
-        error
-      );
+      console.error("Unexpected upload error:", error);
 
       return null;
     }
@@ -538,6 +423,7 @@ function TambahModulContent() {
   function resetForm() {
     setNamaModul("");
     setLinkVideo("");
+    setDeadline("");
     setDocFile(null);
     setThumbnailFile(null);
     setDocLabel(null);
@@ -558,9 +444,7 @@ function TambahModulContent() {
      * VALIDASI NAMA
      */
     if (!namaModul.trim()) {
-      setMessage(
-        "Nama modul tidak boleh kosong."
-      );
+      setMessage("Nama modul tidak boleh kosong.");
 
       return;
     }
@@ -572,6 +456,15 @@ function TambahModulContent() {
       setMessage(
         "Data dosen belum ditemukan. Silakan refresh halaman atau login kembali."
       );
+
+      return;
+    }
+
+    /*
+     * VALIDASI DEADLINE (hanya saat membuat modul baru)
+     */
+    if (!isEditMode && deadline && deadline < todayInputValue()) {
+      setMessage("Deadline tidak boleh sebelum hari ini.");
 
       return;
     }
@@ -591,18 +484,12 @@ function TambahModulContent() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        console.error(
-          "Gagal mendapatkan user login:",
-          userError
-        );
+        console.error("Gagal mendapatkan user login:", userError);
 
-        setMessage(
-          "Anda belum login."
-        );
+        setMessage("Anda belum login.");
 
         return;
       }
-
 
       /*
        * =====================================================
@@ -612,45 +499,27 @@ function TambahModulContent() {
       let thumbnail_url = "";
 
       if (thumbnailFile) {
-        const url = await uploadFile(
-          thumbnailFile,
-          "thumbnail"
-        );
+        const url = await uploadFile(thumbnailFile, "thumbnail");
 
         if (!url) {
-          setMessage(
-            "Gagal mengunggah thumbnail."
-          );
-
+          // Error dicatat di console (di dalam uploadFile), tidak ditampilkan ke user.
+          setLoading(false);
           return;
         }
 
         thumbnail_url = url;
-      } else if (
-        isEditMode &&
-        editingModuleId
-      ) {
-        const {
-          data: existing,
-          error: existingError,
-        } = await supabase
+      } else if (isEditMode && editingModuleId) {
+        const { data: existing, error: existingError } = await supabase
           .from("modul")
           .select("thumbnail_url")
-          .eq(
-            "id_modul",
-            editingModuleId
-          )
+          .eq("id_modul", editingModuleId)
           .maybeSingle();
 
         if (existingError) {
-          console.error(
-            "Gagal mengambil thumbnail lama:",
-            existingError
-          );
+          console.error("Gagal mengambil thumbnail lama:", existingError);
         }
 
-        thumbnail_url =
-          existing?.thumbnail_url ?? "";
+        thumbnail_url = existing?.thumbnail_url ?? "";
       }
 
       /*
@@ -661,45 +530,27 @@ function TambahModulContent() {
       let dokumen_pendukung = "";
 
       if (docFile) {
-        const url = await uploadFile(
-          docFile,
-          "dokumen"
-        );
+        const url = await uploadFile(docFile, "dokumen");
 
         if (!url) {
-          setMessage(
-            "Gagal mengunggah dokumen."
-          );
-
+          // Error dicatat di console (di dalam uploadFile), tidak ditampilkan ke user.
+          setLoading(false);
           return;
         }
 
         dokumen_pendukung = url;
-      } else if (
-        isEditMode &&
-        editingModuleId
-      ) {
-        const {
-          data: existing,
-          error: existingError,
-        } = await supabase
+      } else if (isEditMode && editingModuleId) {
+        const { data: existing, error: existingError } = await supabase
           .from("modul")
           .select("dokumen_pendukung")
-          .eq(
-            "id_modul",
-            editingModuleId
-          )
+          .eq("id_modul", editingModuleId)
           .maybeSingle();
 
         if (existingError) {
-          console.error(
-            "Gagal mengambil dokumen lama:",
-            existingError
-          );
+          console.error("Gagal mengambil dokumen lama:", existingError);
         }
 
-        dokumen_pendukung =
-          existing?.dokumen_pendukung ?? "";
+        dokumen_pendukung = existing?.dokumen_pendukung ?? "";
       }
 
       /*
@@ -708,26 +559,21 @@ function TambahModulContent() {
        * =====================================================
        */
       const payload = {
-        nama_modul:
-          namaModul.trim(),
+        nama_modul: namaModul.trim(),
 
-        id_level:
-          LEVEL_VALUE[level],
+        id_level: LEVEL_VALUE[level],
 
-        teks_materi:
-          form.teksMateri.trim() || null,
+        teks_materi: form.teksMateri.trim() || null,
 
-        video_url:
-          linkVideo.trim() || null,
+        video_url: linkVideo.trim() || null,
 
-        thumbnail_url:
-          thumbnail_url || null,
+        thumbnail_url: thumbnail_url || null,
 
-        dokumen_pendukung:
-          dokumen_pendukung || null,
+        dokumen_pendukung: dokumen_pendukung || null,
 
-        parameter_nilai:
-          nilai,
+        parameter_nilai: nilai,
+
+        deadline: deadline || null,
       };
 
       /*
@@ -735,29 +581,15 @@ function TambahModulContent() {
        * MODE EDIT
        * =====================================================
        */
-      if (
-        isEditMode &&
-        editingModuleId
-      ) {
-        const {
-          error: updateError,
-        } = await supabase
+      if (isEditMode && editingModuleId) {
+        const { error: updateError } = await supabase
           .from("modul")
           .update(payload)
-          .eq(
-            "id_modul",
-            editingModuleId
-          );
+          .eq("id_modul", editingModuleId);
 
         if (updateError) {
-          console.error(
-            "Update modul error:",
-            updateError
-          );
-
-          setMessage(
-            `Gagal memperbarui modul: ${updateError.message}`
-          );
+          // Error dicatat di console saja, tidak ditampilkan ke user.
+          console.error("Update modul error:", updateError);
 
           return;
         }
@@ -772,20 +604,13 @@ function TambahModulContent() {
             keterangan: `Dosen ${namaDosen} memperbarui modul "${namaModul.trim()}"`,
           });
         } catch (logError) {
-          console.error(
-            "Gagal mencatat aktivitas edit modul:",
-            logError
-          );
+          console.error("Gagal mencatat aktivitas edit modul:", logError);
         }
 
-        setMessage(
-          "Modul berhasil diperbarui."
-        );
+        setMessage("Modul berhasil diperbarui.");
 
         setTimeout(() => {
-          router.push(
-            "/Dosen/modul"
-          );
+          router.push("/Dosen/modul");
         }, 800);
 
         return;
@@ -796,16 +621,12 @@ function TambahModulContent() {
        * MODE TAMBAH
        * =====================================================
        */
-      const {
-        data,
-        error: insertError,
-      } = await supabase
+      const { data, error: insertError } = await supabase
         .from("modul")
         .insert({
           ...payload,
 
-          dibuat_oleh:
-            idDosen,
+          dibuat_oleh: idDosen,
 
           status: true,
         })
@@ -813,22 +634,13 @@ function TambahModulContent() {
         .single();
 
       if (insertError) {
-        console.error(
-          "Insert modul error:",
-          insertError
-        );
-
-        setMessage(
-          `Gagal menyimpan modul: ${insertError.message}`
-        );
+        // Error dicatat di console saja, tidak ditampilkan ke user.
+        console.error("Insert modul error:", insertError);
 
         return;
       }
 
-      console.log(
-        "Modul berhasil dibuat:",
-        data
-      );
+      console.log("Modul berhasil dibuat:", data);
 
       /*
        * =====================================================
@@ -846,15 +658,10 @@ function TambahModulContent() {
          * LOG GAGAL TIDAK MEMBATALKAN
          * PEMBUATAN MODUL
          */
-        console.error(
-          "Gagal mencatat aktivitas tambah modul:",
-          logError
-        );
+        console.error("Gagal mencatat aktivitas tambah modul:", logError);
       }
 
-      setMessage(
-        `Modul berhasil disimpan oleh ${namaDosen}!`
-      );
+      setMessage(`Modul berhasil disimpan oleh ${namaDosen}!`);
 
       /*
        * RESET FORM
@@ -863,14 +670,8 @@ function TambahModulContent() {
         resetForm();
       }, 1500);
     } catch (error) {
-      console.error(
-        "Terjadi kesalahan saat menyimpan modul:",
-        error
-      );
-
-      setMessage(
-        "Terjadi kesalahan, coba lagi."
-      );
+      // Error dicatat di console saja, tidak ditampilkan ke user.
+      console.error("Terjadi kesalahan saat menyimpan modul:", error);
     } finally {
       setLoading(false);
     }
@@ -956,10 +757,11 @@ function TambahModulContent() {
                   key={lvl.key}
                   type="button"
                   onClick={() => setLevel(lvl.key)}
-                  className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${lvl.color} ${level === lvl.key
-                    ? "opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]"
-                    : "opacity-40 hover:opacity-80"
-                    }`}
+                  className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${lvl.color} ${
+                    level === lvl.key
+                      ? "opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]"
+                      : "opacity-40 hover:opacity-80"
+                  }`}
                 >
                   {lvl.label}
                 </button>
@@ -982,21 +784,43 @@ function TambahModulContent() {
           />
         </div>
 
-        {/* TEKS MATERI — sekarang pakai gaya Tailwind yang sama
-            dengan field Nama Modul & Link Video di atas/bawahnya,
-            bukan class CSS eksternal (modul-form-field /
-            modul-textarea-input) yang tidak ada definisinya di
-            sini sehingga tampilannya polos/tidak konsisten. */}
+        {/* DEADLINE MODUL */}
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Deadline Modul (opsional)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={deadline}
+              min={isEditMode ? undefined : todayInputValue()}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="h-12 w-full flex-1 rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+            />
+            {deadline && (
+              <button
+                type="button"
+                onClick={() => setDeadline("")}
+                className="h-12 shrink-0 rounded-2xl border border-[#e4e2ee] bg-white px-4 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
+              >
+                Hapus
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+            Setelah deadline, nilai kuis yang lolos akan dipatok ke nilai
+            minimal modul. Nilai di bawah minimal tetap harus mengulang kuis.
+          </p>
+        </div>
 
+        {/* TEKS MATERI */}
         <div className="mb-6">
           <label className="mb-2 block text-sm font-bold text-[#3d3466]">
             Teks Materi
           </label>
           <textarea
             value={form.teksMateri}
-            onChange={(e) =>
-              setForm({ ...form, teksMateri: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, teksMateri: e.target.value })}
             rows={5}
             placeholder="Tulis isi materi pembelajaran di sini..."
             className="w-full resize-none rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 py-3 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
@@ -1020,7 +844,7 @@ function TambahModulContent() {
         {/* UPLOAD FILE BOXES */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <UploadBox
-            label="Dokumen Pembelajaran (Doc)"
+            label="Dokumen Pembelajaran (docx/pdf)"
             borderColor="border-sky-400"
             onFile={handleDocumentFile}
             fileName={docFile?.name ?? docLabel}
@@ -1031,15 +855,24 @@ function TambahModulContent() {
             onFile={setThumbnailFile}
             fileName={thumbnailFile?.name ?? thumbnailLabel}
           />
+         
         </div>
+         <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+            catatan : <br />
+            - bila dokumen yang di unggah berformat docx, maka sistem akan otomatis mengekstrak teksnya dan menaruhnya di kolom Teks Materi.<br />
+            - bila dokumen yang di unggah berformat pdf, maka sistem tidak dapat mengekstrak teksnya, sehingga kolom Teks Materi harus diisi secara manual. <br />
+          </p>
 
-        {/* MESSAGE */}
+          
+
+        {/* MESSAGE (hanya menampilkan pesan sukses / validasi input) */}
         {message && (
           <div
-            className={`mb-6 rounded-2xl p-4 text-center text-sm font-bold ${message.includes("berhasil")
-              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-              : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
-              }`}
+            className={`mb-6 rounded-2xl p-4 text-center text-sm font-bold ${
+              message.includes("berhasil")
+                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+            }`}
           >
             {message}
           </div>
@@ -1085,15 +918,8 @@ function TambahModulContent() {
  * ===========================================================
  * PAGE WRAPPER
  *
- * PENTING:
- * useSearchParams() berada di TambahModulContent.
- * Component tersebut dibungkus Suspense.
- *
- * Ini memperbaiki:
- *
- * useSearchParams() should be wrapped in a suspense boundary
- *
- * pada `next build`.
+ * useSearchParams() berada di TambahModulContent, jadi harus
+ * dibungkus Suspense (syarat `next build`).
  * ===========================================================
  */
 export default function TambahModulPage() {
@@ -1101,7 +927,6 @@ export default function TambahModulPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen bg-white">
-
           <main className="flex flex-1 items-center justify-center p-8">
             <div className="rounded-2xl bg-[#f8f7ff] px-8 py-6 shadow-sm">
               <p className="text-sm font-semibold text-[#4a3f7a]">

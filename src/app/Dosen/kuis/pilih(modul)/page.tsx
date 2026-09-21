@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
+import { todayInputValue } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
-import { Check, ArrowLeft } from "lucide-react";
+import { Check, ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 type ModulRow = {
   id: number;
@@ -16,10 +17,14 @@ type ModulRow = {
 };
 
 export default function PilihModul() {
+  const MODULES_PER_PAGE = 10;
   const router = useRouter();
   const [modules, setModules] = useState<ModulRow[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [namaKuis, setNamaKuis] = useState("");
+  const [deadline, setDeadline] = useState("");
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -93,6 +98,11 @@ export default function PilihModul() {
       return;
     }
 
+    if (deadline && deadline < todayInputValue()) {
+      setErrorMessage("Deadline tidak boleh sebelum hari ini.");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -135,7 +145,7 @@ export default function PilihModul() {
 
       const { data: quisBaru, error: quisError } = await supabase
         .from("quis")
-        .insert({ nama_kuis: kuisName })
+        .insert({ nama_kuis: kuisName, deadline: deadline || null })
         .select()
         .single();
 
@@ -176,7 +186,9 @@ export default function PilihModul() {
       await logActivity({
         fitur: "Kuis",
         jenis_aktivitas: "Tambah Kuis",
-        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal`,
+        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal${
+          deadline ? ` (deadline ${deadline})` : ""
+        }`,
       });
 
       setSuccessMessage(
@@ -184,6 +196,7 @@ export default function PilihModul() {
       );
       setSelected([]);
       setNamaKuis("");
+      setDeadline("");
     } catch (err: any) {
       console.error(err);
       setErrorMessage(err?.message || "Terjadi kesalahan saat membuat kuis.");
@@ -194,9 +207,22 @@ export default function PilihModul() {
 
   const handleCancel = () => {
     setSelected([]);
+    setDeadline("");
     setErrorMessage("");
     setSuccessMessage("");
   };
+
+  const filteredModules = modules.filter((module) =>
+    module.name.toLowerCase().includes(searchTerm.trim().toLowerCase()),
+  );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredModules.length / MODULES_PER_PAGE),
+  );
+  const paginatedModules = filteredModules.slice(
+    (currentPage - 1) * MODULES_PER_PAGE,
+    currentPage * MODULES_PER_PAGE,
+  );
 
   return (
     <DosenContainer
@@ -215,17 +241,47 @@ export default function PilihModul() {
       }
     >
       <div className="space-y-6">
-        <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
-          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
-            Nama Kuis Baru
-          </label>
-          <input
-            type="text"
-            value={namaKuis}
-            onChange={(e) => setNamaKuis(e.target.value)}
-            placeholder="Contoh: Kuis Evaluasi Pekan 1..."
-            className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
-          />
+        <div className="grid grid-cols-1 gap-5 rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Nama Kuis Baru
+            </label>
+            <input
+              type="text"
+              value={namaKuis}
+              onChange={(e) => setNamaKuis(e.target.value)}
+              placeholder="Contoh: Kuis Evaluasi Pekan 1..."
+              className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+              Deadline (opsional)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={deadline}
+                min={todayInputValue()}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="h-12 w-full flex-1 rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+              />
+              {deadline && (
+                <button
+                  type="button"
+                  onClick={() => setDeadline("")}
+                  className="h-12 shrink-0 rounded-2xl border border-[#e4e2ee] bg-white px-4 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+              Setelah deadline, nilai kuis yang lolos akan dipatok ke nilai
+              minimal.
+            </p>
+          </div>
         </div>
 
         <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
@@ -236,13 +292,35 @@ export default function PilihModul() {
             </span>
           </div>
 
+          <div className="relative mb-5">
+            <Search
+              size={18}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#8b84a5]"
+            />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Cari nama modul..."
+              aria-label="Cari modul"
+              className="h-12 w-full rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] pl-11 pr-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white"
+            />
+          </div>
+
           <div className="space-y-3">
             {modules.length === 0 ? (
               <div className="py-8 text-center text-sm font-semibold text-[#8b84a5]">
                 Tidak ada modul aktif yang tersedia.
               </div>
+            ) : filteredModules.length === 0 ? (
+              <div className="py-8 text-center text-sm font-semibold text-[#8b84a5]">
+                Modul yang dicari tidak ditemukan.
+              </div>
             ) : (
-              modules.map((row) => {
+              paginatedModules.map((row) => {
                 const isChecked = selected.includes(row.id);
                 return (
                   <div
@@ -280,6 +358,38 @@ export default function PilihModul() {
               })
             )}
           </div>
+
+          {filteredModules.length > 0 && (
+            <div className="mt-6 flex items-center justify-between border-t border-[#f0edf9] pt-5">
+              <p className="text-xs font-semibold text-[#8b84a5]">
+                Menampilkan {Math.min((currentPage - 1) * MODULES_PER_PAGE + 1, filteredModules.length)}-
+                {Math.min(currentPage * MODULES_PER_PAGE, filteredModules.length)} dari {filteredModules.length} modul
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  aria-label="Halaman sebelumnya"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e4e2ee] text-[#4a3f7a] transition hover:bg-[#f8f7fd] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <span className="min-w-20 text-center text-xs font-bold text-[#4a3f7a]">
+                  Halaman {currentPage} / {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                  aria-label="Halaman berikutnya"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e4e2ee] text-[#4a3f7a] transition hover:bg-[#f8f7fd] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+            </div>
+          )}
 
           {errorMessage && (
             <p className="mt-4 rounded-2xl bg-rose-50 p-4 text-xs font-bold text-rose-700 ring-1 ring-rose-200">

@@ -7,6 +7,7 @@ import Quiz from "@/components/Quis/page";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getModuleAccess, type AdaptiveModule, type AdaptiveProgress } from "@/lib/adaptiveLearning";
+import { applyDeadlineScore, formatDeadline, isPastDeadline } from "@/lib/deadline";
 
 type DetailModulDB = {
   id_modul: number;
@@ -16,6 +17,12 @@ type DetailModulDB = {
   dokumen_pendukung: string | null;
   id_level: number;
   parameter_nilai: number | null;
+  deadline: string | null;
+};
+
+type ResultNotice = {
+  type: "success" | "warning";
+  text: string;
 };
 
 function getYouTubeEmbedUrl(url: string) {
@@ -45,6 +52,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(true);
   const [accessReason, setAccessReason] = useState("");
+  const [resultNotice, setResultNotice] = useState<ResultNotice | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -145,8 +153,64 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
     markMateriViewed();
   }, [course, profile?.idMahasiswa, activeTab]);
 
-  function handleClaimXP(score: number) {
-    setQuizScore(score);
+  // =============================================================
+  // HASIL KUIS MODUL
+  //
+  // - Nilai >= nilai minimal & sebelum deadline -> nilai apa adanya
+  // - Nilai >= nilai minimal & lewat deadline   -> nilai dipatok = nilai minimal
+  // - Nilai <  nilai minimal                    -> tidak lulus, modul berikutnya
+  //                                                tetap terkunci, harus mengulang
+  // =============================================================
+  async function handleClaimXP(score: number) {
+    if (!course) return;
+
+    const minScore = course.parameter_nilai ?? 80;
+    const result = applyDeadlineScore(score, minScore, course.deadline);
+
+    // ---- Tidak lulus: harus mengulang ----
+    if (!result.passed) {
+      if (profile?.idMahasiswa) {
+        const { error } = await supabase
+          .from("progress_modul")
+          .update({ selesai: false })
+          .eq("id_mahasiswa", profile.idMahasiswa)
+          .eq("id_modul", course.id_modul);
+
+        if (error) console.error("Gagal memperbarui status kuis:", error);
+      }
+
+      setResultNotice({
+        type: "warning",
+        text: `Nilaimu belum mencapai batas minimal ${minScore}%. Modul berikutnya belum terbuka — pelajari materi lalu ulangi kuis ini.`,
+      });
+      return;
+    }
+
+    // ---- Lulus (nilai >= parameter_nilai modul) ----
+    // Modul ditandai selesai. Jika lewat deadline, nilai dipatok ke nilai minimal.
+    if (profile?.idMahasiswa) {
+      const { error } = await supabase
+        .from("progress_modul")
+        .update(
+          result.wasCapped
+            ? { selesai: true, nilai: result.finalScore }
+            : { selesai: true },
+        )
+        .eq("id_mahasiswa", profile.idMahasiswa)
+        .eq("id_modul", course.id_modul);
+
+      if (error) console.error("Gagal memperbarui progres modul:", error);
+    }
+
+    setResultNotice(
+      result.wasCapped
+        ? {
+            type: "success",
+            text: `Kamu lulus, tetapi kuis dikerjakan setelah deadline. Nilai akhir dicatat sebagai nilai minimal (${minScore}%).`,
+          }
+        : null,
+    );
+    setQuizScore(result.finalScore);
     setActiveTab("materi");
   }
 
@@ -193,6 +257,8 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
     : [];
   const embedUrl = course.video_url ? getYouTubeEmbedUrl(course.video_url) : null;
   const isPdfDocument = course.dokumen_pendukung?.toLowerCase().includes(".pdf");
+  const minScore = course.parameter_nilai ?? 80;
+  const deadlineLate = isPastDeadline(course.deadline);
 
   return (
     <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-start lg:gap-8">
@@ -247,6 +313,56 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
             </svg>
           </div>
         </div>
+
+        {/* =====================================================
+            BANNER DEADLINE
+        ===================================================== */}
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#5B5288]/10 px-4 py-2 text-sm font-bold text-[#5B5288]">
+          🎯 Nilai minimal lulus kuis: {minScore}%
+        </div>
+
+        {course.deadline && (
+          <div
+            className={`mb-6 rounded-2xl p-4 text-sm font-bold ring-1 ${
+              deadlineLate
+                ? "bg-amber-50 text-amber-800 ring-amber-200"
+                : "bg-sky-50 text-sky-800 ring-sky-200"
+            }`}
+          >
+            {deadlineLate ? (
+              <>
+                🗓 Deadline modul ({formatDeadline(course.deadline)}) sudah lewat.
+                <span className="mt-1 block font-semibold">
+                  Jika nilai kuismu mencapai {minScore}% atau lebih, nilai akhir
+                  dicatat sebagai {minScore}%. Jika di bawah {minScore}%, kamu
+                  harus mengulang kuis dan modul berikutnya belum terbuka.
+                </span>
+              </>
+            ) : (
+              <>
+                🗓 Deadline modul: {formatDeadline(course.deadline)}
+                <span className="mt-1 block font-semibold">
+                  Kerjakan kuis sebelum deadline agar nilaimu dicatat apa adanya.
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* =====================================================
+            NOTIFIKASI HASIL KUIS
+        ===================================================== */}
+        {resultNotice && (
+          <div
+            className={`mb-6 rounded-2xl p-4 text-sm font-bold ring-1 ${
+              resultNotice.type === "warning"
+                ? "bg-rose-50 text-rose-700 ring-rose-200"
+                : "bg-emerald-50 text-emerald-700 ring-emerald-200"
+            }`}
+          >
+            {resultNotice.text}
+          </div>
+        )}
 
         {activeTab === "kuis" ? (
           <div className="flex min-h-[600px] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#5B5288]/50 bg-white p-8">
@@ -392,6 +508,9 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                   }`}
                 >
                   Kuis Evaluasi
+                  <span className="block text-[11px] font-medium text-gray-400">
+                    Minimal lulus {minScore}%
+                  </span>
                 </span>
 
                 {quizScore !== null && (

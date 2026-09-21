@@ -6,14 +6,16 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getModuleAccess, getAdaptiveFeedback, type AdaptiveProgress } from "@/lib/adaptiveLearning";
+import { formatDeadline, isPastDeadline } from "@/lib/deadline";
 
 type ModulDB = {
   id_modul: number;
   nama_modul: string;
   id_level: number;
   thumbnail_url: string;
-  parameter_nilai: number; // BARU: Tambahan parameter nilai
-  status: boolean; // BARU: Tambahan status aktif/nonaktif
+  parameter_nilai: number;
+  status: boolean; // Status aktif/nonaktif
+  deadline: string | null;
 };
 
 type ProgressDB = AdaptiveProgress;
@@ -40,10 +42,9 @@ function ModulPembelajaranContent() {
       try {
         const { data, error } = await supabase
           .from('modul')
-          // Memanggil kolom tambahan: parameter_nilai dan status
-          .select('id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status')
-          // Filter sakti: HANYA mengambil modul yang statusnya TRUE (Aktif)
-          .eq('status', true); 
+          .select('id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status, deadline')
+          // HANYA mengambil modul yang statusnya TRUE (Aktif)
+          .eq('status', true);
 
         if (error) {
           console.error(
@@ -64,6 +65,7 @@ function ModulPembelajaranContent() {
             .eq("id_mahasiswa", profile.idMahasiswa);
           if (mounted) setProgress((progressData ?? []) as ProgressDB[]);
         }
+
       } catch (error) {
         console.error(
           "Terjadi kesalahan saat mengambil modul:",
@@ -93,7 +95,7 @@ function ModulPembelajaranContent() {
           label: "E",
           name: "Easy",
           color: "bg-green-500",
-          xp: 50,
+          xp: 20,
         };
 
       case 2:
@@ -101,7 +103,7 @@ function ModulPembelajaranContent() {
           label: "M",
           name: "Medium",
           color: "bg-yellow-500",
-          xp: 100,
+          xp: 50,
         };
 
       case 3:
@@ -109,7 +111,7 @@ function ModulPembelajaranContent() {
           label: "H",
           name: "Hard",
           color: "bg-red-500",
-          xp: 150,
+          xp: 100,
         };
 
       default:
@@ -164,7 +166,7 @@ function ModulPembelajaranContent() {
         {/* Header Banner Background SVGs */}
         <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
         <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
-        
+
         {/* Banner Decorative Curved Lines */}
         <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
           <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
@@ -267,7 +269,7 @@ function ModulPembelajaranContent() {
             const diffInfo =
               getDifficulty(modul.id_level);
             const access = getModuleAccess(modul, daftarModul, progress);
-
+            const late = isPastDeadline(modul.deadline);
             return (
               <div
                 key={modul.id_modul}
@@ -318,11 +320,28 @@ function ModulPembelajaranContent() {
                   </p>
 
                   {/* XP */}
-                  <div className="mb-4 mt-2 flex items-center gap-1 text-sm font-bold text-[#D97706]">
+                  <div className="mb-2 mt-2 flex items-center gap-1 text-sm font-bold text-[#D97706]">
                     <span>
                       ⚡ +{diffInfo.xp} XP
                     </span>
                   </div>
+
+                  {/* NILAI MINIMAL LULUS (sesuai parameter dari dosen) */}
+                  <p className="mb-2 text-xs font-bold text-[#5B5288]">
+                    🎯 Nilai lulus: {modul.parameter_nilai ?? 80}%
+                  </p>
+
+                  {/* DEADLINE */}
+                  {modul.deadline && (
+                    <p
+                      className={`mb-4 text-xs font-bold ${
+                        late ? "text-rose-600" : "text-sky-700"
+                      }`}
+                    >
+                      🗓 Deadline: {formatDeadline(modul.deadline)}
+                      {late && " (lewat)"}
+                    </p>
+                  )}
 
                   {/* BUTTON */}
                   {access.isUnlocked ? (

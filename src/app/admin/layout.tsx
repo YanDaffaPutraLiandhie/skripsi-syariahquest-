@@ -150,15 +150,14 @@ export default function AdminLayout({
 
         if (!session) {
           console.log(
-            'ADMIN LAYOUT: SESSION TIDAK ADA'
+            'ADMIN LAYOUT: SESSION TIDAK ADA - REDIRECT KE LOGIN'
           )
 
           if (mounted) {
             setCheckingSession(false)
           }
 
-          router.replace('/login')
-
+          router.replace('/login?redirect=/admin')
           return
         }
 
@@ -177,15 +176,14 @@ export default function AdminLayout({
 
         if (!masihAktif) {
           console.log(
-            'ADMIN LAYOUT: AKUN TIDAK AKTIF'
+            'ADMIN LAYOUT: AKUN TIDAK AKTIF - REDIRECT KE LOGIN'
           )
 
-          await supabase.auth.signOut()
+          if (mounted) {
+            setCheckingSession(false)
+          }
 
-          router.replace(
-            '/login?nonaktif=1'
-          )
-
+          router.replace('/login?redirect=/admin')
           return
         }
 
@@ -229,7 +227,10 @@ export default function AdminLayout({
           if (
             event === 'SIGNED_OUT'
           ) {
-            router.replace('/login')
+            console.log(
+              'ADMIN AUTH EVENT SIGNED_OUT - REDIRECT KE LOGIN'
+            )
+            router.replace('/login?redirect=/admin')
           }
 
           /*

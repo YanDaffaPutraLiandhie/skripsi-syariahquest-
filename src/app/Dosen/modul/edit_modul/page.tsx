@@ -64,6 +64,7 @@ function TambahModulContent() {
   const [namaModul, setNamaModul] = useState("");
   const [linkVideo, setLinkVideo] = useState("");
   const [teksMateri, setTeksMateri] = useState("");
+  const [deadline, setDeadline] = useState("");
 
   const [docFile, setDocFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -123,7 +124,7 @@ function TambahModulContent() {
       const { data, error } = await supabase
         .from("modul")
         .select(
-          "id_modul, nama_modul, id_level, video_url, teks_materi, thumbnail_url, dokumen_pendukung, parameter_nilai"
+          "id_modul, nama_modul, id_level, video_url, teks_materi, thumbnail_url, dokumen_pendukung, parameter_nilai, deadline"
         )
         .eq("id_modul", id)
         .maybeSingle();
@@ -144,6 +145,7 @@ function TambahModulContent() {
       setLinkVideo(data.video_url ?? "");
       setTeksMateri(data.teks_materi ?? "");
       setNilai(data.parameter_nilai ?? 80);
+      setDeadline(data.deadline ? String(data.deadline).slice(0, 10) : "");
       setThumbnailLabel(data.thumbnail_url ? "File thumbnail sudah ada" : null);
       setDocLabel(data.dokumen_pendukung ? "File dokumen sudah ada" : null);
     } catch (error) {
@@ -363,6 +365,7 @@ function TambahModulContent() {
         thumbnail_url: thumbnail_url || null,
         dokumen_pendukung: dokumen_pendukung || null,
         parameter_nilai: nilai,
+        deadline: deadline || null,
       };
 
       // =====================================================
@@ -385,9 +388,7 @@ function TambahModulContent() {
         console.log("Modul berhasil diupdate:", data);
         setMessage("Modul berhasil diperbarui.");
 
-        // BARU: catat aktivitas "Edit Modul" -- taruh SETELAH update
-        // berhasil, jadi kalau update gagal (return duluan di atas),
-        // tidak ada log yang tercatat.
+        // Catat aktivitas "Edit Modul" SETELAH update berhasil
         await logActivity({
           fitur: "Modul Pembelajaran",
           jenis_aktivitas: "Edit Modul",
@@ -422,8 +423,7 @@ function TambahModulContent() {
       console.log("Modul berhasil dibuat:", data);
       setMessage(`Modul berhasil disimpan oleh ${namaDosen}!`);
 
-      // BARU: catat aktivitas "Tambah Modul" -- taruh SETELAH insert
-      // berhasil (kalau insert gagal, sudah return duluan di atas).
+      // Catat aktivitas "Tambah Modul" SETELAH insert berhasil
       await logActivity({
         fitur: "Modul Pembelajaran",
         jenis_aktivitas: "Tambah Modul",
@@ -433,6 +433,7 @@ function TambahModulContent() {
       setTimeout(() => {
         setNamaModul("");
         setLinkVideo("");
+        setDeadline("");
         setDocFile(null);
         setThumbnailFile(null);
         setDocLabel(null);
@@ -542,6 +543,34 @@ function TambahModulContent() {
           />
         </div>
 
+        {/* DEADLINE (pada mode edit tanpa min, agar deadline lama yang sudah lewat tetap valid) */}
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-bold text-[#3d3466]">
+            Deadline Modul (opsional)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="h-12 w-full flex-1 rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
+            />
+            {deadline && (
+              <button
+                type="button"
+                onClick={() => setDeadline("")}
+                className="h-12 shrink-0 rounded-2xl border border-[#e4e2ee] bg-white px-4 text-xs font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
+              >
+                Hapus
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+            Setelah deadline, nilai kuis yang lolos akan dipatok ke nilai
+            minimal modul. Nilai di bawah minimal tetap harus mengulang kuis.
+          </p>
+        </div>
+
         {/* LINK VIDEO */}
         <div className="mb-6">
           <label className="mb-2 block text-sm font-bold text-[#3d3466]">
@@ -570,7 +599,7 @@ function TambahModulContent() {
         {/* UPLOAD FILE */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <UploadBox
-            label="Dokumen Pembelajaran (Doc/PDF)"
+            label="Dokumen Pembelajaran (docx/pdf)"
             borderColor="border-sky-400"
             onFile={handleDocumentFile}
             fileName={docFile?.name ?? docLabel}
@@ -581,7 +610,13 @@ function TambahModulContent() {
             onFile={setThumbnailFile}
             fileName={thumbnailFile?.name ?? thumbnailLabel}
           />
+         
         </div>
+         <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+            catatan : <br />
+            - bila dokumen yang di unggah berformat docx, maka sistem akan otomatis mengekstrak teksnya dan menaruhnya di kolom Teks Materi.<br />
+            - bila dokumen yang di unggah berformat pdf, maka sistem tidak dapat mengekstrak teksnya, sehingga kolom Teks Materi harus diisi secara manual. <br />
+          </p>
 
         {message && (
           <div

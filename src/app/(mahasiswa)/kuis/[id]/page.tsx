@@ -3,9 +3,24 @@
 import { useState, useEffect, use, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Loader2, ArrowLeft, ArrowRight, CheckCircle, XCircle, ShieldAlert } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+  ShieldAlert,
+  PartyPopper,
+  RotateCcw,
+} from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { calculateMasteryScore, selectAdaptiveQuestions, type AdaptiveProgress } from "@/lib/adaptiveLearning";
+import { calculateMasteryScore, selectAdaptiveQuestions, shuffleQuestions, MAX_QUESTION_COUNT, type AdaptiveProgress } from "@/lib/adaptiveLearning";
+import {
+  KUIS_NILAI_MINIMAL,
+  applyDeadlineScore,
+  formatDeadline,
+  isPastDeadline,
+} from "@/lib/deadline";
 
 interface Option {
   id_jawaban: number;
@@ -26,6 +41,13 @@ interface DetailKuisRow {
   jawaban: { jawaban: string; jawaban_benar: boolean }[];
 }
 
+type ExamResult = {
+  finalScore: number;
+  passed: boolean;
+  isLate: boolean;
+  wasCapped: boolean;
+};
+
 export default function UjianPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: quizId } = use(params);
   const router = useRouter();
@@ -35,13 +57,17 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   const [masteryScore, setMasteryScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [score, setScore] = useState(0);
-  
+  const [result, setResult] = useState<ExamResult | null>(null);
+
+  // Deadline kuis (dari tabel quis)
+  const [deadline, setDeadline] = useState<string | null>(null);
+
   // ==========================================
-  // STATE BARU: Penjaga Gerbang Kuis
+  // Penjaga Gerbang Kuis
+  // (hanya terkunci kalau mahasiswa sudah LULUS)
   // ==========================================
   const [hasPassed, setHasPassed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,23 +76,34 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     async function fetchQuiz() {
       setIsLoading(true);
       try {
-        // 1. CEK KEAMANAN: Apakah mahasiswa ini sudah pernah mengerjakan kuis ini?
+        // 1. CEK KEAMANAN: Apakah mahasiswa ini sudah pernah LULUS kuis ini?
+        // (riwayat_ujian hanya diisi saat mahasiswa lulus, jadi yang belum
+        // lulus tetap bisa mengulang)
         if (profile?.idMahasiswa) {
           const { data: historyData } = await supabase
-            .from('riwayat_ujian') // <-- SEKARANG PAKAI TABEL BARU
+            .from('riwayat_ujian')
             .select('id')
             .eq('id_quis', quizId)
             .eq('id_mahasiswa', profile.idMahasiswa)
             .limit(1);
 
           if (historyData && historyData.length > 0) {
-            setHasPassed(true); // Gembok aktif! Mahasiswa sudah pernah ngerjain.
+            setHasPassed(true);
             setIsLoading(false);
-            return; 
+            return;
           }
         }
 
-        // 2. Kalau belum mengerjakan, tarik data soal dari detail_kuis
+        // 2. Ambil deadline kuis
+        const { data: quizMeta } = await supabase
+          .from('quis')
+          .select('deadline')
+          .eq('id_quis', quizId)
+          .maybeSingle();
+
+        setDeadline(quizMeta?.deadline ?? null);
+
+        // 3. Tarik data soal dari detail_kuis
         const { data, error } = await supabase
           .from('detail_kuis')
           .select(`
@@ -75,13 +112,14 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             soal ( soal ),
             jawaban ( jawaban, jawaban_benar )
           `)
-          .eq('id_quis', quizId);
+          .eq('id_quis', quizId)
+          .limit(MAX_QUESTION_COUNT);
 
         if (error) throw error;
 
         if (data) {
           const qMap = new Map<number, Question>();
-          
+
           data.forEach((row: DetailKuisRow) => {
             const soal = row.soal?.[0];
             const jawaban = row.jawaban?.[0];
@@ -92,7 +130,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
                 opsi: []
               });
             }
-            
+
             if (jawaban) {
               qMap.get(row.id_soal)?.opsi.push({
                 id_jawaban: row.id_jawaban,
@@ -102,7 +140,8 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             }
           });
 
-          setAllQuestions(Array.from(qMap.values()));
+          const shuffledQuestions = shuffleQuestions(Array.from(qMap.values())).slice(0, MAX_QUESTION_COUNT);
+          setAllQuestions(shuffledQuestions);
         }
 
         const mahasiswaId = profile?.idMahasiswa;
@@ -113,6 +152,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           .select("id_modul, nilai, selesai")
           .eq("id_mahasiswa", mahasiswaId);
         setMasteryScore(calculateMasteryScore((progressData ?? []) as AdaptiveProgress[]));
+
       } catch (err) {
         console.error("Gagal memuat ujian:", err);
       } finally {
@@ -150,41 +190,48 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
       const userAnswerId = answers[q.id_soal];
       const correctOption = q.opsi.find(opt => opt.is_benar);
       const isCorrect = correctOption && userAnswerId === correctOption.id_jawaban;
-      
+
       if (isCorrect) {
         correctCount++;
       }
     });
 
-    const finalScore = Math.round((correctCount / questions.length) * 100);
-    setScore(finalScore);
-    
+    const rawScore = Math.round((correctCount / questions.length) * 100);
+
     // ==========================================
-    // SISTEM PENGAMAN BACKEND (Cegah Exploit Tab Ganda)
+    // ATURAN DEADLINE & NILAI MINIMAL
+    // - Lolos + lewat deadline  -> nilai dipatok = nilai minimal
+    // - Tidak lolos             -> nilai apa adanya, harus mengulang
     // ==========================================
-    if (profile?.idMahasiswa) {
+    const outcome = applyDeadlineScore(rawScore, KUIS_NILAI_MINIMAL, deadline);
+    setResult(outcome);
+
+    // ==========================================
+    // Hanya yang LULUS yang dicatat & mendapat XP.
+    // Yang belum lulus tidak disimpan sehingga bisa mengulang.
+    // ==========================================
+    if (outcome.passed && profile?.idMahasiswa) {
+      // Cegah exploit tab ganda
       const { data: checkHistory } = await supabase
-        .from('riwayat_ujian') // <-- CEK KE TABEL BARU
+        .from('riwayat_ujian')
         .select('id')
         .eq('id_quis', quizId)
         .eq('id_mahasiswa', profile.idMahasiswa)
         .limit(1);
 
-      // Kalau beneran belum ada datanya, baru kasih reward!
       if (!checkHistory || checkHistory.length === 0) {
-        
         // 1. Tambah XP
         const { data: mhsData } = await supabase.from('mahasiswa').select('total_xp').eq('id_mahasiswa', profile.idMahasiswa).single();
         const currentXp = mhsData?.total_xp || 0;
         const bonusXp = correctCount * 10; // 1 soal benar = 10 XP
-        
+
         await supabase.from('mahasiswa').update({ total_xp: currentXp + bonusXp }).eq('id_mahasiswa', profile.idMahasiswa);
 
-        // 2. Kunci Gembok: Catat nilai akhir ke riwayat_ujian
+        // 2. Kunci Gembok: catat nilai akhir (sudah dipatok bila lewat deadline)
         const { error: insertError } = await supabase.from('riwayat_ujian').insert({
           id_quis: Number(quizId),
           id_mahasiswa: profile.idMahasiswa,
-          nilai: finalScore
+          nilai: outcome.finalScore
         });
 
         if (insertError) {
@@ -197,6 +244,16 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     setIsSubmitting(false);
   };
 
+  // Ulangi kuis (hanya tersedia bila belum lulus)
+  const handleRetry = () => {
+    setAnswers({});
+    setCurrentIndex(0);
+    setResult(null);
+    setIsSubmitted(false);
+    setAllQuestions((prev) => shuffleQuestions(prev));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FB]">
@@ -207,7 +264,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   }
 
   // ==========================================
-  // UI BARU: Layar Penolakan (Sudah Pernah Lulus)
+  // Layar Penolakan (Sudah Pernah Lulus)
   // ==========================================
   if (hasPassed) {
     return (
@@ -218,7 +275,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <h2 className="text-2xl font-black text-[#5B5288] mb-4">Ujian Sudah Diselesaikan!</h2>
           <p className="text-gray-500 mb-8 font-medium">
-            Kamu sudah pernah mengerjakan dan mendapatkan poin XP dari kuis ujian ini. Ujian tidak bisa diulang untuk mencegah eksploitasi poin.
+            Kamu sudah lulus dan mendapatkan poin XP dari kuis ujian ini. Ujian tidak bisa diulang untuk mencegah eksploitasi poin.
           </p>
           <button onClick={() => router.push('/dashboard')} className="px-8 py-3.5 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full">
             Kembali ke Dashboard
@@ -243,11 +300,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const currentQ = questions[currentIndex];
+  const late = isPastDeadline(deadline);
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-3xl">
-        
+
         {/* =====================================================
             HEADER BANNER
         ===================================================== */}
@@ -255,7 +313,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           {/* Header Banner Background SVGs */}
           <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
           <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
-          
+
           {/* Banner Decorative Curved Lines */}
           <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
             <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
@@ -274,10 +332,20 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             </h1>
           </div>
 
-          <div className="relative z-10">
+          <div className="relative z-10 flex flex-col items-start gap-2 md:items-end">
             <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-bold text-white backdrop-blur-md border border-white/20 shadow-inner">
               Soal {currentIndex + 1} dari {questions.length}
             </span>
+            {deadline && (
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${
+                  late ? "bg-rose-500/90 text-white" : "bg-white/15 text-[#e2dcff]"
+                }`}
+              >
+                🗓 Deadline: {formatDeadline(deadline)}
+                {late && " (lewat)"}
+              </span>
+            )}
           </div>
 
           {/* Bottom Wave Decoration */}
@@ -287,6 +355,21 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             </svg>
           </div>
         </div>
+
+        {/* Info aturan nilai */}
+        {!isSubmitted && (
+          <div
+            className={`mb-6 rounded-2xl p-4 text-sm font-semibold ring-1 ${
+              late
+                ? "bg-amber-50 text-amber-800 ring-amber-200"
+                : "bg-white text-gray-600 ring-gray-100"
+            }`}
+          >
+            {late
+              ? `Deadline sudah lewat. Jika nilaimu mencapai ${KUIS_NILAI_MINIMAL}% atau lebih, nilai akhir dicatat sebagai ${KUIS_NILAI_MINIMAL}%. Jika di bawah ${KUIS_NILAI_MINIMAL}%, kamu harus mengulang kuis ini.`
+              : `Nilai minimal untuk lulus adalah ${KUIS_NILAI_MINIMAL}%. Jika belum mencapainya, kamu bisa mengulang kuis ini.`}
+          </div>
+        )}
 
         {!isSubmitted ? (
           <div className="bg-white rounded-[30px] p-8 md:p-10 shadow-sm border border-gray-100">
@@ -298,12 +381,12 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
               {currentQ.opsi.map((opt) => {
                 const isSelected = answers[currentQ.id_soal] === opt.id_jawaban;
                 return (
-                  <div 
+                  <div
                     key={opt.id_jawaban}
                     onClick={() => handleSelectOption(currentQ.id_soal, opt.id_jawaban)}
                     className={`p-5 rounded-2xl border-2 cursor-pointer transition-all hover:scale-[1.01] ${
-                      isSelected 
-                        ? 'border-[#5B5288] bg-purple-50/50 shadow-sm' 
+                      isSelected
+                        ? 'border-[#5B5288] bg-purple-50/50 shadow-sm'
                         : 'border-gray-100 hover:border-gray-300 bg-white'
                     }`}
                   >
@@ -323,7 +406,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             </div>
 
             <div className="flex items-center justify-between mt-12 pt-6 border-t border-gray-100">
-              <button 
+              <button
                 onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
                 disabled={currentIndex === 0 || isSubmitting}
                 className="px-5 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 disabled:opacity-30 flex items-center gap-2 transition-all"
@@ -332,7 +415,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
               </button>
 
               {currentIndex === questions.length - 1 ? (
-                <button 
+                <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
                   className="px-8 py-3 rounded-xl font-black text-white bg-[#39C936] hover:bg-[#2EA32B] shadow-lg hover:shadow-xl flex items-center gap-2 transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0"
@@ -340,7 +423,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
                   {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Kumpulkan <CheckCircle className="w-5 h-5" /></>}
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))}
                   disabled={isSubmitting}
                   className="px-8 py-3 rounded-xl font-bold text-white bg-[#5B5288] hover:bg-[#4A4373] shadow-md flex items-center gap-2 transition-all hover:-translate-y-1 disabled:opacity-50"
@@ -350,45 +433,64 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
               )}
             </div>
           </div>
-        ) : (
+        ) : result?.passed ? (
+          /* =====================================================
+              LAYAR LULUS
+              Skor detail & jawaban benar tidak ditampilkan supaya
+              kunci jawaban tidak bisa dipelajari lewat layar hasil.
+          ===================================================== */
           <div className="bg-white rounded-[30px] p-10 md:p-14 shadow-sm border border-gray-100 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="inline-flex items-center justify-center w-28 h-28 bg-gray-50 rounded-full mb-6 border-4 border-white shadow-lg">
-              {score >= 70 ? (
-                <CheckCircle className="w-14 h-14 text-[#39C936]" />
-              ) : (
-                <XCircle className="w-14 h-14 text-red-500" />
-              )}
-            </div>
-            
-            <h2 className="text-3xl font-black text-[#5B5288] mb-2">Ujian Selesai!</h2>
-            <p className="text-gray-500 mb-8 font-medium">Ini dia hasil kerja kerasmu:</p>
-            
-            <div className="text-7xl font-black text-[#FFC107] mb-8 drop-shadow-sm">
-              {score}
+            <div className="inline-flex items-center justify-center w-28 h-28 bg-purple-50 rounded-full mb-6 border-4 border-white shadow-lg">
+              <PartyPopper className="w-14 h-14 text-[#5B5288]" />
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-2xl mb-10 flex justify-center gap-12 max-w-sm mx-auto border border-gray-100 shadow-inner">
-               <div className="text-center">
-                 <p className="text-sm text-gray-500 font-bold mb-1 uppercase tracking-wider">Benar</p>
-                 <p className="text-3xl font-black text-[#39C936]">
-                   {questions.filter(q => q.opsi.find(o => o.is_benar)?.id_jawaban === answers[q.id_soal]).length}
-                 </p>
-               </div>
-               <div className="w-px bg-gray-300"></div>
-               <div className="text-center">
-                 <p className="text-sm text-gray-500 font-bold mb-1 uppercase tracking-wider">Salah</p>
-                 <p className="text-3xl font-black text-red-500">
-                   {questions.filter(q => q.opsi.find(o => o.is_benar)?.id_jawaban !== answers[q.id_soal]).length}
-                 </p>
-               </div>
-            </div>
+            <h2 className="text-3xl font-black text-[#5B5288] mb-2">Kamu Lulus!</h2>
+            <p className="text-gray-500 mb-4 font-medium">
+              Jawabanmu sudah tersimpan. Nilai dan XP kamu sudah diperbarui — pantau progresmu lewat halaman Dashboard.
+            </p>
 
-            <button 
+            {result.wasCapped && (
+              <p className="mb-8 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+                Karena dikerjakan setelah deadline, nilai akhirmu dicatat sebagai nilai minimal ({KUIS_NILAI_MINIMAL}%).
+              </p>
+            )}
+
+            <button
               onClick={() => router.push('/dashboard')}
-              className="px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
+              className="mt-6 px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
             >
               Kembali ke Dashboard
             </button>
+          </div>
+        ) : (
+          /* =====================================================
+              LAYAR BELUM LULUS -> harus mengulang
+              Tidak ada XP & tidak ada riwayat yang disimpan.
+          ===================================================== */
+          <div className="bg-white rounded-[30px] p-10 md:p-14 shadow-sm border border-gray-100 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="inline-flex items-center justify-center w-28 h-28 bg-rose-50 rounded-full mb-6 border-4 border-white shadow-lg">
+              <XCircle className="w-14 h-14 text-rose-500" />
+            </div>
+
+            <h2 className="text-3xl font-black text-[#5B5288] mb-2">Belum Lulus</h2>
+            <p className="text-gray-500 mb-8 font-medium">
+              Nilaimu belum mencapai batas minimal {KUIS_NILAI_MINIMAL}%. Pelajari kembali materinya, lalu ulangi kuis ini.
+            </p>
+
+            <div className="flex flex-col items-center justify-center gap-3 md:flex-row">
+              <button
+                onClick={handleRetry}
+                className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
+              >
+                <RotateCcw className="w-5 h-5" /> Ulangi Kuis
+              </button>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="px-8 py-4 rounded-2xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all w-full md:w-auto"
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
           </div>
         )}
 
