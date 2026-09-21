@@ -381,6 +381,8 @@ export default function Quiz({ onClaimXP, idModul, initialScore, passingGrade }:
       <div className="flex items-center justify-between mt-10 pt-6 border-t border-slate-100">
         <button onClick={handlePrev} disabled={currentQuestion === 0 || isSaving} className="px-6 py-3 text-sm font-bold text-slate-400 hover:text-[#3A2E65] disabled:opacity-30 transition-colors">Sebelumnya</button>
         
+
+        {/*    */}
         <button 
           onClick={handleNext} 
           disabled={selectedAnswers[currentQuestion] === undefined || isSaving} 
