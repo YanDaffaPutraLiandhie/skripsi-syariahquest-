@@ -725,7 +725,7 @@ export default function BoardGameArena({
   }
 
   return (
-    <div className="h-screen bg-[#F8F9FB] flex flex-col overflow-hidden relative">
+    <div className="min-h-screen bg-[#F8F9FB] flex flex-col overflow-x-hidden relative lg:h-screen lg:overflow-hidden">
       {room.status === "finished" && (
         <GameOverModal
           isWinner={currentUserId === room.winner_user_id}
@@ -742,41 +742,43 @@ export default function BoardGameArena({
       )}
 
       {/* HEADER NAVIGASI */}
-      <div className="w-full flex justify-between items-center p-8 shrink-0 z-10 relative">
-        <h1 className="text-3xl font-extrabold text-[#5B5288]">
+      <div className="w-full flex flex-wrap justify-between items-center gap-3 p-4 sm:p-6 lg:p-8 shrink-0 z-10 relative">
+        <h1 className="min-w-0 flex-1 text-lg sm:text-2xl lg:text-3xl font-extrabold leading-tight text-[#5B5288]">
           Arena permainan — {boardData.nama_game}
         </h1>
 
-        <div className="flex items-center gap-6">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4 lg:gap-6">
           <span
-            className={`px-4 py-2 rounded-xl font-bold text-sm ${isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-gray-400"
+            className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-bold text-xs sm:text-sm ${isMyTurn ? "bg-[#39C936] text-white" : "bg-gray-100 text-gray-400"
               }`}
           >
-            {isMyTurn ? "Giliranmu! 🎲" : "Menunggu giliran..."}
+            {isMyTurn ? "Giliranmu!" : "Menunggu..."}
           </span>
 
           {canSkipTurn && !isMyTurn && (
             <button
               onClick={handleSkipTurn}
-              className="px-4 py-2 rounded-xl font-bold text-sm bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
+              className="px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
             >
-              Lewati Giliran ⏭️
+              Lewati ⏭️
             </button>
           )}
 
           <div className="flex gap-4 items-center">
             <button
               onClick={() => setShowSettings(true)}
-              className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
+              aria-label="Buka pengaturan"
+              className="p-1.5 sm:p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
             >
-              <Settings className="w-6 h-6" />
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             <button
               onClick={() => setShowGuide(true)}
-              className="p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
+              aria-label="Buka panduan"
+              className="p-1.5 sm:p-2 text-gray-400 hover:text-[#5B5288] transition-colors"
             >
-              <HelpCircle className="w-6 h-6" />
+              <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
             <MiniProfile />
@@ -785,9 +787,9 @@ export default function BoardGameArena({
       </div>
 
       {/* AREA GAME */}
-      <div className="flex-1 relative w-full h-full flex flex-col items-center justify-center p-4 lg:p-8 z-10 overflow-hidden">
+      <div className="flex-1 relative w-full flex flex-col items-center justify-start lg:justify-center p-3 sm:p-4 lg:p-8 z-10 overflow-visible lg:overflow-hidden">
         {/* BOARD */}
-        <div className="w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl z-10 flex justify-center mb-auto lg:mb-0 shrink-0">
+        <div className="w-full max-w-[calc(100vw-1.5rem)] sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl z-10 flex justify-center mb-3 lg:mb-0 shrink-0">
           <GameBoardCanvas
             boardData={boardData}
             mapCoords={mapCoords}
@@ -796,9 +798,9 @@ export default function BoardGameArena({
         </div>
 
         {/* HUD */}
-        <div className="w-full flex justify-between items-end lg:static z-20 mt-4 lg:mt-0 shrink-0">
+        <div className="w-full grid grid-cols-[auto_minmax(0,1fr)] items-end gap-3 lg:flex lg:justify-between lg:items-end lg:static z-20 mt-1 lg:mt-0 shrink-0">
           {/* PLAYER DOCK */}
-          <div className="lg:absolute lg:bottom-8 lg:left-8 lg:z-30 flex flex-col items-start">
+          <div className="min-w-0 lg:absolute lg:bottom-8 lg:left-8 lg:z-30 flex flex-col items-start">
             <PlayerDock
               showSkills={showSkills}
               onToggleSkills={() => setShowSkills((prev) => !prev)}
@@ -810,7 +812,7 @@ export default function BoardGameArena({
           </div>
 
           {/* DICE */}
-          <div className="w-[180px] sm:w-[220px] lg:w-[280px] lg:absolute lg:right-8 lg:top-1/2 lg:-translate-y-1/2 lg:z-30">
+          <div className="w-full max-w-[220px] justify-self-end lg:w-[280px] lg:max-w-none lg:absolute lg:right-8 lg:top-1/2 lg:-translate-y-1/2 lg:z-30">
             <DiceControl
               diceValue={diceValue}
               disabled={
