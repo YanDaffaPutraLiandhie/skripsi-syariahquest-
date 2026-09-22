@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, use } from "react";
+import { useRouter } from "next/navigation";
 import CreateRoomModal from "@/components/Arena/CreateRoomModal";
 import JoinRoomModal from "@/components/Arena/JoinRoomModal";
 import ThemeCard from "@/components/Arena/ThemeCard";
@@ -18,7 +19,13 @@ type GameTema = {
 // lewat next/font/google, lalu terapkan sebagai --font-display. Kalau belum ada,
 // halaman ini otomatis jatuh ke font sans bawaan, jadi tetap aman dipakai sekarang.
 
-export default function ArenaKelas() {
+export default function ArenaKelas({
+  params,
+}: {
+  params: Promise<{ roomId: string }>;
+}) {
+  const { roomId } = use(params);
+  const router = useRouter();
   const { profile } = useCurrentUser();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -27,6 +34,73 @@ export default function ArenaKelas() {
 
   const [papanTema, setPapanTema] = useState<GameTema[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [joinError, setJoinError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function joinInvitedRoom() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace(`/login?redirect=/arena/join/${roomId}`);
+        return;
+      }
+
+      const { data: room, error: roomError } = await supabase
+        .from("room")
+        .select("id_room, status")
+        .eq("id_room", roomId)
+        .neq("status", "finished")
+        .single();
+
+      if (roomError || !room) {
+        if (!isCancelled) setJoinError("Ruangan tidak ditemukan atau sudah selesai.");
+        return;
+      }
+
+      const { error: joinError } = await supabase.from("room_player").upsert(
+        {
+          id_room: room.id_room,
+          id_user: user.id,
+          posisi: 0,
+          is_host: false,
+          is_inRoom: true,
+        },
+        { onConflict: "id_room,id_user", ignoreDuplicates: false },
+      );
+
+      if (joinError) {
+        if (!isCancelled) setJoinError("Gagal masuk ke ruang tunggu. Coba lagi.");
+        return;
+      }
+//
+      const { data: userData } = await supabase
+        .from("user")
+        .select("id_mahasiswa")
+        .eq("auth_user_id", user.id)
+        .single();
+
+      if (userData?.id_mahasiswa) {
+        await supabase
+          .from("mahasiswa")
+          .update({ inRoom: true })
+          .eq("id_mahasiswa", userData.id_mahasiswa);
+      }
+
+      if (!isCancelled) {
+        router.replace(`/arena/play/${roomId}`);
+      }
+    }
+
+    joinInvitedRoom();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [roomId, router]);
 
   // STATE UNTUK STATISTIK ASLI DARI DATABASE
   const [stats, setStats] = useState({ menang: 0, jebakan: 0, main: 0 });
@@ -137,6 +211,22 @@ export default function ArenaKelas() {
             : { label: "Baru Mulai", emoji: "🎮" };
 
   const cardTilt = ["-rotate-2", "rotate-2", "-rotate-1", "rotate-1"];
+
+  if (joinError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F9FB] px-6 text-center">
+        <p className="font-bold text-red-500">{joinError}</p>
+      </div>
+    );
+  }
+
+  if (!joinError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F8F9FB]">
+        <p className="font-semibold text-[#5B5288]">Memasukkanmu ke ruang tunggu...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10">
