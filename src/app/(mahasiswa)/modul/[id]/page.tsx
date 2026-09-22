@@ -540,7 +540,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                     Minimal lulus {minScore}%
                   </span>
                 </span>
-
+{/*  */}
                 {quizScore !== null && (
                   <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-black text-green-600 shadow-sm">
                     {quizScore}%
