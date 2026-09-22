@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
 import { todayInputValue } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
-import { Check, ArrowLeft, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Check, ArrowLeft, ChevronLeft, ChevronRight, Search, Minus, Plus } from "lucide-react";
 
 type ModulRow = {
   id: number;
@@ -14,13 +14,26 @@ type ModulRow = {
   name: string;
   badge: string;
   badgeColor: string;
+  // BARU: total soal yang tersedia di bank soal modul ini, dan jumlah
+  // default (dari pengaturan modul) yang disarankan saat generate kuis.
+  totalSoal: number;
+  defaultJumlahSoal: number;
 };
+
+const FALLBACK_JUMLAH_SOAL = 10;
 
 export default function PilihModul() {
   const MODULES_PER_PAGE = 10;
   const router = useRouter();
   const [modules, setModules] = useState<ModulRow[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
+
+  // BARU: jumlah soal yang mau diambil per modul, key = id_modul.
+  // Nilai default diisi otomatis saat modul dicentang.
+  const [jumlahSoalPerModul, setJumlahSoalPerModul] = useState<
+    Record<number, number>
+  >({});
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [namaKuis, setNamaKuis] = useState("");
@@ -35,12 +48,28 @@ export default function PilihModul() {
         id_modul,
         nama_modul,
         id_level,
-        status
+        status,
+        jumlah_soal_kuis
       `).eq("status", true);
       if (error) {
         console.error("Supabase error:", error);
         return;
       }
+
+      // Hitung total soal yang tersedia per modul (dipakai untuk
+      // membatasi & menampilkan sisa kuota soal saat generate kuis).
+      const { data: soalCountData, error: soalCountError } = await supabase
+        .from("soal")
+        .select("id_soal, id_modul");
+
+      if (soalCountError) {
+        console.error("Gagal menghitung jumlah soal per modul:", soalCountError);
+      }
+
+      const totalSoalByModul: Record<number, number> = {};
+      (soalCountData ?? []).forEach((row: { id_modul: number }) => {
+        totalSoalByModul[row.id_modul] = (totalSoalByModul[row.id_modul] ?? 0) + 1;
+      });
 
       const rows = (data ?? []).map((item: any, index: number) => {
         const idLevel = item.id_level;
@@ -52,12 +81,18 @@ export default function PilihModul() {
               ? "bg-amber-500 text-white"
               : "bg-rose-500 text-white";
 
+        const idModul = item.id_modul ?? index + 1;
+        const totalSoal = totalSoalByModul[idModul] ?? 0;
+        const defaultJumlahSoal = item.jumlah_soal_kuis ?? FALLBACK_JUMLAH_SOAL;
+
         return {
-          id: item.id_modul ?? index + 1,
+          id: idModul,
           no: index + 1,
           name: item.nama_modul ?? `Modul ${String.fromCharCode(65 + index)}`,
           badge,
           badgeColor,
+          totalSoal,
+          defaultJumlahSoal,
         };
       });
 
@@ -67,13 +102,37 @@ export default function PilihModul() {
     loadModules();
   }, []);
 
-  const toggleSelected = (id: number) => {
-    setSelected((prev) =>
-      prev.includes(id)
-        ? prev.filter((item) => item !== id)
-        : [...prev, id]
-    );
+  function clampJumlah(value: number, totalSoal: number) {
+    const max = totalSoal > 0 ? totalSoal : FALLBACK_JUMLAH_SOAL;
+    if (Number.isNaN(value)) return 1;
+    return Math.min(max, Math.max(1, Math.round(value)));
+  }
+
+  const toggleSelected = (row: ModulRow) => {
+    setSelected((prev) => {
+      const isSelected = prev.includes(row.id);
+
+      if (isSelected) {
+        return prev.filter((item) => item !== row.id);
+      }
+
+      // Saat modul baru dicentang, isi jumlah soal dengan nilai default
+      // dari pengaturan modul (dibatasi maksimal soal yang tersedia).
+      setJumlahSoalPerModul((current) => ({
+        ...current,
+        [row.id]: clampJumlah(row.defaultJumlahSoal, row.totalSoal),
+      }));
+
+      return [...prev, row.id];
+    });
   };
+
+  function updateJumlahSoal(row: ModulRow, value: number) {
+    setJumlahSoalPerModul((prev) => ({
+      ...prev,
+      [row.id]: clampJumlah(value, row.totalSoal),
+    }));
+  }
 
   function shuffle<T>(arr: T[]): T[] {
     const copy = [...arr];
@@ -111,6 +170,8 @@ export default function PilihModul() {
 
       let totalSoal = 0;
       const semuaSoal: any[] = [];
+      // Dipakai untuk catatan aktivitas: "Modul A: 10 soal, Modul B: 20 soal"
+      const ringkasanPerModul: string[] = [];
 
       for (const modul of selectedModules) {
         const { data: soalList, error: soalError } = await supabase
@@ -120,8 +181,14 @@ export default function PilihModul() {
 
         if (soalError) throw new Error(soalError.message);
 
-        const dipilih = shuffle(soalList ?? []).slice(0, 10);
+        const jumlahDiminta = clampJumlah(
+          jumlahSoalPerModul[modul.id] ?? modul.defaultJumlahSoal,
+          modul.totalSoal,
+        );
+
+        const dipilih = shuffle(soalList ?? []).slice(0, jumlahDiminta);
         semuaSoal.push(...dipilih);
+        ringkasanPerModul.push(`${modul.name}: ${dipilih.length} soal`);
       }
 
       if (semuaSoal.length === 0) {
@@ -186,7 +253,7 @@ export default function PilihModul() {
       await logActivity({
         fitur: "Kuis",
         jenis_aktivitas: "Tambah Kuis",
-        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal${
+        keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal (${ringkasanPerModul.join(", ")})${
           deadline ? ` (deadline ${deadline})` : ""
         }`,
       });
@@ -195,6 +262,7 @@ export default function PilihModul() {
         `Kuis "${kuisName}" berhasil dibuat dengan id #${idQuis} (${totalSoal} soal).`,
       );
       setSelected([]);
+      setJumlahSoalPerModul({});
       setNamaKuis("");
       setDeadline("");
     } catch (err: any) {
@@ -207,6 +275,7 @@ export default function PilihModul() {
 
   const handleCancel = () => {
     setSelected([]);
+    setJumlahSoalPerModul({});
     setDeadline("");
     setErrorMessage("");
     setSuccessMessage("");
@@ -224,11 +293,17 @@ export default function PilihModul() {
     currentPage * MODULES_PER_PAGE,
   );
 
+  const totalSoalTerpilih = selected.reduce((sum, id) => {
+    const modul = modules.find((m) => m.id === id);
+    if (!modul) return sum;
+    return sum + clampJumlah(jumlahSoalPerModul[id] ?? modul.defaultJumlahSoal, modul.totalSoal);
+  }, 0);
+
   return (
     <DosenContainer
       categoryTag="GENERATE KUIS OTOMATIS"
       title="Pilih Modul Pembelajaran"
-      subtitle="Sistem akan mengambil bank soal secara acak berdasarkan modul aktif yang Anda centang."
+      subtitle="Sistem akan mengambil bank soal secara acak berdasarkan modul aktif yang Anda centang. Jumlah soal per modul bisa Anda atur sendiri."
       headerAction={
         <button
           type="button"
@@ -285,11 +360,18 @@ export default function PilihModul() {
         </div>
 
         <div className="rounded-[28px] bg-white p-7 shadow-sm ring-1 ring-black/5">
-          <div className="mb-4 flex items-center justify-between border-b border-[#f0edf9] pb-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-[#f0edf9] pb-4">
             <h2 className="text-lg font-bold text-[#3d3466]">Daftar Modul Aktif</h2>
-            <span className="rounded-full bg-[#f8f7fd] px-3.5 py-1 text-xs font-bold text-[#4a3f7a]">
-              {selected.length} Modul Terpilih
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#f8f7fd] px-3.5 py-1 text-xs font-bold text-[#4a3f7a]">
+                {selected.length} Modul Terpilih
+              </span>
+              {selected.length > 0 && (
+                <span className="rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                  Total {totalSoalTerpilih} Soal
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="relative mb-5">
@@ -322,17 +404,25 @@ export default function PilihModul() {
             ) : (
               paginatedModules.map((row) => {
                 const isChecked = selected.includes(row.id);
+                const jumlahSoal = clampJumlah(
+                  jumlahSoalPerModul[row.id] ?? row.defaultJumlahSoal,
+                  row.totalSoal,
+                );
+                const tidakAdaSoal = row.totalSoal === 0;
+
                 return (
                   <div
                     key={row.id}
-                    onClick={() => toggleSelected(row.id)}
-                    className={`flex cursor-pointer items-center justify-between rounded-2xl p-4 transition ${
+                    className={`flex flex-col gap-4 rounded-2xl p-4 transition sm:flex-row sm:items-center sm:justify-between ${
                       isChecked
                         ? "bg-[#f8f7fd] ring-2 ring-[#4a3f7a]"
                         : "bg-white ring-1 ring-[#4a3f7a]/10 hover:bg-[#f8f7fd]/50"
                     }`}
                   >
-                    <div className="flex items-center gap-4">
+                    <div
+                      onClick={() => toggleSelected(row)}
+                      className="flex flex-1 cursor-pointer items-center gap-4"
+                    >
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#4a3f7a] text-xs font-black text-white">
                         #{row.no}
                       </span>
@@ -341,17 +431,66 @@ export default function PilihModul() {
                       >
                         {row.badge}
                       </span>
-                      <p className="text-sm font-bold text-[#2b2540]">{row.name}</p>
+                      <div>
+                        <p className="text-sm font-bold text-[#2b2540]">{row.name}</p>
+                        <p className="text-xs font-semibold text-[#8b84a5]">
+                          {row.totalSoal} soal tersedia di bank soal
+                        </p>
+                      </div>
                     </div>
 
-                    <div
-                      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition ${
-                        isChecked
-                          ? "border-[#4a3f7a] bg-[#4a3f7a] text-white"
-                          : "border-[#8b84a5]"
-                      }`}
-                    >
-                      {isChecked && <Check size={14} strokeWidth={3} />}
+                    <div className="flex items-center gap-3">
+                      {/* INPUT JUMLAH SOAL (BARU): hanya aktif kalau modul dicentang */}
+                      {isChecked && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1 rounded-xl border border-[#e4e2ee] bg-white px-2 py-1.5 shadow-sm"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => updateJumlahSoal(row, jumlahSoal - 1)}
+                            disabled={tidakAdaSoal || jumlahSoal <= 1}
+                            className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4a3f7a] hover:bg-[#f8f7fd] disabled:opacity-30"
+                            aria-label={`Kurangi jumlah soal ${row.name}`}
+                          >
+                            <Minus size={13} />
+                          </button>
+                          <input
+                            type="number"
+                            min={1}
+                            max={row.totalSoal || undefined}
+                            value={jumlahSoal}
+                            disabled={tidakAdaSoal}
+                            onChange={(e) =>
+                              updateJumlahSoal(row, Number(e.target.value))
+                            }
+                            className="w-12 border-0 bg-transparent text-center text-sm font-black text-[#3d3466] outline-none disabled:opacity-40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateJumlahSoal(row, jumlahSoal + 1)}
+                            disabled={tidakAdaSoal || jumlahSoal >= row.totalSoal}
+                            className="flex h-6 w-6 items-center justify-center rounded-lg text-[#4a3f7a] hover:bg-[#f8f7fd] disabled:opacity-30"
+                            aria-label={`Tambah jumlah soal ${row.name}`}
+                          >
+                            <Plus size={13} />
+                          </button>
+                          <span className="pl-1 text-[11px] font-bold text-[#8b84a5]">
+                            / {row.totalSoal} soal
+                          </span>
+                        </div>
+                      )}
+
+                      <div
+                        onClick={() => toggleSelected(row)}
+                        className={`flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition ${
+                          isChecked
+                            ? "border-[#4a3f7a] bg-[#4a3f7a] text-white"
+                            : "border-[#8b84a5]"
+                        }`}
+                      >
+                        {isChecked && <Check size={14} strokeWidth={3} />}
+                      </div>
                     </div>
                   </div>
                 );

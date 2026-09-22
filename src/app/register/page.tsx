@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import Swal from 'sweetalert2'
+import { supabase } from '@/lib/supabase'
 import '../login/login.css'
 
 export default function RegisterPage() {
@@ -65,6 +66,10 @@ export default function RegisterPage() {
             setEmail('')
             setPassword('')
             setConfirmPassword('')
+            const { error: signOutError } = await supabase.auth.signOut()
+            if (signOutError) {
+                console.warn('Gagal membersihkan session setelah registrasi:', signOutError)
+            }
             setLoading(false)
             await Swal.fire({
                 icon: 'success',
