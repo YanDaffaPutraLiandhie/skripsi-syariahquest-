@@ -551,6 +551,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
           </ul>
         </div>
       </aside>
-    </div>s
+    </div>
   );
 }
