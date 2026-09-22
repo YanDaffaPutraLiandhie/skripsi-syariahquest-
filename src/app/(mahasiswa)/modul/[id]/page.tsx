@@ -108,7 +108,20 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
     };
   }, [id, profile?.idMahasiswa]);
 
-  // PENGAMAN SUPER KETAT ANTI MODUL KOSONG
+  // ==========================================================
+  // PENGAMAN SUPER KETAT: MEMBUKA MATERI SAJA TIDAK MEMBERI NILAI
+  //
+  // - Kalau modul kosong (tidak ada video & teks materi), progres
+  //   sama sekali tidak dicatat (tidak ada nilai "gratis").
+  // - Kalau baru pertama kali membuka materi, baris progres dibuat
+  //   dengan nilai 0% (materi_dilihat = true, kuis_dicoba = false).
+  // - Kalau baris progres sudah ada TAPI kuis belum pernah dicoba
+  //   (kuis_dicoba masih false), nilai dikunci ulang ke 0% setiap
+  //   kali materi dibuka. Ini juga jadi pengaman untuk data lama
+  //   yang mungkin sempat kecatat dengan nilai selain 0% (mis. 40%)
+  //   hanya karena membuka materi — nilai itu akan direset ke 0%
+  //   sampai mahasiswa benar-benar mengerjakan kuis.
+  // ==========================================================
   useEffect(() => {
     async function markMateriViewed() {
       if (course && profile?.idMahasiswa && activeTab === "materi") {
@@ -121,18 +134,20 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
 
         const adaIsiMateri = adaVideo || adaTeks;
 
-        // Kalau kosong melompong, JANGAN berikan nilai 40%
+        // Kalau kosong melompong, jangan catat progres apa pun
         if (!adaIsiMateri) return;
 
-        // Kalau ada isinya, baru catat ke database
+        // Kalau ada isinya, cek dulu progres yang sudah tercatat
         const { data: existingProgress } = await supabase
           .from("progress_modul")
-          .select("id_modul")
+          .select("id_modul, kuis_dicoba")
           .eq("id_mahasiswa", profile.idMahasiswa)
           .eq("id_modul", course.id_modul)
           .single();
 
         if (!existingProgress) {
+          // Progres baru: materi dilihat, tapi nilai TETAP 0% karena
+          // kuis belum pernah dikerjakan.
           await supabase.from("progress_modul").insert({
             id_mahasiswa: profile.idMahasiswa,
             id_modul: course.id_modul,
@@ -142,9 +157,21 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
             nilai: 0,
           });
         } else {
+          // Progres sudah ada. Kalau kuis belum pernah dicoba,
+          // paksa nilai kembali ke 0% supaya membuka materi tidak
+          // pernah memberi nilai "gratis" (sebelumnya bisa nyangkut
+          // di 40%).
+          const updatePayload: { materi_dilihat: boolean; nilai?: number } = {
+            materi_dilihat: true,
+          };
+
+          if (!existingProgress.kuis_dicoba) {
+            updatePayload.nilai = 0;
+          }
+
           await supabase
             .from("progress_modul")
-            .update({ materi_dilihat: true })
+            .update(updatePayload)
             .eq("id_mahasiswa", profile.idMahasiswa)
             .eq("id_modul", course.id_modul);
         }
@@ -524,6 +551,6 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
           </ul>
         </div>
       </aside>
-    </div>
+    </div>s
   );
 }
