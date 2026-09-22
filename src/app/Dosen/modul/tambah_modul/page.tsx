@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { logActivity } from "@/lib/logActivity";
 import { extractDocumentText } from "@/lib/extractDocumentText";
-import { todayInputValue } from "@/lib/deadline";
+import { nowInputValue, toDatetimeLocalValue } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const LEVELS = [
@@ -17,6 +17,11 @@ const LEVELS = [
 type LevelKey = (typeof LEVELS)[number]["key"];
 
 const BUCKET = "modul";
+
+// Batas wajar jumlah soal kuis per modul supaya input tidak diisi angka aneh.
+const MIN_JUMLAH_SOAL_KUIS = 1;
+const MAX_JUMLAH_SOAL_KUIS = 100;
+const DEFAULT_JUMLAH_SOAL_KUIS = 10;
 
 type UploadBoxProps = {
   label: string;
@@ -84,6 +89,11 @@ const emptyForm: ModulForm = {
   thumbnailFileName: "",
 };
 
+function clampJumlahSoal(value: number) {
+  if (Number.isNaN(value)) return DEFAULT_JUMLAH_SOAL_KUIS;
+  return Math.min(MAX_JUMLAH_SOAL_KUIS, Math.max(MIN_JUMLAH_SOAL_KUIS, Math.round(value)));
+}
+
 function TambahModulContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -104,6 +114,11 @@ function TambahModulContent() {
   const [namaModul, setNamaModul] = useState("");
   const [linkVideo, setLinkVideo] = useState("");
   const [deadline, setDeadline] = useState("");
+
+  // BARU: Jumlah soal yang akan dimunculkan saat mahasiswa mengerjakan
+  // kuis evaluasi modul ini (dipakai juga sebagai nilai default saat
+  // modul ini dipilih di halaman "Generate Kuis Otomatis").
+  const [jumlahSoalKuis, setJumlahSoalKuis] = useState(DEFAULT_JUMLAH_SOAL_KUIS);
 
   const [docFile, setDocFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -198,6 +213,7 @@ function TambahModulContent() {
               thumbnail_url,
               dokumen_pendukung,
               parameter_nilai,
+              jumlah_soal_kuis,
               deadline
             `
           )
@@ -228,7 +244,10 @@ function TambahModulContent() {
         setLevel(getLevelKeyFromId(data.id_level));
         setLinkVideo(data.video_url ?? "");
         setNilai(data.parameter_nilai ?? 80);
-        setDeadline(data.deadline ? String(data.deadline).slice(0, 10) : "");
+        setJumlahSoalKuis(
+          clampJumlahSoal(data.jumlah_soal_kuis ?? DEFAULT_JUMLAH_SOAL_KUIS)
+        );
+        setDeadline(toDatetimeLocalValue(data.deadline));
 
         // teks_materi ikut dimuat supaya tidak tertimpa kosong saat disimpan
         setForm((previous) => ({
@@ -430,6 +449,7 @@ function TambahModulContent() {
     setThumbnailLabel(null);
     setNilai(80);
     setLevel("medium");
+    setJumlahSoalKuis(DEFAULT_JUMLAH_SOAL_KUIS);
     setMessage("");
     setForm(emptyForm);
   }
@@ -463,8 +483,8 @@ function TambahModulContent() {
     /*
      * VALIDASI DEADLINE (hanya saat membuat modul baru)
      */
-    if (!isEditMode && deadline && deadline < todayInputValue()) {
-      setMessage("Deadline tidak boleh sebelum hari ini.");
+    if (!isEditMode && deadline && deadline < nowInputValue()) {
+      setMessage("Deadline tidak boleh sebelum waktu sekarang.");
 
       return;
     }
@@ -572,6 +592,8 @@ function TambahModulContent() {
         dokumen_pendukung: dokumen_pendukung || null,
 
         parameter_nilai: nilai,
+
+        jumlah_soal_kuis: clampJumlahSoal(jumlahSoalKuis),
 
         deadline: deadline || null,
       };
@@ -716,10 +738,10 @@ function TambahModulContent() {
           )}
         </div>
 
-        {/* PARAMETER NILAI & LEVEL */}
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* PARAMETER NILAI, LEVEL & JUMLAH SOAL KUIS */}
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
           {/* PARAMETER NILAI */}
-          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+          <div className="flex flex-col justify-center rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
             <label className="mb-2 block text-center text-sm font-bold text-[#3d3466]">
               Set Parameter Nilai Kelulusan
             </label>
@@ -747,19 +769,19 @@ function TambahModulContent() {
           </div>
 
           {/* LEVEL MODUL */}
-          <div className="rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+          <div className="flex flex-col justify-center rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
             <p className="mb-3 text-center text-sm font-bold text-[#3d3466]">
               Pilih Level Kesulitan Modul
             </p>
-            <div className="flex justify-center gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {LEVELS.map((lvl) => (
                 <button
                   key={lvl.key}
                   type="button"
                   onClick={() => setLevel(lvl.key)}
-                  className={`rounded-full px-6 py-2 text-sm font-bold text-white shadow-sm transition-all ${lvl.color} ${
+                  className={`w-full rounded-full px-2 py-2 text-xs font-bold text-white shadow-sm transition-all sm:text-sm ${lvl.color} ${
                     level === lvl.key
-                      ? "opacity-100 scale-105 ring-2 ring-offset-2 ring-[#4a3f7a]"
+                      ? "opacity-100 ring-2 ring-offset-2 ring-[#4a3f7a]"
                       : "opacity-40 hover:opacity-80"
                   }`}
                 >
@@ -767,6 +789,38 @@ function TambahModulContent() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* JUMLAH SOAL KUIS MODUL (BARU) */}
+          <div className="flex flex-col justify-center rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-5">
+            <label className="mb-2 block text-center text-sm font-bold text-[#3d3466]">
+              Jumlah Soal Kuis Modul
+            </label>
+            <div className="flex items-center justify-center gap-2">
+              <input
+                type="number"
+                min={MIN_JUMLAH_SOAL_KUIS}
+                max={MAX_JUMLAH_SOAL_KUIS}
+                value={jumlahSoalKuis}
+                onChange={(e) => {
+                  const rawValue = e.target.value;
+                  if (rawValue === "") {
+                    setJumlahSoalKuis(0);
+                    return;
+                  }
+                  setJumlahSoalKuis(Number(rawValue));
+                }}
+                onBlur={(e) =>
+                  setJumlahSoalKuis(clampJumlahSoal(Number(e.target.value)))
+                }
+                className="w-24 rounded-xl border border-[#4a3f7a]/20 bg-white px-3 py-2 text-center text-xl font-black text-[#3d3466] outline-none focus:border-[#4a3f7a] focus:ring-2 focus:ring-[#4a3f7a]/20"
+              />
+              <span className="text-xl font-black text-[#3d3466]">soal</span>
+            </div>
+            <p className="mt-2 text-center text-[11px] font-medium text-[#8b84a5]">
+              Jumlah soal acak yang muncul saat mahasiswa mengerjakan kuis
+              modul ini.
+            </p>
           </div>
         </div>
 
@@ -784,16 +838,16 @@ function TambahModulContent() {
           />
         </div>
 
-        {/* DEADLINE MODUL */}
+        {/* DEADLINE MODUL (tanggal + jam) */}
         <div className="mb-6">
           <label className="mb-2 block text-sm font-bold text-[#3d3466]">
             Deadline Modul (opsional)
           </label>
           <div className="flex items-center gap-3">
             <input
-              type="date"
+              type="datetime-local"
               value={deadline}
-              min={isEditMode ? undefined : todayInputValue()}
+              min={isEditMode ? undefined : nowInputValue()}
               onChange={(e) => setDeadline(e.target.value)}
               className="h-12 w-full flex-1 rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] px-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
             />
@@ -808,8 +862,9 @@ function TambahModulContent() {
             )}
           </div>
           <p className="mt-2 text-xs font-medium text-[#8b84a5]">
-            Setelah deadline, nilai kuis yang lolos akan dipatok ke nilai
-            minimal modul. Nilai di bawah minimal tetap harus mengulang kuis.
+            Tentukan tanggal dan jam deadline. Setelah lewat, nilai kuis yang
+            lolos akan dipatok ke nilai minimal kelulusan modul. Nilai di bawah minimal
+            tetap harus mengulang kuis.
           </p>
         </div>
 
@@ -844,7 +899,7 @@ function TambahModulContent() {
         {/* UPLOAD FILE BOXES */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <UploadBox
-            label="Dokumen Pembelajaran (docx/pdf)"
+            label="Dokumen Pembelajaran (Doc)"
             borderColor="border-sky-400"
             onFile={handleDocumentFile}
             fileName={docFile?.name ?? docLabel}
@@ -855,15 +910,12 @@ function TambahModulContent() {
             onFile={setThumbnailFile}
             fileName={thumbnailFile?.name ?? thumbnailLabel}
           />
-         
         </div>
-         <p className="mt-2 text-xs font-medium text-[#8b84a5]">
-            catatan : <br />
-            - bila dokumen yang di unggah berformat docx, maka sistem akan otomatis mengekstrak teksnya dan menaruhnya di kolom Teks Materi.<br />
-            - bila dokumen yang di unggah berformat pdf, maka sistem tidak dapat mengekstrak teksnya, sehingga kolom Teks Materi harus diisi secara manual. <br />
+        <p className="mt-2 text-xs font-medium text-[#8b84a5]">
+            catatan : <br/>
+            - jika dokumen yang diunggah berupa docx, maka isi file akan dibaca dan dimasukkan ke dalam teks materi oleh sistem. <br/>
+            - jika dokumen yang diunggah berupa pdf, maka isi file hanya akan ditampilakan dalam bentuk preview. <br/>
           </p>
-
-          
 
         {/* MESSAGE (hanya menampilkan pesan sukses / validasi input) */}
         {message && (
