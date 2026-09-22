@@ -76,7 +76,7 @@ export default function ArenaKelas({
         if (!isCancelled) setJoinError("Gagal masuk ke ruang tunggu. Coba lagi.");
         return;
       }
-
+//
       const { data: userData } = await supabase
         .from("user")
         .select("id_mahasiswa")
