@@ -116,11 +116,11 @@ export default function Quiz({ onClaimXP, idModul, initialScore, passingGrade }:
   const processFinishQuiz = async () => {
     setIsSaving(true);
     let correctCount = 0;
-    
+
     questions.forEach((q, index) => {
       const selectedJawabanIndex = selectedAnswers[index];
       if (selectedJawabanIndex !== undefined) {
-        if (q.jawaban[selectedJawabanIndex].jawaban_benar) {
+        if (q.jawaban[selectedJawabanIndex]?.jawaban_benar) {
           correctCount++;
         }
       }
@@ -135,6 +135,39 @@ export default function Quiz({ onClaimXP, idModul, initialScore, passingGrade }:
 
     if (profile?.idMahasiswa) {
       try {
+        // Riwayat evaluasi adalah snapshot pengerjaan terakhir per mahasiswa-modul.
+        const { error: deleteHistoryError } = await supabase
+          .from("riwayat_jawaban_kuis")
+          .delete()
+          .eq("id_mahasiswa", profile.idMahasiswa)
+          .eq("id_modul", idModul);
+
+        if (deleteHistoryError) throw deleteHistoryError;
+
+        const answerHistory = questions.map((question, index) => {
+          const selectedJawabanIndex = selectedAnswers[index];
+          const selectedAnswer =
+            selectedJawabanIndex === undefined
+              ? undefined
+              : question.jawaban[selectedJawabanIndex];
+
+          return {
+            id_mahasiswa: profile.idMahasiswa,
+            id_modul: idModul,
+            id_soal: question.id_soal,
+            id_jawaban: selectedAnswer?.id_jawaban ?? null,
+            is_benar: Boolean(selectedAnswer?.jawaban_benar),
+          };
+        });
+
+        if (answerHistory.length > 0) {
+          const { error: insertHistoryError } = await supabase
+            .from("riwayat_jawaban_kuis")
+            .insert(answerHistory);
+
+          if (insertHistoryError) throw insertHistoryError;
+        }
+
         await supabase.from('progress_modul').upsert({
           id_mahasiswa: profile.idMahasiswa,
           id_modul: idModul,
