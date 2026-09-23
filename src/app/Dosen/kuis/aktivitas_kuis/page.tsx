@@ -276,15 +276,7 @@ function AktivitasKuisContent() {
       categoryTag="EVALUASI & KUIS"
       title={`Aktivitas Kuis${namaKuis ? `: ${namaKuis}` : ""}`}
       subtitle="Daftar mahasiswa yang mengerjakan kuis ini beserta nilai yang diperoleh."
-      headerAction={
-        <button
-          type="button"
-          onClick={() => route.push("/Dosen/kuis")}
-          className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
-        >
-          ← Kembali ke Kuis
-        </button>
-      }
+    
     >
       <div className="rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
         <div className="mb-6 flex items-center justify-between border-b border-[#f0edf9] pb-4">

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import DosenContainer from "@/components/layout/DosenContainer";
+import { ClipboardList, X } from "lucide-react";
 
 type ModulDone = {
   no: number;
@@ -23,19 +24,25 @@ type AnswerHistory = {
   jawaban?: { jawaban: string } | { jawaban: string }[] | null;
 };
 
+type ModulJoin = {
+  id_modul: number;
+  nama_modul: string;
+  level?:
+    | { id_level: number; nama_level: string }
+    | { id_level: number; nama_level: string }[]
+    | null;
+};
+
+// Bentuk baris hasil query progress_modul di atas: hanya field yang
+// benar-benar di-select (id, nilai, selesai, kuis_dicoba, modul via join).
+// id_mahasiswa TIDAK di-select di sini (sudah difilter lewat .eq()), jadi
+// tidak boleh diwajibkan di tipe ini.
 type ProgressRow = {
-  id_mahasiswa: number;
+  id: number;
   nilai: number | null;
   selesai: boolean;
-  modul?: {
-    id_modul: number;
-    nama_modul: string;
-    level?: { id_level: number; nama_level: string } | { id_level: number; nama_level: string }[] | null;
-  } | {
-    id_modul: number;
-    nama_modul: string;
-    level?: { id_level: number; nama_level: string } | { id_level: number; nama_level: string }[] | null;
-  }[] | null;
+  kuis_dicoba: boolean;
+  modul?: ModulJoin | ModulJoin[] | null;
 };
 
 function getBadgeInfo(namaLevel: string | null | undefined) {
@@ -57,6 +64,10 @@ export default function DetailMahasiswa() {
   const [modulDone, setModulDone] = useState<ModulDone[]>([]);
   const [answerHistory, setAnswerHistory] = useState<AnswerHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // BARU: evaluasi jawaban disembunyikan dulu, tampil lewat popup
+  // begitu tombol "Lihat Evaluasi Jawaban" ditekan.
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
 
   useEffect(() => {
     if (!idMahasiswa) return;
@@ -106,7 +117,7 @@ export default function DetailMahasiswa() {
         return;
       }
 
-      const mapped: ModulDone[] = (data ?? []).map((row: ProgressRow, index: number) => {
+      const mapped: ModulDone[] = ((data ?? []) as ProgressRow[]).map((row, index) => {
         const modul = Array.isArray(row.modul) ? row.modul[0] : row.modul;
         const level = Array.isArray(modul?.level) ? modul.level[0] : modul?.level;
         const { badge, badgeColor } = getBadgeInfo(level?.nama_level);
@@ -145,6 +156,9 @@ export default function DetailMahasiswa() {
 
     load();
   }, [idMahasiswa, idModul]);
+
+  const jumlahBenar = answerHistory.filter((a) => a.is_benar).length;
+  const jumlahSalah = answerHistory.length - jumlahBenar;
 
   return (
     <DosenContainer
@@ -216,56 +230,128 @@ export default function DetailMahasiswa() {
           </div>
         )}
 
+        {/* =====================================================
+            EVALUASI JAWABAN — disembunyikan di balik tombol,
+            detailnya baru tampil lewat popup saat tombol ditekan.
+        ===================================================== */}
         {idModul && (
           <div className="mt-8 border-t border-[#f0edf9] pt-8">
-            <h3 className="mb-4 text-lg font-bold text-[#3d3466]">
-              Detail Jawaban Kuis Evaluasi
-            </h3>
-            {answerHistory.length === 0 ? (
-              <p className="py-6 text-center text-sm font-semibold text-[#8b84a5]">
-                Belum ada riwayat jawaban untuk modul ini.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {answerHistory.map((answer, index) => {
-                  const soal = Array.isArray(answer.soal) ? answer.soal[0] : answer.soal;
-                  const jawaban = Array.isArray(answer.jawaban)
-                    ? answer.jawaban[0]
-                    : answer.jawaban;
-
-                  return (
-                    <div
-                      key={`${answer.id_soal}-${index}`}
-                      className={`rounded-2xl border-l-4 p-4 ${
-                        answer.is_benar
-                          ? "border-emerald-500 bg-emerald-50"
-                          : "border-rose-500 bg-rose-50"
-                      }`}
-                    >
-                      <p className="text-sm font-bold text-[#2b2540]">
-                        {index + 1}. {soal?.soal ?? "Soal tidak tersedia"}
-                      </p>
-                      <p className="mt-2 text-sm text-gray-600">
-                        Jawaban mahasiswa: {jawaban?.jawaban ?? "Tidak dijawab"}
-                      </p>
-                      <span
-                        className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                          answer.is_benar
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-rose-100 text-rose-700"
-                        }`}
-                      >
-                        {answer.is_benar ? "Benar" : "Salah"}
-                      </span>
-                    </div>
-                  );
-                })}
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-[#f8f7fd] p-6 text-center ring-1 ring-[#4a3f7a]/5 sm:flex-row sm:justify-between sm:text-left">
+              <div>
+                <h3 className="text-base font-bold text-[#3d3466]">
+                  Evaluasi Jawaban Kuis
+                </h3>
+                <p className="mt-1 text-xs font-semibold text-[#8b84a5]">
+                  {answerHistory.length > 0
+                    ? `${answerHistory.length} soal • ${jumlahBenar} benar, ${jumlahSalah} salah`
+                    : "Belum ada riwayat jawaban untuk modul ini."}
+                </p>
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setShowEvaluationModal(true)}
+                disabled={answerHistory.length === 0}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#4a3f7a] px-6 py-3 text-xs font-bold text-white shadow-md shadow-[#4a3f7a]/20 transition hover:bg-[#3d3466] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ClipboardList size={16} />
+                Lihat Evaluasi Jawaban
+              </button>
+            </div>
           </div>
         )}
-
       </div>
+
+      {/* =====================================================
+          POPUP DETAIL JAWABAN
+      ===================================================== */}
+      {showEvaluationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setShowEvaluationModal(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* HEADER POPUP */}
+            <div className="flex items-center justify-between border-b border-[#f0edf9] px-6 py-5">
+              <div>
+                <h3 className="text-lg font-bold text-[#3d3466]">
+                  Detail Jawaban Kuis Evaluasi
+                </h3>
+                <p className="mt-0.5 text-xs font-semibold text-[#8b84a5]">
+                  {namaMahasiswa} • {answerHistory.length} soal ({jumlahBenar} benar, {jumlahSalah} salah)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEvaluationModal(false)}
+                aria-label="Tutup"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#8b84a5] transition hover:bg-[#f8f7fd] hover:text-[#4a3f7a]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* ISI POPUP (scrollable) */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {answerHistory.length === 0 ? (
+                <p className="py-6 text-center text-sm font-semibold text-[#8b84a5]">
+                  Belum ada riwayat jawaban untuk modul ini.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {answerHistory.map((answer, index) => {
+                    const soal = Array.isArray(answer.soal) ? answer.soal[0] : answer.soal;
+                    const jawaban = Array.isArray(answer.jawaban)
+                      ? answer.jawaban[0]
+                      : answer.jawaban;
+
+                    return (
+                      <div
+                        key={`${answer.id_soal}-${index}`}
+                        className={`rounded-2xl border-l-4 p-4 ${
+                          answer.is_benar
+                            ? "border-emerald-500 bg-emerald-50"
+                            : "border-rose-500 bg-rose-50"
+                        }`}
+                      >
+                        <p className="text-sm font-bold text-[#2b2540]">
+                          {index + 1}. {soal?.soal ?? "Soal tidak tersedia"}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600">
+                          Jawaban mahasiswa: {jawaban?.jawaban ?? "Tidak dijawab"}
+                        </p>
+                        <span
+                          className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${
+                            answer.is_benar
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {answer.is_benar ? "Benar" : "Salah"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* FOOTER POPUP */}
+            <div className="border-t border-[#f0edf9] px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setShowEvaluationModal(false)}
+                className="w-full rounded-full border border-[#e4e2ee] bg-white px-6 py-3 text-sm font-bold text-[#4a3f7a] transition hover:bg-[#f8f7fd]"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DosenContainer>
   );
 }

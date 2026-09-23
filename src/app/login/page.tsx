@@ -10,7 +10,7 @@ import {
   useRouter,
   useSearchParams,
 } from 'next/navigation'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, UserPlus } from 'lucide-react'
 
 import { supabase } from '../../lib/supabase'
 import { logActivity } from '../../lib/logActivity'
@@ -500,11 +500,20 @@ function LoginContent() {
 
       <div className="login-illustration">
 
+        <span className="login-illustration-eyebrow">
+          🎲 Belajar sambil bermain
+        </span>
+
         <img
           src="/images/board-logo.png"
           alt="Board Game Illustration"
           className="illustration-img"
         />
+
+        <p className="login-illustration-caption">
+          Selesaikan modul, kumpulkan XP, dan naik papan peringkat
+          bersama teman sekelasmu.
+        </p>
 
       </div>
 
@@ -515,8 +524,11 @@ function LoginContent() {
       <div className="login-form-side">
 
         <h1 className="login-title">
-          Log in
+          Selamat datang kembali
         </h1>
+        <p className="login-subtitle">
+          Masuk untuk melanjutkan perjalanan belajarmu.
+        </p>
 
         <form
           onSubmit={handleLogin}
@@ -613,7 +625,18 @@ function LoginContent() {
               : 'Log in'}
           </button>
 
-          {/* REGISTER */}
+        </form>
+
+        {/* DIVIDER */}
+
+        <div className="login-divider">
+          <span>atau</span>
+        </div>
+
+        {/* REGISTER CTA */}
+
+        <div className="login-register-box">
+          <p>Belum punya akun?</p>
 
           <button
             type="button"
@@ -623,10 +646,10 @@ function LoginContent() {
               router.push('/register')
             }
           >
-            Belum punya akun? Daftar
+            <UserPlus size={17} />
+            Daftar Akun Baru
           </button>
-
-        </form>
+        </div>
 
       </div>
 

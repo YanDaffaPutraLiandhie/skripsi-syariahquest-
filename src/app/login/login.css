@@ -4,9 +4,14 @@
 
 :root {
   --primary: #50427E;
+  --primary-dark: #2a224d;
+  --primary-mid: #3d3466;
   --secondary: #C1BAD8;
+  --accent: #F2C94C;
   --text-dark: #1F2937;
   --text-gray: #6B7280;
+  --success: #39C936;
+  --danger: #DC2626;
 }
 
 .login-page {
@@ -80,36 +85,114 @@
   z-index: 1;
 
   width: 100%;
-  max-width: 950px;
+  max-width: 960px;
 
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
+  grid-template-columns: 0.9fr 1fr;
+  align-items: stretch;
 
   background-color: #FFFFFF;
-  border-radius: 24px;
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+  border-radius: 28px;
+  box-shadow: 0 35px 70px rgba(12, 6, 24, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  overflow: hidden;
 
-  padding: 56px 60px;
-  gap: 40px;
+  animation: cardRise 0.5s ease both;
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 
 /* =========================================
-   ILLUSTRATION SIDE (Updated to img)
+   ILLUSTRATION SIDE
+   Panel bergradasi senada dengan hero banner
+   yang dipakai di seluruh halaman Dosen/Mahasiswa,
+   supaya login terasa satu keluarga dengan produk.
 ========================================= */
 
 .login-illustration {
+  position: relative;
+  overflow: hidden;
+
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 20px;
+
+  padding: 48px 36px;
+
+  background: radial-gradient(circle at 85% 12%, rgba(242, 201, 76, 0.18), transparent 45%),
+    linear-gradient(155deg, var(--primary) 0%, var(--primary-mid) 55%, var(--primary-dark) 100%);
+}
+
+/* dashed constellation line — motif dipinjam dari header banner produk */
+.login-illustration::before {
+  content: '';
+  position: absolute;
+  inset: -20% -10% auto auto;
+  width: 260px;
+  height: 220px;
+  opacity: 0.35;
+  background:
+    radial-gradient(circle at 78% 30%, var(--accent) 0 3px, transparent 4px),
+    radial-gradient(circle at 55% 62%, rgba(255, 255, 255, 0.6) 0 2px, transparent 3px);
+  pointer-events: none;
+}
+
+.login-illustration::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.login-illustration-eyebrow {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #EDE8FB;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .login-illustration img {
-  max-width: 380px;
+  position: relative;
+  z-index: 1;
+  max-width: 300px;
   width: 100%;
   height: auto;
   object-fit: contain;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.35));
+}
+
+.login-illustration-caption {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: #E4DEF7;
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 280px;
 }
 
 
@@ -120,14 +203,22 @@
 .login-form-side {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  padding: 56px 52px;
 }
 
 .login-title {
-  margin: 0 0 24px;
-  text-align: center;
+  margin: 0 0 6px;
   color: var(--primary);
   font-size: 30px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.login-subtitle {
+  margin: 0 0 28px;
+  color: var(--text-gray);
+  font-size: 14px;
 }
 
 .login-form {
@@ -149,20 +240,21 @@
 
 .login-field input {
   width: 100%;
-  height: 46px;
+  height: 48px;
   padding: 0 16px;
-  border: 1px solid #E5E7EB;
-  border-radius: 10px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 12px;
   background-color: #F3F4F8;
   color: var(--text-dark);
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .login-field input:focus {
   border-color: var(--primary);
   background-color: #FFFFFF;
+  box-shadow: 0 0 0 4px rgba(80, 66, 126, 0.12);
 }
 
 .password-input-wrapper {
@@ -176,28 +268,31 @@
 .password-toggle {
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 0;
+  border-radius: 8px;
   background: transparent;
   color: var(--primary);
   cursor: pointer;
   transform: translateY(-50%);
+  transition: background-color 0.15s ease;
 }
 
 .password-toggle:hover {
+  background-color: rgba(80, 66, 126, 0.08);
   color: #302653;
 }
 
 .login-links-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 18px;
 }
 
@@ -209,7 +304,7 @@
 }
 
 .login-link.forgot {
-  color: #DC2626;
+  color: var(--danger);
 }
 
 .login-link:hover {
@@ -218,31 +313,39 @@
 
 .login-error {
   margin: 0 0 14px;
-  color: #DC2626;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  color: var(--danger);
   font-size: 13px;
+  font-weight: 600;
   text-align: center;
 }
 
 .login-submit {
   width: 100%;
-  height: 48px;
+  height: 50px;
   border: none;
   border-radius: 999px;
-  background-color: var(--primary);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-mid) 100%);
   color: #FFFFFF;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  box-shadow: 0 12px 24px rgba(80, 66, 126, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
 }
 
-.login-submit:hover {
-  opacity: 0.9;
+.login-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(80, 66, 126, 0.38);
 }
 
 .login-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 
@@ -255,7 +358,7 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin: 18px 0 16px;
+  margin: 22px 0 18px;
 }
 
 .login-divider::before,
@@ -263,7 +366,7 @@
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #D1D5DB;
+  background-color: #E5E7EB;
 }
 
 .login-divider span {
@@ -274,7 +377,58 @@
 
 
 /* =========================================
-   SOCIAL LOGIN
+   REGISTER CTA
+   Dipisah jelas dari tombol submit: pill
+   outline berwarna aksen emas + ikon, supaya
+   "belum punya akun" tidak terasa seperti
+   tautan teks biasa yang gampang terlewat.
+========================================= */
+
+.login-register-box {
+  text-align: center;
+}
+
+.login-register-box p {
+  margin: 0 0 10px;
+  color: var(--text-gray);
+  font-size: 13px;
+}
+
+.login-register-btn {
+  width: 100%;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  border: 1.5px solid var(--primary);
+  border-radius: 999px;
+  background-color: #FFFFFF;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+}
+
+.login-register-btn:hover:not(:disabled) {
+  background-color: var(--primary);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(80, 66, 126, 0.25);
+}
+
+.login-register-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
+/* =========================================
+   SOCIAL LOGIN (tidak dipakai saat ini,
+   disiapkan kalau dibutuhkan nanti)
 ========================================= */
 
 .login-social-row {
@@ -304,34 +458,41 @@
 
 
 /* =========================================
-   RESPONSIVE (Updated for img)
+   RESPONSIVE
 ========================================= */
 
 @media (max-width: 860px) {
   .login-card {
     grid-template-columns: 1fr;
-    padding: 40px 32px;
     max-width: 460px;
   }
 
   .login-illustration {
-    order: 2;
-    margin-top: 8px;
+    order: 1;
+    padding: 32px 28px;
   }
 
   .login-illustration img {
-    max-width: 260px;
+    max-width: 220px;
   }
 
   .login-form-side {
-    order: 1;
+    order: 2;
+    padding: 40px 32px;
   }
 }
 
 @media (max-width: 480px) {
-  .login-card {
+  .login-form-side {
     padding: 32px 22px;
-    border-radius: 18px;
+  }
+
+  .login-illustration {
+    padding: 28px 22px;
+  }
+
+  .login-card {
+    border-radius: 20px;
   }
 
   .login-title {

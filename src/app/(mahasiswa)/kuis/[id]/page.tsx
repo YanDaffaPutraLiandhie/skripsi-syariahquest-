@@ -11,6 +11,7 @@ import {
   XCircle,
   ShieldAlert,
   PartyPopper,
+  AlertTriangle,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { calculateMasteryScore, selectAdaptiveQuestions, shuffleQuestions, MAX_QUESTION_COUNT, type AdaptiveProgress } from "@/lib/adaptiveLearning";
@@ -65,6 +66,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   // ==========================================
   const [hasTaken, setHasTaken] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // BARU: popup konfirmasi kustom (menggantikan window.confirm bawaan
+  // browser yang tampilannya tidak konsisten dengan desain aplikasi).
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
 
   useEffect(() => {
     async function fetchQuiz() {
@@ -182,17 +188,26 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     setAnswers(prev => ({ ...prev, [idSoal]: idJawaban }));
   };
 
-  const handleSubmit = async () => {
+  // BARU: dipanggil saat tombol "Kumpulkan" ditekan. Tidak langsung
+  // mengirim jawaban — hanya menyiapkan pesan & membuka popup konfirmasi.
+  const openSubmitConfirmation = () => {
     if (Object.keys(answers).length < questions.length) {
-      if (!confirm("Masih ada soal yang belum kamu jawab! Yakin ingin mengumpulkan ujian sekarang? Kuis ini tidak bisa diulang setelah dikumpulkan.")) {
-        return;
-      }
+      setConfirmMessage(
+        "Masih ada soal yang belum kamu jawab! Yakin ingin mengumpulkan ujian sekarang? Kuis ini tidak bisa diulang setelah dikumpulkan.",
+      );
     } else {
-      if (!confirm("Kuis ini hanya bisa dikerjakan satu kali dan tidak bisa diulang. Yakin ingin mengumpulkan jawabanmu sekarang?")) {
-        return;
-      }
+      setConfirmMessage(
+        "Kuis ini hanya bisa dikerjakan satu kali dan tidak bisa diulang. Yakin ingin mengumpulkan jawabanmu sekarang?",
+      );
     }
+    setShowConfirmModal(true);
+  };
 
+  // Logika pengumpulan jawaban sesungguhnya, dipisah dari popup
+  // konfirmasi supaya hanya dijalankan setelah mahasiswa menekan "Ya,
+  // Kumpulkan" pada popup.
+  const performSubmit = async () => {
+    setShowConfirmModal(false);
     setIsSubmitting(true);
 
     let correctCount = 0;
@@ -312,6 +327,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
 
   const currentQ = questions[currentIndex];
   const late = isPastDeadline(deadline);
+  const unansweredCount = questions.length - Object.keys(answers).length;
 
   return (
     <div className="min-h-screen bg-[#F8F9FB] flex flex-col items-center py-10 px-4">
@@ -419,7 +435,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
 
               {currentIndex === questions.length - 1 ? (
                 <button
-                  onClick={handleSubmit}
+                  onClick={openSubmitConfirmation}
                   disabled={isSubmitting}
                   className="px-8 py-3 rounded-xl font-black text-white bg-[#39C936] hover:bg-[#2EA32B] shadow-lg hover:shadow-xl flex items-center gap-2 transition-all hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0"
                 >
@@ -469,6 +485,65 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
         )}
 
       </div>
+
+      {/* =====================================================
+          POPUP KONFIRMASI KUMPULKAN JAWABAN
+          Menggantikan window.confirm() bawaan browser supaya
+          tampilannya konsisten dengan desain aplikasi.
+      ===================================================== */}
+      {showConfirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => !isSubmitting && setShowConfirmModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] bg-white p-8 text-center shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${
+                unansweredCount > 0 ? "bg-amber-50" : "bg-purple-50"
+              }`}
+            >
+              <AlertTriangle
+                className={`h-8 w-8 ${
+                  unansweredCount > 0 ? "text-amber-500" : "text-[#5B5288]"
+                }`}
+              />
+            </div>
+
+            <h3 className="mb-2 text-xl font-black text-[#5B5288]">
+              {unansweredCount > 0 ? "Masih Ada Soal Kosong" : "Kumpulkan Jawaban?"}
+            </h3>
+            <p className="mb-8 text-sm font-medium leading-relaxed text-gray-500">
+              {confirmMessage}
+            </p>
+
+            <div className="flex flex-col gap-3 sm:flex-row-reverse">
+              <button
+                type="button"
+                onClick={performSubmit}
+                disabled={isSubmitting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#39C936] px-6 py-3.5 text-sm font-black text-white shadow-lg transition-all hover:bg-[#2EA32B] hover:-translate-y-0.5 disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>Ya, Kumpulkan <CheckCircle className="h-4 w-4" /></>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl border-2 bg-[#ef2525] border-gray-100 px-6 py-3.5 text-sm font-bold text-white transition-all hover:bg-[#c41111] hover:-translate-y-0.5 disabled:opacity-60"
+              >
+                Batal, Cek Lagi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
