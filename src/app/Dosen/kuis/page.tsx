@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatDeadline, isPastDeadline } from "@/lib/deadline";
 import DosenContainer from "@/components/layout/DosenContainer";
-import { Plus, HelpCircle } from "lucide-react";
+import { Plus, HelpCircle, BarChart3 } from "lucide-react";
 
 type KuisCard = {
   id: number;
@@ -105,7 +105,7 @@ export default function KuisPage() {
             return (
               <div
                 key={card.id}
-                className="group flex h-[310px] flex-col overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
+                className="group flex h-[340px] flex-col overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:ring-[#4a3f7a]/20"
               >
                 {/* TOP HEADER PATTERN */}
                 <div className="relative flex h-[120px] shrink-0 items-center justify-center bg-gradient-to-br from-[#4a3f7a] to-[#3d3466]">
@@ -141,13 +141,24 @@ export default function KuisPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
-                    className="w-full rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#3d3466]"
-                  >
-                    Lihat & Kelola Kuis
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/Dosen/kuis/${card.id}`)}
+                      className="w-full rounded-xl bg-[#4a3f7a] py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#3d3466]"
+                    >
+                      Lihat & Kelola Kuis
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/Dosen/kuis/aktivitas_kuis?id=${card.id}`)}
+                      className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#4a3f7a]/20 bg-[#f8f7fd] py-2.5 text-xs font-bold text-[#4a3f7a] shadow-sm transition hover:bg-[#f0edf9]"
+                    >
+                      <BarChart3 size={14} />
+                      Lihat Aktivitas
+                    </button>
+                  </div>
                 </div>
               </div>
             );

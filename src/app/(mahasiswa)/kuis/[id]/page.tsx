@@ -11,16 +11,10 @@ import {
   XCircle,
   ShieldAlert,
   PartyPopper,
-  RotateCcw,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { calculateMasteryScore, selectAdaptiveQuestions, shuffleQuestions, MAX_QUESTION_COUNT, type AdaptiveProgress } from "@/lib/adaptiveLearning";
-import {
-  KUIS_NILAI_MINIMAL,
-  applyDeadlineScore,
-  formatDeadline,
-  isPastDeadline,
-} from "@/lib/deadline";
+import { formatDeadline, isPastDeadline } from "@/lib/deadline";
 
 interface Option {
   id_jawaban: number;
@@ -41,9 +35,8 @@ interface DetailKuisRow {
 
 type ExamResult = {
   finalScore: number;
-  passed: boolean;
-  isLate: boolean;
-  wasCapped: boolean;
+  correctCount: number;
+  totalQuestions: number;
 };
 
 export default function UjianPage({ params }: { params: Promise<{ id: string }> }) {
@@ -60,23 +53,25 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [result, setResult] = useState<ExamResult | null>(null);
 
-  // Deadline kuis (dari tabel quis)
+  // Deadline kuis (dari tabel quis) — hanya untuk informasi, tidak
+  // memengaruhi nilai karena tidak ada lagi nilai minimal / pematokan nilai.
   const [deadline, setDeadline] = useState<string | null>(null);
 
   // ==========================================
   // Penjaga Gerbang Kuis
-  // (hanya terkunci kalau mahasiswa sudah LULUS)
+  // Kuis TIDAK BISA DIULANG sama sekali. Begitu ada satu baris riwayat
+  // (apa pun nilainya), mahasiswa dianggap sudah pernah mengerjakan
+  // dan tidak bisa membuka ujian ini lagi.
   // ==========================================
-  const [hasPassed, setHasPassed] = useState(false);
+  const [hasTaken, setHasTaken] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     async function fetchQuiz() {
       setIsLoading(true);
       try {
-        // 1. CEK KEAMANAN: Apakah mahasiswa ini sudah pernah LULUS kuis ini?
-        // (riwayat_ujian hanya diisi saat mahasiswa lulus, jadi yang belum
-        // lulus tetap bisa mengulang)
+        // 1. CEK KEAMANAN: Apakah mahasiswa ini sudah PERNAH mengerjakan
+        // kuis ini (nilai berapa pun)? Kalau sudah, kunci total.
         if (profile?.idMahasiswa) {
           const { data: historyData } = await supabase
             .from('riwayat_ujian')
@@ -86,13 +81,13 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             .limit(1);
 
           if (historyData && historyData.length > 0) {
-            setHasPassed(true);
+            setHasTaken(true);
             setIsLoading(false);
             return;
           }
         }
 
-        // 2. Ambil deadline kuis
+        // 2. Ambil deadline kuis (informasi saja)
         const { data: quizMeta } = await supabase
           .from('quis')
           .select('deadline')
@@ -189,7 +184,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
 
   const handleSubmit = async () => {
     if (Object.keys(answers).length < questions.length) {
-      if (!confirm("Masih ada soal yang belum kamu jawab! Yakin ingin mengumpulkan ujian sekarang?")) {
+      if (!confirm("Masih ada soal yang belum kamu jawab! Yakin ingin mengumpulkan ujian sekarang? Kuis ini tidak bisa diulang setelah dikumpulkan.")) {
+        return;
+      }
+    } else {
+      if (!confirm("Kuis ini hanya bisa dikerjakan satu kali dan tidak bisa diulang. Yakin ingin mengumpulkan jawabanmu sekarang?")) {
         return;
       }
     }
@@ -208,22 +207,22 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
       }
     });
 
-    const rawScore = Math.round((correctCount / questions.length) * 100);
+    const finalScore = Math.round((correctCount / questions.length) * 100);
+
+    setResult({
+      finalScore,
+      correctCount,
+      totalQuestions: questions.length,
+    });
 
     // ==========================================
-    // ATURAN DEADLINE & NILAI MINIMAL
-    // - Lolos + lewat deadline  -> nilai dipatok = nilai minimal
-    // - Tidak lolos             -> nilai apa adanya, harus mengulang
+    // TIDAK ADA NILAI MINIMAL. Setiap percobaan
+    // (hanya sekali seumur hidup per mahasiswa per
+    // kuis) selalu dicatat apa adanya ke riwayat_ujian.
+    // XP diberikan berdasarkan jumlah jawaban benar.
     // ==========================================
-    const outcome = applyDeadlineScore(rawScore, KUIS_NILAI_MINIMAL, deadline);
-    setResult(outcome);
-
-    // ==========================================
-    // Hanya yang LULUS yang dicatat & mendapat XP.
-    // Yang belum lulus tidak disimpan sehingga bisa mengulang.
-    // ==========================================
-    if (outcome.passed && profile?.idMahasiswa) {
-      // Cegah exploit tab ganda
+    if (profile?.idMahasiswa) {
+      // Cegah exploit tab ganda / submit dobel
       const { data: checkHistory } = await supabase
         .from('riwayat_ujian')
         .select('id')
@@ -232,18 +231,26 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
         .limit(1);
 
       if (!checkHistory || checkHistory.length === 0) {
-        // 1. Tambah XP
-        const { data: mhsData } = await supabase.from('mahasiswa').select('total_xp').eq('id_mahasiswa', profile.idMahasiswa).single();
+        // 1. Tambah XP sesuai jumlah jawaban benar
+        const { data: mhsData } = await supabase
+          .from('mahasiswa')
+          .select('total_xp')
+          .eq('id_mahasiswa', profile.idMahasiswa)
+          .single();
         const currentXp = mhsData?.total_xp || 0;
         const bonusXp = correctCount * 10; // 1 soal benar = 10 XP
 
-        await supabase.from('mahasiswa').update({ total_xp: currentXp + bonusXp }).eq('id_mahasiswa', profile.idMahasiswa);
+        await supabase
+          .from('mahasiswa')
+          .update({ total_xp: currentXp + bonusXp })
+          .eq('id_mahasiswa', profile.idMahasiswa);
 
-        // 2. Kunci Gembok: catat nilai akhir (sudah dipatok bila lewat deadline)
+        // 2. Catat riwayat ujian apa adanya (tanpa nilai minimal / pematokan)
         const { error: insertError } = await supabase.from('riwayat_ujian').insert({
           id_quis: Number(quizId),
           id_mahasiswa: profile.idMahasiswa,
-          nilai: outcome.finalScore
+          nilai: finalScore,
+          lulus: true, // tidak ada lagi konsep lulus/tidak lulus; ditandai selesai
         });
 
         if (insertError) {
@@ -256,16 +263,6 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     setIsSubmitting(false);
   };
 
-  // Ulangi kuis (hanya tersedia bila belum lulus)
-  const handleRetry = () => {
-    setAnswers({});
-    setCurrentIndex(0);
-    setResult(null);
-    setIsSubmitted(false);
-    setAllQuestions((prev) => shuffleQuestions(prev));
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FB]">
@@ -276,9 +273,11 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
   }
 
   // ==========================================
-  // Layar Penolakan (Sudah Pernah Lulus)
+  // Layar Penolakan (Sudah Pernah Mengerjakan)
+  // Berlaku untuk nilai berapa pun karena kuis
+  // tidak bisa diulang sama sekali.
   // ==========================================
-  if (hasPassed) {
+  if (hasTaken) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FB] p-4">
         <div className="bg-white rounded-[30px] p-10 md:p-14 shadow-sm border border-gray-100 text-center max-w-lg animate-in zoom-in-95 duration-500">
@@ -287,7 +286,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <h2 className="text-2xl font-black text-[#5B5288] mb-4">Ujian Sudah Diselesaikan!</h2>
           <p className="text-gray-500 mb-8 font-medium">
-            Kamu sudah lulus dan mendapatkan poin XP dari kuis ujian ini. Ujian tidak bisa diulang untuk mencegah eksploitasi poin.
+            Kamu sudah pernah mengerjakan kuis ujian ini. Kuis hanya bisa dikerjakan satu kali dan tidak bisa diulang.
           </p>
           <button onClick={() => router.push('/dashboard')} className="px-8 py-3.5 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full">
             Kembali ke Dashboard
@@ -368,18 +367,10 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           </div>
         </div>
 
-        {/* Info aturan nilai */}
+        {/* Info aturan kuis */}
         {!isSubmitted && (
-          <div
-            className={`mb-6 rounded-2xl p-4 text-sm font-semibold ring-1 ${
-              late
-                ? "bg-amber-50 text-amber-800 ring-amber-200"
-                : "bg-white text-gray-600 ring-gray-100"
-            }`}
-          >
-            {late
-              ? `Deadline sudah lewat. Jika nilaimu mencapai ${KUIS_NILAI_MINIMAL}% atau lebih, nilai akhir dicatat sebagai ${KUIS_NILAI_MINIMAL}%. Jika di bawah ${KUIS_NILAI_MINIMAL}%, kamu harus mengulang kuis ini.`
-              : `Nilai minimal untuk lulus adalah ${KUIS_NILAI_MINIMAL}%. Jika belum mencapainya, kamu bisa mengulang kuis ini.`}
+          <div className="mb-6 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+            ⚠️ Kuis ini hanya bisa dikerjakan <span className="font-black">satu kali</span> dan tidak bisa diulang. Nilai yang tercatat adalah nilai apa adanya dari hasil jawabanmu — tidak ada nilai minimal kelulusan. Pastikan kamu sudah siap sebelum mengumpulkan.
           </div>
         )}
 
@@ -445,64 +436,35 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
               )}
             </div>
           </div>
-        ) : result?.passed ? (
+        ) : (
           /* =====================================================
-              LAYAR LULUS
-              Skor detail & jawaban benar tidak ditampilkan supaya
-              kunci jawaban tidak bisa dipelajari lewat layar hasil.
+              LAYAR HASIL — SELALU MUNCUL SETELAH SUBMIT
+              Tidak ada lagi status lulus/tidak lulus atau tombol
+              ulangi, karena kuis hanya bisa dikerjakan sekali dan
+              nilai dicatat apa adanya tanpa nilai minimal.
           ===================================================== */
           <div className="bg-white rounded-[30px] p-10 md:p-14 shadow-sm border border-gray-100 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="inline-flex items-center justify-center w-28 h-28 bg-purple-50 rounded-full mb-6 border-4 border-white shadow-lg">
               <PartyPopper className="w-14 h-14 text-[#5B5288]" />
             </div>
 
-            <h2 className="text-3xl font-black text-[#5B5288] mb-2">Kamu Lulus!</h2>
+            <h2 className="text-3xl font-black text-[#5B5288] mb-2">Ujian Selesai!</h2>
             <p className="text-gray-500 mb-4 font-medium">
               Jawabanmu sudah tersimpan. Nilai dan XP kamu sudah diperbarui — pantau progresmu lewat halaman Dashboard.
             </p>
 
-            {result.wasCapped && (
-              <p className="mb-8 rounded-2xl bg-amber-50 p-4 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
-                Karena dikerjakan setelah deadline, nilai akhirmu dicatat sebagai nilai minimal ({KUIS_NILAI_MINIMAL}%).
-              </p>
+            {result && (
+              <div className="mb-8 inline-flex items-center gap-2 rounded-2xl bg-[#f8f7fd] px-6 py-3 text-lg font-black text-[#5B5288] ring-1 ring-[#5B5288]/10">
+                Nilai Akhir: {result.finalScore}%
+              </div>
             )}
 
             <button
               onClick={() => router.push('/dashboard')}
-              className="mt-6 px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
+              className="mt-2 px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
             >
               Kembali ke Dashboard
             </button>
-          </div>
-        ) : (
-          /* =====================================================
-              LAYAR BELUM LULUS -> harus mengulang
-              Tidak ada XP & tidak ada riwayat yang disimpan.
-          ===================================================== */
-          <div className="bg-white rounded-[30px] p-10 md:p-14 shadow-sm border border-gray-100 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="inline-flex items-center justify-center w-28 h-28 bg-rose-50 rounded-full mb-6 border-4 border-white shadow-lg">
-              <XCircle className="w-14 h-14 text-rose-500" />
-            </div>
-
-            <h2 className="text-3xl font-black text-[#5B5288] mb-2">Belum Lulus</h2>
-            <p className="text-gray-500 mb-8 font-medium">
-              Nilaimu belum mencapai batas minimal {KUIS_NILAI_MINIMAL}%. Pelajari kembali materinya, lalu ulangi kuis ini.
-            </p>
-
-            <div className="flex flex-col items-center justify-center gap-3 md:flex-row">
-              <button
-                onClick={handleRetry}
-                className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
-              >
-                <RotateCcw className="w-5 h-5" /> Ulangi Kuis
-              </button>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="px-8 py-4 rounded-2xl border border-gray-200 font-bold text-gray-500 hover:bg-gray-50 transition-all w-full md:w-auto"
-              >
-                Kembali ke Dashboard
-              </button>
-            </div>
           </div>
         )}
 

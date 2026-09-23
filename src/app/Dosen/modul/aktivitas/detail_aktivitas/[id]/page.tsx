@@ -12,6 +12,7 @@ type ModulDone = {
   badge: string;
   badgeColor: string;
   score: number;
+  passed: boolean;
 };
 
 type AnswerHistory = {
@@ -72,6 +73,12 @@ export default function DetailMahasiswa() {
       if (mhsError) console.error("Gagal fetch mahasiswa:", mhsError);
       setNamaMahasiswa(mhs?.nama_mahasiswa ?? "Mahasiswa");
 
+      // =========================================================
+      // Ambil semua modul yang KUIS-nya sudah pernah dicoba
+      // (kuis_dicoba = true), bukan hanya yang lulus (selesai = true).
+      // Dengan begini modul yang sudah dikerjakan tapi belum lulus
+      // tetap muncul di detail aktivitas beserta nilainya.
+      // =========================================================
       const { data, error } = await supabase
         .from("progress_modul")
         .select(
@@ -79,6 +86,7 @@ export default function DetailMahasiswa() {
           id,
           nilai,
           selesai,
+          kuis_dicoba,
           modul:id_modul (
             id_modul,
             nama_modul,
@@ -90,7 +98,7 @@ export default function DetailMahasiswa() {
         `
         )
         .eq("id_mahasiswa", idMahasiswa)
-        .eq("selesai", true);
+        .eq("kuis_dicoba", true);
 
       if (error) {
         console.error("Gagal fetch progress_modul:", error);
@@ -109,6 +117,7 @@ export default function DetailMahasiswa() {
           badge,
           badgeColor,
           score: Number(row.nilai) || 0,
+          passed: !!row.selesai,
         };
       });
 
@@ -141,7 +150,7 @@ export default function DetailMahasiswa() {
     <DosenContainer
       categoryTag="DETAIL AKTIVITAS MAHASISWA"
       title={namaMahasiswa}
-      subtitle="Riwayat modul dan pencapaian nilai yang telah diselesaikan mahasiswa."
+      subtitle="Riwayat modul dan pencapaian nilai yang telah dikerjakan mahasiswa."
       headerAction={
         <button
           type="button"
@@ -162,7 +171,7 @@ export default function DetailMahasiswa() {
           </div>
           <h2 className="text-2xl font-bold text-[#3d3466]">{namaMahasiswa}</h2>
           <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-[#f8f7fd] px-3.5 py-1 text-xs font-semibold text-[#4a3f7a] ring-1 ring-[#4a3f7a]/10">
-            Daftar Modul Diselesaikan ({modulDone.length})
+            Daftar Modul yang Sudah Dikerjakan ({modulDone.length})
           </span>
         </div>
 
@@ -172,7 +181,7 @@ export default function DetailMahasiswa() {
           </div>
         ) : modulDone.length === 0 ? (
           <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
-            Mahasiswa ini belum menyelesaikan modul pembelajaran apapun.
+            Mahasiswa ini belum mengerjakan kuis modul pembelajaran apapun.
           </div>
         ) : (
           <div className="space-y-3">
@@ -191,8 +200,15 @@ export default function DetailMahasiswa() {
                   <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${row.badgeColor}`}>
                     {row.badge}
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                      row.passed
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                        : "bg-rose-50 text-rose-700 ring-rose-200"
+                    }`}
+                  >
                     Nilai: {row.score}
+                    {!row.passed && " (Belum Lulus)"}
                   </span>
                 </div>
               </div>
