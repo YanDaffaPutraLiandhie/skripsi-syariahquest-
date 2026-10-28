@@ -9,6 +9,7 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024;
 function cleanText(value: string) {
   return value
     .replace(/\r\n/g, "\n")
+    .replace(/--\s*\d+\s+of\s+\d+\s*--/gi, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

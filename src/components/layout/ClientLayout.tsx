@@ -27,7 +27,11 @@ export default function ClientLayout({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  const isGameMode = pathname.startsWith("/arena/play");
+  const isGameMode =
+    pathname.startsWith("/arena/play") ||
+    pathname.startsWith("/mahasiswa/arena/play") ||
+    pathname.startsWith("/mahasiswa/play") ||
+    pathname.startsWith("/play");
 
   const isAuthPage =
     pathname.startsWith("/login") ||
@@ -69,7 +73,7 @@ export default function ClientLayout({
   const isDosen = pathname.startsWith("/Dosen");
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div suppressHydrationWarning className="flex min-h-screen bg-background">
 
       {isDosen ? (
         <DosenSidebar
@@ -92,7 +96,7 @@ export default function ClientLayout({
           type="button"
           aria-label="Tutup menu"
           onClick={() => setIsMobileMenuOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/40 md:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/50 md:hidden"
         />
       )}
 
@@ -115,7 +119,9 @@ export default function ClientLayout({
           <Navbar
             onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
             showBackButton={
-              pathname !== "/dashboard" && pathname !== "/Dosen/Dashboard"
+              pathname !== "/dashboard" &&
+              pathname !== "/mahasiswa/dashboard" &&
+              pathname !== "/Dosen/Dashboard"
             }
           />
         )}

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
-// Cukup import wrapper yang tadi kita buat
 import ClientLayout from "@/components/layout/ClientLayout";
 
 const nunito = Nunito({
@@ -23,7 +22,6 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className={`${nunito.variable} font-sans bg-background text-gray-800`}>
-        {/* Semua layouting ditangani oleh ClientLayout */}
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

@@ -95,7 +95,7 @@ export default function SettingsModal({ onClose, isBgmEnabled, setIsBgmEnabled, 
               <button onClick={() => setShowExitConfirm(false)} className="flex-1 bg-white text-[#5B5288] font-extrabold py-3.5 rounded-xl text-sm shadow-lg hover:bg-gray-50 transition-all">
                 Batal
               </button>
-              <button onClick={() => router.push('/arena')} className="flex-1 bg-[#E73131] text-white font-extrabold py-3.5 rounded-xl text-sm shadow-lg hover:brightness-110 transition-all">
+              <button onClick={() => router.push('/mahasiswa/arena')} className="flex-1 bg-[#E73131] text-white font-extrabold py-3.5 rounded-xl text-sm shadow-lg hover:brightness-110 transition-all">
                 Ya, Keluar
               </button>
             </div>

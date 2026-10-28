@@ -4,9 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Star } from "lucide-react";
+import { Loader2, Star, Brain, Sparkles } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useBadges } from "@/hooks/useBadges";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 
 type ModulDB = {
@@ -28,7 +27,7 @@ type ProgressDB = {
 };
 
 // =====================================================
-// Info visual tiap level modul — sama seperti yang
+// Info visual tiap level modul â€” sama seperti yang
 // dipakai di dashboard dosen, supaya tampilan "Modul"
 // konsisten di kedua sisi.
 // =====================================================
@@ -40,7 +39,7 @@ function getLevelInfo(idLevel: number) {
   return { label: "H", name: "Sulit", color: "bg-rose-500", stars: 3 };
 }
 
-// Baris bintang kecil ala kartu game — merepresentasikan
+// Baris bintang kecil ala kartu game â€” merepresentasikan
 // tingkat kesulitan modul (1-3).
 function LevelStars({ count }: { count: number }) {
   return (
@@ -48,8 +47,11 @@ function LevelStars({ count }: { count: number }) {
       {[1, 2, 3].map((i) => (
         <Star
           key={i}
-          className={`h-3 w-3 ${i <= count ? "fill-amber-400 text-amber-400" : "fill-transparent text-[#d9d4ef]"
-            }`}
+          className={`h-3 w-3 ${
+            i <= count
+              ? "fill-amber-400 text-amber-400"
+              : "fill-transparent text-[#d9d4ef]"
+          }`}
         />
       ))}
     </div>
@@ -63,7 +65,6 @@ export default function Dashboard() {
   const router = useRouter();
 
   const { profile, isLoading: isProfileLoading } = useCurrentUser();
-  const { badges, isLoading: isBadgesLoading } = useBadges(profile?.idMahasiswa);
   const { leaderboard, isLoading: isLeaderboardLoading } = useLeaderboard();
 
   const [modulTersedia, setModulTersedia] = useState<ModulDB[]>([]);
@@ -75,7 +76,9 @@ export default function Dashboard() {
 
   const filteredModul = useMemo(() => {
     if (levelFilter === "Semua") return modulTersedia;
-    return modulTersedia.filter((m) => getLevelInfo(m.id_level).name === levelFilter);
+    return modulTersedia.filter(
+      (m) => getLevelInfo(m.id_level).name === levelFilter
+    );
   }, [modulTersedia, levelFilter]);
 
   useEffect(() => {
@@ -123,14 +126,16 @@ export default function Dashboard() {
 
   const handleLanjutkan = () => {
     if (lastActiveModulId) {
-      router.push(`/modul/${lastActiveModulId}`);
+      router.push(`/mahasiswa/modul/${lastActiveModulId}`);
     } else {
-      router.push(`/modul`);
+      router.push(`/mahasiswa/modul`);
     }
   };
 
   if (isProfileLoading) {
-    return <div className="p-8 text-[#5B5288] font-bold">Memuat Dashboard...</div>;
+    return (
+      <div className="p-8 text-[#5B5288] font-bold">Memuat Dashboard...</div>
+    );
   }
 
   return (
@@ -139,13 +144,18 @@ export default function Dashboard() {
       <div className="relative">
         <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#4a3f7a] via-[#3d3466] to-[#2a224d] p-8 shadow-lg shadow-[#3d3466]/25 lg:p-10 flex items-center justify-between">
           {/* Header Banner Background SVGs */}
-          <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">✨</div>
-          <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">✨</div>
+          <div className="absolute right-[28%] top-6 h-5 w-5 text-white/40">âœ¨</div>
+          <div className="absolute right-[8%] top-10 h-4 w-4 text-[#f2c94c] animate-pulse">âœ¨</div>
 
           {/* Banner Decorative Curved Lines */}
           <div className="pointer-events-none absolute -right-10 top-0 opacity-20">
             <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
-              <path d="M50 0 C 150 100, 200 50, 300 200" stroke="white" strokeWidth="3" strokeDasharray="6 6" />
+              <path
+                d="M50 0 C 150 100, 200 50, 300 200"
+                stroke="white"
+                strokeWidth="3"
+                strokeDasharray="6 6"
+              />
               <circle cx="200" cy="80" r="40" stroke="#f2c94c" strokeWidth="2" />
             </svg>
           </div>
@@ -176,7 +186,11 @@ export default function Dashboard() {
 
           {/* Bottom Wave Decoration */}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-4 opacity-20">
-            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full fill-white">
+            <svg
+              viewBox="0 0 1200 120"
+              preserveAspectRatio="none"
+              className="h-full w-full fill-white"
+            >
               <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.94,130.83,121.3,201,115.8,241.6,112.5,282.6,98.2,321.39,56.44Z" />
             </svg>
           </div>
@@ -185,7 +199,7 @@ export default function Dashboard() {
 
       {/* GRID 3 KOLOM */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 pt-2">
-        {/* KOLOM 1: MODUL TERSEDIA — gaya kartu "quest" sama seperti dashboard dosen */}
+        {/* KOLOM 1: MODUL TERSEDIA â€” gaya kartu "quest" sama seperti dashboard dosen */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-[#3d3466]">Modul Tersedia</h3>
@@ -204,10 +218,11 @@ export default function Dashboard() {
                 <button
                   key={f}
                   onClick={() => setLevelFilter(f)}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${active
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                    active
                       ? "bg-[#4a3f7a] text-white shadow-sm shadow-[#4a3f7a]/30"
                       : "bg-white text-[#4a3f7a]/70 ring-1 ring-[#4a3f7a]/15 hover:bg-[#f4f2fa]"
-                    }`}
+                  }`}
                 >
                   {f}
                 </button>
@@ -242,7 +257,7 @@ export default function Dashboard() {
                       <LevelStars count={lvl.stars} />
 
                       <button
-                        onClick={() => router.push(`/modul/${modul.id_modul}`)}
+                        onClick={() => router.push(`/mahasiswa/modul/${modul.id_modul}`)}
                         className="shrink-0 rounded-full bg-[#4a3f7a] px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-[#3d3466]"
                       >
                         Lihat
@@ -285,7 +300,7 @@ export default function Dashboard() {
                   return (
                     <div
                       key={idx}
-                      onClick={() => router.push(`/modul/${prog.id_modul}`)}
+                      onClick={() => router.push(`/mahasiswa/modul/${prog.id_modul}`)}
                       className="flex items-center justify-between p-4 rounded-[22px] bg-white shadow-sm ring-1 ring-black/5 cursor-pointer hover:bg-purple-50 hover:shadow-md hover:ring-[#4a3f7a]/30 transition-all shrink-0"
                     >
                       <div className="flex items-center gap-4">
@@ -310,49 +325,60 @@ export default function Dashboard() {
                   );
                 })}
 
-                {/* Empty placeholders to fill up to 3 cards */}
-                {Array.from({ length: Math.max(0, 3 - progressList.length) }).map((_, idx) => (
-                  <div
-                    key={`empty-prog-${idx}`}
-                    className="flex items-center justify-between p-4 rounded-[22px] bg-white/60 shadow-sm ring-1 ring-black/5 border border-dashed border-gray-300 shrink-0 opacity-70"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
-                        <span className="text-gray-400 font-bold text-xl">-</span>
+                {/* Empty placeholders jika data kurang dari 3 */}
+                {Array.from({ length: Math.max(0, 3 - progressList.length) }).map(
+                  (_, idx) => (
+                    <div
+                      key={`empty-prog-${idx}`}
+                      className="flex items-center justify-between p-4 rounded-[22px] bg-white/60 shadow-sm ring-1 ring-black/5 border border-dashed border-gray-300 shrink-0 opacity-70"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
+                          <span className="text-gray-400 font-bold text-xl">-</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-400 text-sm lg:text-base">
+                            Belum Ada Progress
+                          </h4>
+                          <p className="text-xs text-gray-400 font-medium">
+                            Mainkan modul untuk mengisi
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-bold text-gray-400 text-sm lg:text-base">
-                          Belum Ada Progress
-                        </h4>
-                        <p className="text-xs text-gray-400 font-medium">
-                          Mainkan modul untuk mengisi
-                        </p>
-                      </div>
+                      <span className="text-gray-300 font-black text-sm lg:text-base">
+                        0%
+                      </span>
                     </div>
-                    <span className="text-gray-300 font-black text-sm lg:text-base">0%</span>
-                  </div>
-                ))}
+                  )
+                )}
               </>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-1">
             <div className="bg-white rounded-[22px] p-5 shadow-sm ring-1 ring-black/5 flex flex-col items-center justify-center text-center">
-              <p className="text-xs font-bold text-[#3d3466] mb-2 uppercase tracking-wide">Total XP</p>
+              <p className="text-xs font-bold text-[#3d3466] mb-2 uppercase tracking-wide">
+                Total XP
+              </p>
               <div className="w-12 h-12 bg-amber-400 rounded-full flex items-center justify-center text-amber-950 font-black text-xl shadow-inner border border-amber-300">
                 {profile?.totalXp || 0}
               </div>
             </div>
             <div
-              onClick={() => router.push("/profile")}
+              onClick={() => router.push("/mahasiswa/profile")}
               className="bg-white rounded-[22px] p-5 shadow-sm ring-1 ring-black/5 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-purple-50 transition-colors"
             >
-              <p className="text-xs font-bold text-[#3d3466] mb-2 uppercase tracking-wide">Badges</p>
-              <div className="text-3xl font-black text-[#4a3f7a]">
-                {isBadgesLoading ? "-" : badges.length}
-              </div>
-            </div>
-          </div>
+              <p className="text-xs font-bold text-[#3d3466] mb-2 uppercase tracking-wide">
+                ELO Rating
+              </p>
+              <div className="text-2xl font-black text-[#4a3f7a]">
+                {profile?.elo ?? 1000}
+</div>
+        </div>
+
+       
+       
+      </div>
         </div>
 
         {/* KOLOM 3: LEADERBOARD */}
@@ -360,11 +386,16 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-[#3d3466]">Leaderboard</h3>
             <button
-              onClick={() => router.push("/leaderboard")}
+              onClick={() => router.push("/mahasiswa/leaderboard")}
               className="text-xs font-bold text-[#a79fd6] hover:text-[#4a3f7a] transition-colors flex items-center gap-1"
             >
               Semua
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-3.5 w-3.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
                 <path
                   fillRule="evenodd"
                   d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
@@ -389,8 +420,9 @@ export default function Dashboard() {
                 return (
                   <div
                     key={player.id_mahasiswa}
-                    className={`flex items-center justify-between p-2.5 rounded-2xl transition hover:bg-[#f4f2fa] ${isMe ? "bg-[#e2dcff] ring-1 ring-[#4a3f7a]/20" : ""
-                      }`}
+                    className={`flex items-center justify-between p-2.5 rounded-2xl transition hover:bg-[#f4f2fa] ${
+                      isMe ? "bg-[#e2dcff] ring-1 ring-[#4a3f7a]/20" : ""
+                    }`}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <span className="w-4 shrink-0 text-center text-xs font-bold text-[#c9c3e6]">
@@ -398,7 +430,11 @@ export default function Dashboard() {
                       </span>
 
                       <div className="w-9 h-9 rounded-full bg-gray-100 overflow-hidden shadow-sm ring-2 ring-white shrink-0">
-                        <img src={avatarSrc} alt={player.nama_mahasiswa} className="w-full h-full object-cover" />
+                        <img
+                          src={avatarSrc}
+                          alt={player.nama_mahasiswa}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
 
                       <div className="flex flex-col min-w-0">
@@ -413,22 +449,25 @@ export default function Dashboard() {
                           )}
                         </div>
                         <span className="text-[11px] text-gray-500 font-medium flex items-center gap-1 mt-0.5">
-                          {player.rank === 1 && <span className="text-amber-400">🏆</span>}
-                          {player.rank === 2 && <span className="text-gray-400">🥈</span>}
-                          {player.rank === 3 && <span className="text-orange-400">🥉</span>}
+                          {player.rank === 1 && <span className="text-amber-400">ðŸ†</span>}
+                          {player.rank === 2 && <span className="text-gray-400">ðŸ¥ˆ</span>}
+                          {player.rank === 3 && <span className="text-orange-400">ðŸ¥‰</span>}
                           {player.rank > 3 && "Peringkat"} {player.rank > 3 ? player.rank : ""}
                         </span>
                       </div>
                     </div>
 
                     <span className="text-sm font-black text-amber-500 shrink-0 ml-2 bg-amber-50 px-2 py-1 rounded-full ring-1 ring-amber-200/50">
-                      {player.total_xp} <span className="text-[9px] font-bold text-amber-600/70">XP</span>
+                      {player.total_xp}{" "}
+                      <span className="text-[9px] font-bold text-amber-600/70">XP</span>
                     </span>
                   </div>
                 );
               })
             ) : (
-              <p className="text-[#a79fd6] text-sm text-center pt-8 pb-8">Belum ada data klasemen.</p>
+              <p className="text-[#a79fd6] text-sm text-center pt-8 pb-8">
+                Belum ada data klasemen.
+              </p>
             )}
           </div>
         </div>

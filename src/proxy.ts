@@ -46,10 +46,17 @@ export async function proxy(request: NextRequest) {
   // CEK SESSION SUPABASE
   // =====================================================
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  let user = null
+  let authError = null
+
+  try {
+    const result = await supabase.auth.getUser()
+    user = result.data?.user ?? null
+    authError = result.error ?? null
+  } catch (err) {
+    console.error("PROXY: getUser gagal:", err)
+    authError = err instanceof Error ? err : new Error("Unknown auth error")
+  }
 
   const { pathname } = request.nextUrl
 
@@ -92,12 +99,25 @@ export async function proxy(request: NextRequest) {
   // =====================================================
 
   const protectedRoutes = [
+    // MAHASISWA (new routes)
+    '/mahasiswa/dashboard',
+    '/mahasiswa/arena',
+    '/mahasiswa/modul',
+    '/mahasiswa/profile',
+    '/mahasiswa/leaderboard',
+    '/mahasiswa/kuis',
+    '/mahasiswa/play',
+    '/mahasiswa/join',
+
+    // MAHASISWA (old routes - redirect to login with redirect param)
     '/dashboard',
     '/arena',
     '/modul',
     '/profile',
     '/leaderboard',
     '/kuis',
+    '/play',
+    '/join',
 
     // ADMIN
     '/admin',
@@ -143,7 +163,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // =====================================================
-  // USER SUDAH LOGIN
+  // USER SUDAH LOGIN - Redirect old routes to new /mahasiswa/ routes
   // =====================================================
 
   if (user) {
@@ -151,6 +171,26 @@ export async function proxy(request: NextRequest) {
       'PROXY: USER SUDAH LOGIN:',
       user.email
     )
+
+    // Redirect old mahasiswa routes to new /mahasiswa/ prefix
+    const oldMahasiswaRoutes = [
+      { from: '/dashboard', to: '/mahasiswa/dashboard' },
+      { from: '/arena', to: '/mahasiswa/arena' },
+      { from: '/modul', to: '/mahasiswa/modul' },
+      { from: '/profile', to: '/mahasiswa/profile' },
+      { from: '/leaderboard', to: '/mahasiswa/leaderboard' },
+      { from: '/kuis', to: '/mahasiswa/kuis' },
+      { from: '/play', to: '/mahasiswa/play' },
+      { from: '/join', to: '/mahasiswa/join' },
+    ]
+
+    for (const route of oldMahasiswaRoutes) {
+      if (pathname === route.from || pathname.startsWith(route.from + '/')) {
+        const newPath = pathname.replace(route.from, route.to)
+        console.log('PROXY: REDIRECT OLD ROUTE', pathname, '->', newPath)
+        return NextResponse.redirect(new URL(newPath, request.url))
+      }
+    }
   }
 
   /*

@@ -119,7 +119,7 @@ export default function WaitingRoom({
     try {
       await leaveRoom();
 
-      router.push("/dashboard");
+      router.push("/mahasiswa/dashboard");
     } catch (error) {
       console.error("Gagal keluar dari ruangan:", error);
 

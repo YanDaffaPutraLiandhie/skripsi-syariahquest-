@@ -24,7 +24,7 @@ export default function Navbar({
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const showSearch = pathname === '/modul';
+  const showSearch = pathname === '/modul' || pathname === '/mahasiswa/modul';
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -50,7 +50,7 @@ export default function Navbar({
     // 2. Tutup notifikasi
     setShowNotifications(false);
     // 3. Langsung arahkan ke pintu masuk arena
-    router.push(`/arena/join/${roomId}`);
+    router.push(`/mahasiswa/arena/join/${roomId}`);
   };
 
   return (
@@ -60,9 +60,9 @@ export default function Navbar({
         {showBackButton && (
           <button
             type="button"
-            aria-label="Kembali ke halaman sebelumnya"
+            aria-label="Kembali"
             onClick={() => router.back()}
-            className="rounded-lg p-2 text-[#5B5288] transition hover:bg-[#f4f2fa]"
+            className="rounded-lg p-2 text-[#5B5288] transition hover:bg-[#f4f2fa] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -70,9 +70,9 @@ export default function Navbar({
 
         <button
           type="button"
-          aria-label="Buka menu navigasi"
+          aria-label="Buka menu"
           onClick={onOpenMobileMenu}
-          className="rounded-lg p-2 text-[#5B5288] hover:bg-[#f4f2fa] md:hidden"
+          className="rounded-lg p-2 text-[#5B5288] hover:bg-[#f4f2fa] md:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           <Menu className="h-5 w-5" />
         </button>

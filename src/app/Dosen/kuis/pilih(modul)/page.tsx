@@ -252,7 +252,7 @@ export default function PilihModul() {
 
       await logActivity({
         fitur: "Kuis",
-        jenis_aktivitas: "Tambah Kuis",
+        jenis_aktivitas: "Create",
         keterangan: `Berhasil membuat kuis "${kuisName}" dengan ${totalSoal} soal (${ringkasanPerModul.join(", ")})${
           deadline ? ` (deadline ${deadline})` : ""
         }`,

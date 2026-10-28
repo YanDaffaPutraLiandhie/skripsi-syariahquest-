@@ -347,7 +347,7 @@ export default function BankSoalPage() {
 
       await logActivity({
         fitur: "Kuis",
-        jenis_aktivitas: "Tambah",
+        jenis_aktivitas: "Create",
         keterangan: `Menambahkan kuis "${kuisName}" secara manual dengan ${soalEntries.length} soal${
           deadline ? ` (deadline ${deadline})` : ""
         }`,

@@ -64,7 +64,7 @@ export default function GameOverModal({
       console.error("Gagal mereset status pemain:", error);
     } finally {
       // Apapun yang terjadi, tetap kembalikan ke Arena
-      router.push("/arena");
+      router.push("/mahasiswa/arena");
     }
   };
 

@@ -1,10 +1,11 @@
+// Simpan sebagai: app/register/page.tsx
 'use client'
 
 import { FormEvent, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import Swal from 'sweetalert2'
-import { supabase } from '@/lib/supabase'
 import '../login/login.css'
 
 export default function RegisterPage() {
@@ -66,11 +67,7 @@ export default function RegisterPage() {
             setEmail('')
             setPassword('')
             setConfirmPassword('')
-            const { error: signOutError } = await supabase.auth.signOut()
-            if (signOutError) {
-                console.warn('Gagal membersihkan session setelah registrasi:', signOutError)
-            }
-            setLoading(false)
+
             await Swal.fire({
                 icon: 'success',
                 title: 'Registrasi berhasil',
@@ -98,7 +95,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="login-form-side">
-                    <h1 className="login-title">Sign up</h1>
+                    <h1 className="login-title">Daftar</h1>
                     <form onSubmit={handleRegister} className="login-form">
                         <div className="login-field">
                             <label htmlFor="nama">Nama Lengkap</label>
@@ -108,12 +105,13 @@ export default function RegisterPage() {
                                 value={nama}
                                 onChange={(e) => setNama(e.target.value)}
                                 required
+                                maxLength={100}
                                 autoComplete="name"
                             />
                         </div>
 
                         <div className="login-field">
-                            <label htmlFor="email">Login, email or phone number</label>
+                            <label htmlFor="email">Email</label>
                             <input
                                 id="email"
                                 type="email"
@@ -133,6 +131,7 @@ export default function RegisterPage() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
+                                    minLength={6}
                                     autoComplete="new-password"
                                 />
                                 <button
@@ -140,6 +139,7 @@ export default function RegisterPage() {
                                     className="password-toggle"
                                     onClick={() => setShowPassword((visible) => !visible)}
                                     aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                                    aria-pressed={showPassword}
                                     title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
                                 >
                                     {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
@@ -156,6 +156,7 @@ export default function RegisterPage() {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     required
+                                    minLength={6}
                                     autoComplete="new-password"
                                 />
                                 <button
@@ -163,6 +164,7 @@ export default function RegisterPage() {
                                     className="password-toggle"
                                     onClick={() => setShowConfirmPassword((visible) => !visible)}
                                     aria-label={showConfirmPassword ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'}
+                                    aria-pressed={showConfirmPassword}
                                     title={showConfirmPassword ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'}
                                 >
                                     {showConfirmPassword ? <EyeOff size={19} /> : <Eye size={19} />}
@@ -171,14 +173,18 @@ export default function RegisterPage() {
                         </div>
 
                         <div className="login-links-row">
-                            <a href="/login" className="login-link forgot">
-                                sudah punya akun? log in
-                            </a>
+                            <Link href="/login" className="login-link">
+                                Sudah punya akun? Masuk
+                            </Link>
                         </div>
 
-                        {error && <p className="login-error">{error}</p>}
+                        {error && (
+                            <p className="login-error" role="alert">
+                                {error}
+                            </p>
+                        )}
                         <button type="submit" className="login-submit" disabled={loading}>
-                            {loading ? 'Memproses...' : 'Sign up'}
+                            {loading ? 'Memproses...' : 'Daftar'}
                         </button>
                     </form>
                 </div>

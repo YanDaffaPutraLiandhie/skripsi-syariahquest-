@@ -443,7 +443,7 @@ function BankSoalPageContent() {
 
       await logActivity({
   fitur: "Bank Soal",
-  jenis_aktivitas: "Tambah",
+  jenis_aktivitas: "Create",
   keterangan: `Menambahkan ${soalEntries.length} soal ke modul "${modulCheck.nama_modul}"`,
 });
 

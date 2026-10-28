@@ -17,6 +17,7 @@ export type CurrentUserProfile = {
   modulSelesai: number;
   totalPoin: number;
   peringkat: number;
+  elo: number;
 
   // khusus dosen
   email: string | null;
@@ -63,7 +64,7 @@ export function useCurrentUser() {
       const { data: mhs, error: mhsError } = await supabase
         .from("mahasiswa")
         .select(
-          'id_mahasiswa, nama_mahasiswa, deskripsi, avatar_url, total_xp, "Nilai", modul_selesai, total_poin'
+          'id_mahasiswa, nama_mahasiswa, deskripsi, avatar_url, total_xp, "Nilai", modul_selesai, total_poin, elo'
         )
         .eq("id_mahasiswa", userRow.id_mahasiswa)
         .single();
@@ -94,6 +95,7 @@ export function useCurrentUser() {
         modulSelesai: mhs.modul_selesai ?? 0,
         totalPoin: mhs.total_poin ?? 0,
         peringkat: (count ?? 0) + 1,
+        elo: mhs.elo ?? 1000,
         email: null,
         modul: null,
         riwayatPendidikan: null,
@@ -130,6 +132,7 @@ export function useCurrentUser() {
         modulSelesai: 0,
         totalPoin: 0,
         peringkat: 0,
+        elo: 1000,
         email: dosen?.email ?? null,
         modul: dosen?.modul ?? null,
         riwayatPendidikan: dosen?.riwayat_pendidikan ?? null,
@@ -166,6 +169,7 @@ export function useCurrentUser() {
         modulSelesai: 0,
         totalPoin: 0,
         peringkat: 0,
+        elo: 1000,
         email: null,
         modul: null,
         riwayatPendidikan: null,

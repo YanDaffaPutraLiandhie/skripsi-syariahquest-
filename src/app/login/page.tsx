@@ -390,7 +390,7 @@ function LoginContent() {
         // VALIDASI REDIRECT
         // ===============================================
 
-        let destination = '/dashboard'
+        let destination = '/mahasiswa/dashboard'
 
         if (
           redirectUrl &&

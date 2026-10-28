@@ -303,7 +303,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           <p className="text-gray-500 mb-8 font-medium">
             Kamu sudah pernah mengerjakan kuis ujian ini. Kuis hanya bisa dikerjakan satu kali dan tidak bisa diulang.
           </p>
-          <button onClick={() => router.push('/dashboard')} className="px-8 py-3.5 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full">
+          <button onClick={() => router.push('/mahasiswa/dashboard')} className="px-8 py-3.5 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full">
             Kembali ke Dashboard
           </button>
         </div>
@@ -318,7 +318,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
           <XCircle className="w-10 h-10 text-red-500" />
         </div>
         <p className="text-gray-600 font-bold mb-6 text-lg">Ujian ini belum tersedia atau ID Kuis salah.</p>
-        <button onClick={() => router.push('/dashboard')} className="px-6 py-2.5 bg-[#5B5288] text-white font-bold rounded-xl hover:bg-opacity-90 transition-all">
+        <button onClick={() => router.push('/mahasiswa/dashboard')} className="px-6 py-2.5 bg-[#5B5288] text-white font-bold rounded-xl hover:bg-opacity-90 transition-all">
           Kembali ke Dashboard
         </button>
       </div>
@@ -476,7 +476,7 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
             )}
 
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/mahasiswa/dashboard')}
               className="mt-2 px-10 py-4 bg-[#5B5288] text-white font-extrabold rounded-2xl shadow-lg hover:shadow-xl hover:bg-[#4A4373] transition-all hover:-translate-y-1 w-full md:w-auto text-lg"
             >
               Kembali ke Dashboard

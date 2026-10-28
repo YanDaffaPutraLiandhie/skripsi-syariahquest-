@@ -411,7 +411,7 @@ function TambahModulContent() {
         // Catat aktivitas "Edit Modul" SETELAH update berhasil
         await logActivity({
           fitur: "Modul Pembelajaran",
-          jenis_aktivitas: "Edit Modul",
+          jenis_aktivitas: "Update",
           keterangan: `Memperbarui modul "${namaModul.trim()}"`,
         });
 
@@ -421,32 +421,38 @@ function TambahModulContent() {
         return;
       }
 
-      // =====================================================
+// =====================================================
       // MODE TAMBAH BARU -> INSERT modul baru
       // =====================================================
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from("modul")
-        .insert({
-          ...payload,
-          dibuat_oleh: idDosen,
-          status: true,
-        })
-        .select()
-        .single();
+  .insert({
+    ...payload,
+    dibuat_oleh: idDosen,
+    status: true,
+  })
+  .select()
+  .single();
 
-      if (error) {
-        console.error("Insert modul error:", error);
-        setMessage(`Gagal menyimpan modul: ${error.message}`);
-        return;
-      }
+if (insertError) {
+    console.error("Insert modul error:", {
+      message: insertError.message,
+      details: insertError.details,
+      hint: insertError.hint,
+      code: insertError.code,
+    });
 
-      console.log("Modul berhasil dibuat:", data);
+    setMessage(`Gagal menyimpan modul: ${insertError.message}`);
+    return;
+  }
+
+  console.log("Modul berhasil dibuat:", data);
       setMessage(`Modul berhasil disimpan oleh ${namaDosen}!`);
 
       // Catat aktivitas "Tambah Modul" SETELAH insert berhasil
       await logActivity({
         fitur: "Modul Pembelajaran",
-        jenis_aktivitas: "Tambah Modul",
+        jenis_aktivitas: "Create",
         keterangan: `Menambahkan modul "${namaModul.trim()}"`,
       });
 

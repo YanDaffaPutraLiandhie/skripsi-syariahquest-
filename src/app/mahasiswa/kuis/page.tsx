@@ -172,7 +172,7 @@ function DaftarKuisContent() {
 
                   {/* TOMBOL AKSI */}
                   <Link
-                    href={`/kuis/${kuis.id_quis}`}
+                    href={`/mahasiswa/kuis/${kuis.id_quis}`}
                     className="mt-auto w-full py-2.5 rounded-lg border border-[#5B5288]/50 text-[#5B5288] hover:bg-[#5B5288]/10 flex items-center justify-center gap-2 font-bold text-sm transition-all"
                   >
                     Kerjakan Kuis

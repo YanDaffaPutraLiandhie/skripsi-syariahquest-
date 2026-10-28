@@ -199,9 +199,7 @@ function ModulPembelajaranContent() {
       if (user) {
         await logActivity({
           fitur: "Modul",
-          jenis_aktivitas: newActive
-            ? "Aktifkan Modul"
-            : "Nonaktifkan Modul",
+          jenis_aktivitas: "Update",
           keterangan: `${newActive
               ? "Mengaktifkan"
               : "Menonaktifkan"

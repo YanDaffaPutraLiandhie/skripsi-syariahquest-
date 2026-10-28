@@ -1,19 +1,60 @@
 "use client";
 
+// app/.../Dosen/modul/aktivitas/[id]/page.tsx  (versi dengan riwayat attempt + rata-rata)
+
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import DosenContainer from "@/components/layout/DosenContainer";
 import { ClipboardList, X } from "lucide-react";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Line, Bar } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Tooltip,
+  Legend
+);
+
+const CHART_COLORS = [
+  "#4a3f7a", "#F59E0B", "#10B981", "#3B82F6",
+  "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6",
+];
+
+function shortName(name: string, max = 16) {
+  return name.length > max ? name.slice(0, max - 1) + "…" : name;
+}
+
+type Attempt = {
+  ke: number;
+  nilai: number;
+};
 
 type ModulDone = {
   no: number;
+  idModul: number | null;
   name: string;
   badge: string;
   badgeColor: string;
-  score: number;
+  score: number;        // nilai akhir modul = nilai tertinggi
   passed: boolean;
+  passScore: number;    // nilai minimal lulus modul
+  attempts: Attempt[];  // semua percobaan, urut dari ke-1
+  avg: number | null;   // rata-rata nilai semua percobaan modul ini
 };
 
 type AnswerHistory = {
@@ -27,16 +68,14 @@ type AnswerHistory = {
 type ModulJoin = {
   id_modul: number;
   nama_modul: string;
+  parameter_nilai?: number | null;
   level?:
     | { id_level: number; nama_level: string }
     | { id_level: number; nama_level: string }[]
     | null;
 };
 
-// Bentuk baris hasil query progress_modul di atas: hanya field yang
-// benar-benar di-select (id, nilai, selesai, kuis_dicoba, modul via join).
-// id_mahasiswa TIDAK di-select di sini (sudah difilter lewat .eq()), jadi
-// tidak boleh diwajibkan di tipe ini.
+// Bentuk baris hasil query progress_modul: hanya field yang di-select.
 type ProgressRow = {
   id: number;
   nilai: number | null;
@@ -53,6 +92,13 @@ function getBadgeInfo(namaLevel: string | null | undefined) {
   return { badge: "-", badgeColor: "bg-gray-400" };
 }
 
+// Rata-rata dibulatkan 1 desimal; null jika tidak ada data
+function average(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sum = values.reduce((a, b) => a + b, 0);
+  return Math.round((sum / values.length) * 10) / 10;
+}
+
 export default function DetailMahasiswa() {
   const router = useRouter();
   const params = useParams();
@@ -65,8 +111,7 @@ export default function DetailMahasiswa() {
   const [answerHistory, setAnswerHistory] = useState<AnswerHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // BARU: evaluasi jawaban disembunyikan dulu, tampil lewat popup
-  // begitu tombol "Lihat Evaluasi Jawaban" ditekan.
+  // evaluasi jawaban disembunyikan dulu, tampil lewat popup
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
 
   useEffect(() => {
@@ -85,10 +130,8 @@ export default function DetailMahasiswa() {
       setNamaMahasiswa(mhs?.nama_mahasiswa ?? "Mahasiswa");
 
       // =========================================================
-      // Ambil semua modul yang KUIS-nya sudah pernah dicoba
-      // (kuis_dicoba = true), bukan hanya yang lulus (selesai = true).
-      // Dengan begini modul yang sudah dikerjakan tapi belum lulus
-      // tetap muncul di detail aktivitas beserta nilainya.
+      // Semua modul yang KUIS-nya pernah dicoba (kuis_dicoba = true),
+      // termasuk yang belum lulus.
       // =========================================================
       const { data, error } = await supabase
         .from("progress_modul")
@@ -101,6 +144,7 @@ export default function DetailMahasiswa() {
           modul:id_modul (
             id_modul,
             nama_modul,
+            parameter_nilai,
             level:id_level (
               id_level,
               nama_level
@@ -117,18 +161,46 @@ export default function DetailMahasiswa() {
         return;
       }
 
+      // =========================================================
+      // BARU: semua percobaan (attempt) mahasiswa ini, dikelompokkan per modul.
+      // Butuh policy SELECT untuk dosen pada tabel attempt_kuis_modul.
+      // =========================================================
+      const { data: attemptRows, error: attemptError } = await supabase
+        .from("attempt_kuis_modul")
+        .select("id_modul, attempt_ke, nilai")
+        .eq("id_mahasiswa", idMahasiswa)
+        .order("attempt_ke", { ascending: true });
+
+      if (attemptError) {
+        console.error("Gagal fetch attempt_kuis_modul:", attemptError);
+      }
+
+      const attemptsByModul = new Map<number, Attempt[]>();
+      for (const row of attemptRows ?? []) {
+        const list = attemptsByModul.get(row.id_modul) ?? [];
+        list.push({ ke: row.attempt_ke, nilai: Number(row.nilai) || 0 });
+        attemptsByModul.set(row.id_modul, list);
+      }
+
       const mapped: ModulDone[] = ((data ?? []) as ProgressRow[]).map((row, index) => {
         const modul = Array.isArray(row.modul) ? row.modul[0] : row.modul;
         const level = Array.isArray(modul?.level) ? modul.level[0] : modul?.level;
         const { badge, badgeColor } = getBadgeInfo(level?.nama_level);
 
+        const modulId = modul?.id_modul ?? null;
+        const attempts = modulId !== null ? attemptsByModul.get(modulId) ?? [] : [];
+
         return {
           no: index + 1,
+          idModul: modulId,
           name: modul?.nama_modul ?? "Modul",
           badge,
           badgeColor,
           score: Number(row.nilai) || 0,
           passed: !!row.selesai,
+          passScore: Number(modul?.parameter_nilai ?? 80),
+          attempts,
+          avg: average(attempts.map((a) => a.nilai)),
         };
       });
 
@@ -160,11 +232,74 @@ export default function DetailMahasiswa() {
   const jumlahBenar = answerHistory.filter((a) => a.is_benar).length;
   const jumlahSalah = answerHistory.length - jumlahBenar;
 
+  // ---- Ringkasan keseluruhan ----
+  const semuaAttempt = modulDone.flatMap((m) => m.attempts.map((a) => a.nilai));
+  const totalAttempt = semuaAttempt.length;
+  const rataSemuaAttempt = average(semuaAttempt);
+  const rataNilaiAkhir = average(modulDone.map((m) => m.score));
+  const modulLulus = modulDone.filter((m) => m.passed).length;
+
+  const fmt = (v: number | null) => (v === null ? "-" : `${v}`);
+
+  // ---- Data grafik ----
+  const modulDenganAttempt = modulDone.filter((m) => m.attempts.length > 0);
+  const maxPercobaan = Math.max(0, ...modulDenganAttempt.map((m) => m.attempts.length));
+
+  // Garis: perkembangan nilai tiap modul dari percobaan ke-1, ke-2, ...
+  const lineData = {
+    labels: Array.from({ length: maxPercobaan }, (_, i) => `Percobaan ${i + 1}`),
+    datasets: modulDenganAttempt.map((m, idx) => ({
+      label: shortName(m.name, 22),
+      data: Array.from({ length: maxPercobaan }, (_, i) => {
+        const a = m.attempts.find((x) => x.ke === i + 1);
+        return a ? a.nilai : null;
+      }),
+      borderColor: CHART_COLORS[idx % CHART_COLORS.length],
+      backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+      borderWidth: 3,
+      tension: 0.3,
+      pointRadius: 5,
+      pointHoverRadius: 7,
+      spanGaps: true,
+    })),
+  };
+
+  // Batang: rata-rata semua percobaan vs nilai akhir (tertinggi) per modul
+  const barData = {
+    labels: modulDenganAttempt.map((m) => shortName(m.name)),
+    datasets: [
+      {
+        label: "Rata-rata Percobaan",
+        data: modulDenganAttempt.map((m) => m.avg ?? 0),
+        backgroundColor: "#F59E0B",
+        borderRadius: 8,
+      },
+      {
+        label: "Nilai Akhir (Tertinggi)",
+        data: modulDenganAttempt.map((m) => m.score),
+        backgroundColor: "#10B981",
+        borderRadius: 8,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: "top" as const },
+      tooltip: { enabled: true },
+    },
+    scales: {
+      y: { beginAtZero: true, min: 0, max: 100, ticks: { stepSize: 20 } },
+    },
+  };
+
   return (
     <DosenContainer
       categoryTag="DETAIL AKTIVITAS MAHASISWA"
       title={namaMahasiswa}
-      subtitle="Riwayat modul dan pencapaian nilai yang telah dikerjakan mahasiswa."
+      subtitle="Riwayat modul, percobaan kuis, dan pencapaian nilai yang telah dikerjakan mahasiswa."
       headerAction={
         <button
           type="button"
@@ -175,7 +310,7 @@ export default function DetailMahasiswa() {
         </button>
       }
     >
-      <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-8 shadow-sm ring-1 ring-black/5">
+      <div className="mx-auto max-w-4xl rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-black/5 sm:p-8">
         <div className="mb-8 flex flex-col items-center border-b border-[#f0edf9] pb-6">
           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#4a3f7a] to-[#3d3466] text-white shadow-md">
             <svg className="h-10 w-10 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -188,6 +323,67 @@ export default function DetailMahasiswa() {
             Daftar Modul yang Sudah Dikerjakan ({modulDone.length})
           </span>
         </div>
+
+        {/* =====================================================
+            RINGKASAN NILAI & RATA-RATA
+        ===================================================== */}
+        {!isLoading && modulDone.length > 0 && (
+          <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-2xl bg-[#f8f7fd] p-4 text-center ring-1 ring-[#4a3f7a]/5">
+              <p className="text-2xl font-extrabold text-[#2b2540]">
+                {modulLulus}/{modulDone.length}
+              </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#8b84a5]">
+                Modul Lulus
+              </p>
+            </div>
+            <div className="rounded-2xl bg-[#f8f7fd] p-4 text-center ring-1 ring-[#4a3f7a]/5">
+              <p className="text-2xl font-extrabold text-[#2b2540]">{totalAttempt}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#8b84a5]">
+                Total Percobaan
+              </p>
+            </div>
+            <div className="rounded-2xl bg-amber-50 p-4 text-center ring-1 ring-amber-200">
+              <p className="text-2xl font-extrabold text-amber-700">{fmt(rataSemuaAttempt)}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-700/70">
+                Rata-rata Semua Percobaan
+              </p>
+            </div>
+            <div className="rounded-2xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-200">
+              <p className="text-2xl font-extrabold text-emerald-700">{fmt(rataNilaiAkhir)}</p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700/70">
+                Rata-rata Nilai Akhir
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* =====================================================
+            GRAFIK NILAI PERCOBAAN
+        ===================================================== */}
+        {!isLoading && modulDenganAttempt.length > 0 && (
+          <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl bg-[#f8f7fd] p-4 ring-1 ring-[#4a3f7a]/5 sm:p-5">
+              <h3 className="text-sm font-bold text-[#3d3466]">Perkembangan Nilai per Percobaan</h3>
+              <p className="mb-3 text-xs font-medium text-[#8b84a5]">
+                Tiap garis adalah satu modul. Naik berarti nilai membaik setelah remedial.
+              </p>
+              <div className="h-64 sm:h-72">
+                <Line data={lineData} options={chartOptions} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-[#f8f7fd] p-4 ring-1 ring-[#4a3f7a]/5 sm:p-5">
+              <h3 className="text-sm font-bold text-[#3d3466]">Rata-rata vs Nilai Akhir per Modul</h3>
+              <p className="mb-3 text-xs font-medium text-[#8b84a5]">
+                Selisih besar menandakan banyak percobaan gagal sebelum lulus.
+              </p>
+              <div className="h-64 sm:h-72">
+                <Bar data={barData} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="py-12 text-center text-sm font-semibold text-[#8b84a5]">
@@ -202,28 +398,71 @@ export default function DetailMahasiswa() {
             {modulDone.map((row) => (
               <div
                 key={row.no}
-                className="flex items-center justify-between rounded-2xl bg-[#f8f7fd] p-4 ring-1 ring-[#4a3f7a]/5 transition hover:bg-[#f0edf9]"
+                className="rounded-2xl bg-[#f8f7fd] p-4 ring-1 ring-[#4a3f7a]/5 transition hover:bg-[#f0edf9]"
               >
-                <div className="flex items-center gap-4">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4a3f7a] text-xs font-bold text-white">
-                    #{row.no}
-                  </span>
-                  <span className="text-sm font-bold text-[#2b2540]">{row.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${row.badgeColor}`}>
-                    {row.badge}
-                  </span>
+                {/* HEADER MODUL: bertumpuk di mobile, sejajar di layar lebar */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#4a3f7a] text-xs font-bold text-white">
+                      #{row.no}
+                    </span>
+                    <span className="min-w-0 flex-1 break-words text-sm font-bold leading-snug text-[#2b2540]">
+                      {row.name}
+                    </span>
+                    <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${row.badgeColor}`}>
+                      {row.badge}
+                    </span>
+                  </div>
                   <span
-                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                    className={`ml-11 inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-bold ring-1 sm:ml-0 sm:shrink-0 ${
                       row.passed
                         ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                         : "bg-rose-50 text-rose-700 ring-rose-200"
                     }`}
                   >
-                    Nilai: {row.score}
+                    Nilai Akhir: {row.score}
                     {!row.passed && " (Belum Lulus)"}
                   </span>
+                </div>
+
+                {/* RIWAYAT PERCOBAAN + RATA-RATA */}
+                <div className="mt-3 border-t border-[#e4e2ee] pt-3">
+                  {row.attempts.length === 0 ? (
+                    <span className="text-xs font-semibold text-[#8b84a5]">
+                      Riwayat percobaan belum tersedia (dikerjakan sebelum fitur percobaan aktif).
+                    </span>
+                  ) : (
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="mr-1 text-[11px] font-bold uppercase tracking-wider text-[#8b84a5]">
+                          Percobaan:
+                        </span>
+                        {row.attempts.map((a) => {
+                          const lulus = a.nilai >= row.passScore;
+                          const tertinggi = a.nilai === Math.max(...row.attempts.map((x) => x.nilai));
+                          return (
+                            <span
+                              key={a.ke}
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
+                                lulus
+                                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                  : "bg-rose-50 text-rose-700 ring-rose-200"
+                              }`}
+                              title={tertinggi ? "Nilai tertinggi (dipakai sebagai nilai akhir)" : undefined}
+                            >
+                              #{a.ke}: {a.nilai}
+                              {tertinggi && " ★"}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2 ring-1 ring-amber-200 sm:justify-start sm:gap-2 sm:rounded-full sm:py-1">
+                        <span className="text-xs font-bold text-amber-700/80">Rata-rata</span>
+                        <span className="text-sm font-extrabold text-amber-700">{fmt(row.avg)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -231,8 +470,7 @@ export default function DetailMahasiswa() {
         )}
 
         {/* =====================================================
-            EVALUASI JAWABAN — disembunyikan di balik tombol,
-            detailnya baru tampil lewat popup saat tombol ditekan.
+            EVALUASI JAWABAN
         ===================================================== */}
         {idModul && (
           <div className="mt-8 border-t border-[#f0edf9] pt-8">
@@ -243,7 +481,7 @@ export default function DetailMahasiswa() {
                 </h3>
                 <p className="mt-1 text-xs font-semibold text-[#8b84a5]">
                   {answerHistory.length > 0
-                    ? `${answerHistory.length} soal • ${jumlahBenar} benar, ${jumlahSalah} salah`
+                    ? `${answerHistory.length} soal • ${jumlahBenar} benar, ${jumlahSalah} salah (percobaan terakhir)`
                     : "Belum ada riwayat jawaban untuk modul ini."}
                 </p>
               </div>
@@ -274,7 +512,6 @@ export default function DetailMahasiswa() {
             className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* HEADER POPUP */}
             <div className="flex items-center justify-between border-b border-[#f0edf9] px-6 py-5">
               <div>
                 <h3 className="text-lg font-bold text-[#3d3466]">
@@ -294,7 +531,6 @@ export default function DetailMahasiswa() {
               </button>
             </div>
 
-            {/* ISI POPUP (scrollable) */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
               {answerHistory.length === 0 ? (
                 <p className="py-6 text-center text-sm font-semibold text-[#8b84a5]">
@@ -339,7 +575,6 @@ export default function DetailMahasiswa() {
               )}
             </div>
 
-            {/* FOOTER POPUP */}
             <div className="border-t border-[#f0edf9] px-6 py-4">
               <button
                 type="button"
