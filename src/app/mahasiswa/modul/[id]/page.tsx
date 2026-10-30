@@ -6,12 +6,12 @@ import {
   Play,
   CheckCircle2,
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   Brain,
   Sparkles,
   Trophy,
   Target,
-  LockKeyhole,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -24,6 +24,7 @@ import {
 import Quiz from "@/components/Quis/page";
 import RemedialPanel from "@/components/Modul/RemedialPanel";
 import RichMateriReader from "@/components/Modul/RichMateriReader";
+import VisualNovelGame from "@/components/visual-novel/VisualNovelGame";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getModuleAccess, type AdaptiveModule, type AdaptiveProgress } from "@/lib/adaptiveLearning";
@@ -52,10 +53,17 @@ function getYouTubeEmbedUrl(url: string) {
   if (url.includes("youtube.com/embed/")) return url;
 
   let videoId = "";
-  if (url.includes("youtu.be/")) {
-    videoId = url.split("youtu.be/")[1]?.split("?")[0];
-  } else if (url.includes("youtube.com/watch")) {
-    videoId = new URL(url).searchParams.get("v") || "";
+  try {
+    if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1]?.split(/[?&#]/)[0] ?? "";
+    } else if (url.includes("youtube.com/watch")) {
+      // new URL() melempar error kalau URL tidak valid, jangan sampai halaman crash
+      videoId = new URL(url).searchParams.get("v") || "";
+    } else if (url.includes("youtube.com/shorts/")) {
+      videoId = url.split("youtube.com/shorts/")[1]?.split(/[?&#]/)[0] ?? "";
+    }
+  } catch {
+    return null;
   }
 
   return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
@@ -65,13 +73,14 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const router = useRouter();
 
-  const { profile } = useCurrentUser();
+  const { profile, isLoading: isProfileLoading } = useCurrentUser();
 
   const [course, setCourse] = useState<DetailModulDB | null>(null);
   const [subTopikList, setSubTopikList] = useState<SubTopik[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState<"materi" | "kuis" | "remedial">("materi");
+  const [isVnMode, setIsVnMode] = useState(true);
   const [selectedSubTopikId, setSelectedSubTopikId] = useState<number | null>(null);
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(true);
@@ -109,52 +118,63 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   }, [fetchModulState]);
 
   useEffect(() => {
+    // Tunggu profil selesai dimuat agar status kunci modul tidak berkedip
+    // (sebelumnya modul sempat tampil terbuka sebelum profil siap).
+    if (isProfileLoading) return;
+
     let isMounted = true;
 
     async function fetchDetail() {
-      const [modulRes, subRes] = await Promise.all([
-        supabase.from("modul").select("*").eq("id_modul", id).single(),
-        getSubTopikModul(Number(id)).catch(() => [] as SubTopik[]),
-      ]);
-
-      const modulData = modulRes.data;
-
-      if (modulData && isMounted) {
-        setCourse(modulData);
-        setSubTopikList(subRes);
-      }
-
-      if (modulData && profile?.idMahasiswa && isMounted) {
-        const [{ data: modules }, { data: progress }] = await Promise.all([
-          supabase.from("modul").select("id_modul, id_level, parameter_nilai"),
-          supabase
-            .from("progress_modul")
-            .select("id_modul, nilai, selesai")
-            .eq("id_mahasiswa", profile.idMahasiswa),
+      try {
+        const [modulRes, subRes] = await Promise.all([
+          supabase.from("modul").select("*").eq("id_modul", id).maybeSingle(),
+          getSubTopikModul(Number(id)).catch(() => [] as SubTopik[]),
         ]);
-        const access = getModuleAccess(
-          modulData as AdaptiveModule,
-          (modules ?? []) as AdaptiveModule[],
-          (progress ?? []) as AdaptiveProgress[],
-        );
-        setIsUnlocked(access.isUnlocked);
-        setAccessReason(access.reason);
-      }
 
-      if (profile?.idMahasiswa && isMounted) {
-        const { data: progData } = await supabase
-          .from("progress_modul")
-          .select("nilai, selesai")
-          .eq("id_modul", id)
-          .eq("id_mahasiswa", profile.idMahasiswa)
-          .single();
+        const modulData = modulRes.data;
+        if (!isMounted) return;
 
-        if (progData && progData.selesai && isMounted) {
-          setQuizScore(progData.nilai);
+        if (modulData) {
+          setCourse(modulData);
+          setSubTopikList(subRes);
         }
-      }
 
-      if (isMounted) setIsLoading(false);
+        if (modulData && profile?.idMahasiswa) {
+          const [{ data: modules }, { data: progress }] = await Promise.all([
+            supabase.from("modul").select("id_modul, id_level, parameter_nilai"),
+            supabase
+              .from("progress_modul")
+              .select("id_modul, nilai, selesai")
+              .eq("id_mahasiswa", profile.idMahasiswa),
+          ]);
+          if (!isMounted) return;
+
+          const access = getModuleAccess(
+            modulData as AdaptiveModule,
+            (modules ?? []) as AdaptiveModule[],
+            (progress ?? []) as AdaptiveProgress[],
+          );
+          setIsUnlocked(access.isUnlocked);
+          setAccessReason(access.reason);
+        }
+
+        if (profile?.idMahasiswa) {
+          const { data: progData } = await supabase
+            .from("progress_modul")
+            .select("nilai, selesai")
+            .eq("id_modul", id)
+            .eq("id_mahasiswa", profile.idMahasiswa)
+            .maybeSingle();
+
+          if (isMounted && progData && progData.selesai) {
+            setQuizScore(progData.nilai);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal memuat detail modul:", err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
     }
 
     fetchDetail();
@@ -162,7 +182,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
     return () => {
       isMounted = false;
     };
-  }, [id, profile?.idMahasiswa]);
+  }, [id, profile?.idMahasiswa, isProfileLoading]);
 
   // Pengaman: membuka materi saja tidak memberikan nilai
   useEffect(() => {
@@ -182,7 +202,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
           .select("id_modul, kuis_dicoba")
           .eq("id_mahasiswa", profile.idMahasiswa)
           .eq("id_modul", course.id_modul)
-          .single();
+          .maybeSingle();
 
         if (!existingProgress) {
           await supabase.from("progress_modul").insert({
@@ -553,6 +573,27 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                 <span className="truncate">3. Pembelajaran Remedial</span>
               </div>
             </div>
+
+            {/* Tombol Aksi Utama: Mulai Misi Visual Novel */}
+            <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-purple-200/80">
+                🎮 Misi interaktif: Pecahkan studi kasus nyata klien bersama pembimbing pengajar di ruang kelas visual novel.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("kuis");
+                  setIsVnMode(true);
+                  const el = document.getElementById("quiz-vn-section");
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 px-5 py-2.5 text-xs font-black text-slate-950 shadow-[0_0_20px_rgba(251,191,36,0.4)] transition-all hover:scale-105 active:scale-95"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>Mulai Misi (Visual Novel)</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -698,16 +739,69 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
             KONTEN TAB
         ===================================================== */}
         {activeTab === "kuis" ? (
-          /* TAB KUIS EVALUASI */
-          <div className="flex min-h-[620px] w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#5B5288]/40 bg-white p-6 shadow-sm sm:p-8">
-            <Quiz
-              onSubmitAttempt={handleSubmitAttempt}
-              onContinue={() => setActiveTab("materi")}
-              onFailed={() => setActiveTab("remedial")}
-              idModul={course.id_modul}
-              initialScore={quizScore}
-              passingGrade={course.parameter_nilai ?? 80}
-            />
+          /* TAB KUIS EVALUASI / VISUAL NOVEL */
+          <div id="quiz-vn-section" className="flex flex-col gap-4">
+            {/* Header Switch Mode: Visual Novel vs Kuis Standar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-[#1c183d] border border-purple-500/40 text-white">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span className="text-xs font-bold text-purple-200">
+                  Mode Pengerjaan Kuis:
+                </span>
+                <span className="text-xs font-black text-amber-300">
+                  {isVnMode ? "Visual Novel Game" : "Lembar Kuis Standar"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsVnMode(true)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
+                    isVnMode
+                      ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md border border-purple-400/40"
+                      : "text-purple-300 hover:text-white hover:bg-purple-900/40"
+                  }`}
+                >
+                  🎮 Visual Novel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsVnMode(false)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    !isVnMode
+                      ? "bg-purple-700 text-white shadow-md"
+                      : "text-purple-300 hover:text-white hover:bg-purple-900/40"
+                  }`}
+                >
+                  📝 Kuis Standar
+                </button>
+              </div>
+            </div>
+
+            {/* Konten Kuis: Visual Novel Game vs Form Quiz */}
+            {isVnMode ? (
+              <div className="w-full">
+                <VisualNovelGame
+                  idModul={course.id_modul}
+                  namaModul={course.nama_modul}
+                  parameterNilai={minScore}
+                  onFinish={(_lulus, nilai) => handleSubmitAttempt(nilai)}
+                  onBackToMateri={() => setActiveTab("materi")}
+                />
+              </div>
+            ) : (
+              <div className="flex min-h-[620px] w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#5B5288]/40 bg-white p-6 shadow-sm sm:p-8">
+                <Quiz
+                  onSubmitAttempt={handleSubmitAttempt}
+                  onContinue={() => setActiveTab("materi")}
+                  onFailed={() => setActiveTab("remedial")}
+                  idModul={course.id_modul}
+                  initialScore={quizScore}
+                  passingGrade={minScore}
+                />
+              </div>
+            )}
           </div>
         ) : activeTab === "remedial" ? (
           /* TAB PEMBELAJARAN REMEDIAL */

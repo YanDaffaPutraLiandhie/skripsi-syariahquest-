@@ -27,7 +27,7 @@ import {
   type HasilSubTopik,
   type SubTopik,
 } from "@/lib/subTopik";
-import { getModulState, submitAttemptModul } from "@/lib/remedial";
+import { getModulState, submitAttemptModul, simpanRiwayatJawaban } from "@/lib/remedial";
 
 type JawabanDB = {
   id_jawaban: number;
@@ -182,12 +182,7 @@ export default function Quiz({
 
       if (!attemptTersimpan.current) {
         // Snapshot terakhir (dipakai memilih remedial) -- atomik di database
-        const { error: riwayatError } = await supabase.rpc("simpan_riwayat_jawaban", {
-          p_id_mahasiswa: idMahasiswa,
-          p_id_modul: idModul,
-          p_rows: rows,
-        });
-        if (riwayatError) throw riwayatError;
+        await simpanRiwayatJawaban(idMahasiswa, idModul, rows);
 
         // Nilai akhir modul = nilai tertinggi; XP & Elo dihitung di SERVER (RPC)
         let xp = 0;

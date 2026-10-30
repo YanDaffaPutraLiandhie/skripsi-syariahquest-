@@ -238,10 +238,15 @@ const TIPE_CFG = {
 /* ── Komponen tampilan materi terfokus dengan checkpoint baca ── */
 function MaterialCard({
   material,
+  isDone = false,
+  isBusy = false,
+  onMarkDone,
 }: {
   material: GeneratedMaterial;
+  isDone?: boolean;
+  isBusy?: boolean;
+  onMarkDone?: () => void;
 }) {
-  const [isUnderstood, setIsUnderstood] = useState(false);
   const cfg = TIPE_CFG[material.tipe] ?? TIPE_CFG.penjelasan;
   const Icon = cfg.icon;
   const kemiripan = material.source?.kemiripan;
@@ -249,7 +254,9 @@ function MaterialCard({
 
   return (
     <div
-      className={`rounded-2xl border overflow-hidden bg-gradient-to-br ${cfg.from} ${cfg.to} ${cfg.border} shadow-sm transition-all hover:shadow-md`}
+      className={`rounded-2xl border overflow-hidden bg-gradient-to-br ${cfg.from} ${cfg.to} ${
+        isDone ? "border-emerald-300" : cfg.border
+      } shadow-sm transition-all hover:shadow-md`}
     >
       <div className="flex items-start gap-3.5 p-4 md:p-5 border-b border-white/60 bg-white/40">
         <span
@@ -269,6 +276,11 @@ function MaterialCard({
                 <Bot className="h-3 w-3" /> Modul Resmi {kemiripan}%
               </span>
             )}
+            {isDone && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Selesai Dipahami
+              </span>
+            )}
           </div>
           <h3 className={`text-base md:text-lg font-black leading-snug ${cfg.title}`}>
             {material.judul}
@@ -282,19 +294,20 @@ function MaterialCard({
         {/* Checkpoint interaktif pemahaman per kartu */}
         <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-500 font-medium">
-            {isUnderstood ? "✓ Telah dipelajari & dipahami" : "Sudah selesai membaca materi ini?"}
+            {isDone ? "✓ Telah dipelajari & dicatat ke progres" : "Sudah selesai membaca materi ini?"}
           </span>
           <button
             type="button"
-            onClick={() => setIsUnderstood(!isUnderstood)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              isUnderstood
-                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs"
-                : "bg-gray-100 hover:bg-purple-100 text-gray-700 hover:text-purple-900 border border-gray-200"
+            disabled={isBusy}
+            onClick={onMarkDone}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
+              isDone
+                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs cursor-default"
+                : "bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
             }`}
           >
-            <CheckCircle2 className={`h-3.5 w-3.5 ${isUnderstood ? "text-emerald-600" : "text-gray-400"}`} />
-            <span>{isUnderstood ? "Selesai Dipahami" : "Tandai Paham"}</span>
+            <CheckCircle2 className={`h-3.5 w-3.5 ${isDone ? "text-emerald-600" : "text-white"}`} />
+            <span>{isDone ? "Selesai Dipahami" : isBusy ? "Menyimpan..." : "Tandai Paham"}</span>
           </button>
         </div>
       </div>
@@ -769,31 +782,57 @@ export default function RemedialPanel({
                 </div>
 
                 <div className="space-y-4">
-                  {focusedAiMaterials.map((m) => (
-                    <MaterialCard key={m.id} material={m} />
-                  ))}
+                  {focusedAiMaterials.map((m) => {
+                    const idRem = Number(m.id);
+                    const isDone = state.remedial.some((r) => r.id_remedial === idRem && r.selesai);
+                    return (
+                      <MaterialCard
+                        key={m.id}
+                        material={m}
+                        isDone={isDone}
+                        isBusy={busyId === idRem}
+                        onMarkDone={() => {
+                          if (!isDone) selesai(idRem);
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ) : (
               currentOfficialRemedial.length === 0 && (
-                <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-center">
-                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-700">
+                <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-8 text-center space-y-4">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-700">
                     <Sparkles className="h-6 w-6" />
                   </div>
-                  <p className="text-base font-medium text-gray-900">
-                    Belum ada materi penguatan
-                  </p>
-                  <p className="mt-1 text-sm text-gray-600 max-w-md mx-auto">
-                    Sistem dapat membuat materi penguatan berdasarkan soal yang kamu salah jawab.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleGenerateAiMaterials}
-                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-purple-700 hover:bg-purple-800 px-4 py-2 text-sm text-white transition"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Buat materi penguatan
-                  </button>
+                  <div>
+                    <p className="text-base font-bold text-gray-900">
+                      Penguatan Materi Modul
+                    </p>
+                    <p className="mt-1 text-sm text-gray-600 max-w-md mx-auto">
+                      Pelajari kembali konsep inti pada modul ini. Setelah memahami materi, konfirmasikan pembelajaranmu di bawah untuk membuka kembali kuis.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      disabled={isGeneratingAi}
+                      onClick={handleGenerateAiMaterials}
+                      className="inline-flex items-center gap-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-800 px-4 py-2.5 text-xs font-bold transition disabled:opacity-50"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {isGeneratingAi ? "Membuat Materi AI..." : "Buat Rangkuman AI"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={sibuk}
+                      onClick={() => selesai(0)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-purple-700 hover:bg-purple-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {busyId === 0 ? "Menyimpan Progres..." : "Saya Telah Mempelajari Ulang Modul Ini"}
+                    </button>
+                  </div>
                 </div>
               )
             )}

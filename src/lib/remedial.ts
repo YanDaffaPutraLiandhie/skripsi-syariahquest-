@@ -122,19 +122,28 @@ export async function getModulState(
 
   const { data: semua, error: remedialError } = await supabase
     .from("modul_remedial")
-    .select("id_remedial, id_soal, id_sub_topik, judul, tipe, konten, urutan")
+    .select("id_remedial, id_soal, id_sub_topik, judul, tipe, konten, urutan, id_mahasiswa, id_attempt_ke")
     .eq("id_modul", idModul)
     .order("urutan", { ascending: true });
   if (remedialError) throw remedialError;
 
-  const all = semua ?? [];
+  // Filter materi: materi umum dosen (id_mahasiswa null) ATAU materi AI untuk mahasiswa ini pada attempt ini
+  const all = (semua ?? []).filter((r: any) => {
+    return (
+      r.id_mahasiswa === null ||
+      r.id_mahasiswa === undefined ||
+      (Number(r.id_mahasiswa) === idMahasiswa &&
+        (r.id_attempt_ke === null || Number(r.id_attempt_ke) === base.lastAttemptKe))
+    );
+  });
+
   let relevan = all.filter((r) => {
     const umum = r.id_sub_topik === null && r.id_soal === null;
     const cocokSubTopik = r.id_sub_topik !== null && lemahIds.has(r.id_sub_topik);
     const cocokSoal = r.id_soal !== null && soalSalah.has(r.id_soal); // data lama
     return umum || cocokSubTopik || cocokSoal;
   });
-  if (relevan.length === 0) relevan = all; // fallback: tampilkan semua remedial modul
+  if (relevan.length === 0) relevan = all; // fallback: tampilkan semua remedial modul mahasiswa ini
 
   const { data: done, error: doneError } = await supabase
     .from("remedial_selesai")
@@ -150,8 +159,12 @@ export async function getModulState(
     selesai: doneSet.has(r.id_remedial),
   }));
 
-  // Jika dosen belum menyiapkan remedial, [].every(...) = true -> retake tidak buntu
-  const canRetake = remedial.every((r) => r.selesai);
+  // Jika ada materi remedial, semua wajib diselesaikan.
+  // Jika database belum memiliki materi remedial sama sekali, cek apakah mahasiswa sudah menekan konfirmasi selesai (id_remedial = 0).
+  const hasAcknowledgedFallback = doneSet.has(0);
+  const canRetake = remedial.length > 0
+    ? remedial.every((r) => r.selesai)
+    : hasAcknowledgedFallback;
 
   return {
     ...base,
@@ -164,29 +177,213 @@ export async function getModulState(
   };
 }
 
-/** Panggil sekali saat kuis modul selesai dinilai. */
+/** Snapshot jawaban terakhir kuis (atomik via RPC atau direct fallback) */
+export async function simpanRiwayatJawaban(
+  idMahasiswa: number,
+  idModul: number,
+  rows: Array<{ id_soal: number; id_jawaban: number | null; is_benar: boolean }>
+) {
+  try {
+    const { error: rpcError } = await supabase.rpc("simpan_riwayat_jawaban", {
+      p_id_mahasiswa: idMahasiswa,
+      p_id_modul: idModul,
+      p_rows: rows,
+    });
+    if (!rpcError) return;
+  } catch {
+    // Fallback direct table
+  }
+
+  // Fallback direct table operation
+  await supabase
+    .from("riwayat_jawaban_kuis")
+    .delete()
+    .eq("id_mahasiswa", idMahasiswa)
+    .eq("id_modul", idModul);
+
+  if (rows.length > 0) {
+    await supabase.from("riwayat_jawaban_kuis").insert(
+      rows.map((r) => ({
+        id_mahasiswa: idMahasiswa,
+        id_modul: idModul,
+        id_soal: r.id_soal,
+        id_jawaban: r.id_jawaban,
+        is_benar: r.is_benar,
+      }))
+    );
+  }
+}
+
+/** Panggil sekali saat kuis modul selesai dinilai. Dilengkapi fallback direct table & pencegahan XP ganda */
 export async function submitAttemptModul(
   idMahasiswa: number,
   idModul: number,
   nilai: number,
 ) {
-  const { data, error } = await supabase.rpc("submit_attempt_modul", {
-    p_id_mahasiswa: idMahasiswa,
-    p_id_modul: idModul,
-    p_nilai: nilai,
-  });
-  if (error) throw error;
+  // 1. Coba eksekusi lewat RPC Supabase terlebih dahulu
+  try {
+    const { data, error } = await supabase.rpc("submit_attempt_modul", {
+      p_id_mahasiswa: idMahasiswa,
+      p_id_modul: idModul,
+      p_nilai: nilai,
+    });
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row) throw new Error("submit_attempt_modul tidak mengembalikan data.");
+    if (!error && data) {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        return {
+          attemptKe: Number(row.o_attempt_ke),
+          lulus: Boolean(row.o_lulus),
+          nilaiTerbaik: Number(row.o_nilai_terbaik),
+          xpDidapat: Number(row.o_xp ?? 0),
+          eloSesudah: Number(row.o_elo ?? 1000),
+          eloDelta: Number(row.o_elo_delta ?? 0),
+        };
+      }
+    }
+  } catch (rpcErr) {
+    console.warn("RPC submit_attempt_modul tidak tersedia atau gagal, menggunakan fallback direct:", rpcErr);
+  }
+
+  // 2. Fallback Direct: Eksekusi langsung ke tabel dengan idempotensi
+  const [{ data: modulData }, { data: mhsData }, { data: attemptsData }] = await Promise.all([
+    supabase.from("modul").select("parameter_nilai, id_level").eq("id_modul", idModul).maybeSingle(),
+    supabase.from("mahasiswa").select("total_xp, elo").eq("id_mahasiswa", idMahasiswa).maybeSingle(),
+    supabase.from("attempt_kuis_modul").select("attempt_ke, nilai").eq("id_mahasiswa", idMahasiswa).eq("id_modul", idModul),
+  ]);
+
+  const passScore = Number(modulData?.parameter_nilai ?? DEFAULT_PASS_SCORE);
+  const idLevel = Number(modulData?.id_level ?? 1);
+  const currXp = Number(mhsData?.total_xp ?? 0);
+  const currElo = Number(mhsData?.elo ?? 1000);
+
+  const prevAttempts = attemptsData ?? [];
+  const attemptKe = prevAttempts.length + 1;
+  const sudahPernahLulus = prevAttempts.some((a) => Number(a.nilai) >= passScore);
+  const lulusSekarang = nilai >= passScore;
+
+  // Reward XP sesuai id_level modul
+  let baseModulXp = 30;
+  let difficulty = 1000;
+  if (idLevel === 1) {
+    baseModulXp = 20;
+    difficulty = 950;
+  } else if (idLevel === 2) {
+    baseModulXp = 50;
+    difficulty = 1100;
+  } else if (idLevel === 3) {
+    baseModulXp = 100;
+    difficulty = 1250;
+  }
+
+  let xpDidapat = 0;
+  if (lulusSekarang) {
+    xpDidapat = sudahPernahLulus ? Math.floor(baseModulXp * 0.5) : baseModulXp;
+  }
+
+  // Hitung Elo
+  const eloK = 32;
+  const expected = 1 / (1 + Math.pow(10, (difficulty - currElo) / 400));
+  const eloDelta = lulusSekarang
+    ? Math.max(1, Math.round(eloK * (1 - expected)))
+    : -Math.max(1, Math.round(eloK * expected));
+  const eloSesudah = Math.max(100, currElo + eloDelta);
+
+  // Simpan attempt
+  await supabase.from("attempt_kuis_modul").insert({
+    id_mahasiswa: idMahasiswa,
+    id_modul: idModul,
+    attempt_ke: attemptKe,
+    nilai,
+  });
+
+  const bestScore = Math.max(nilai, ...prevAttempts.map((a) => Number(a.nilai)));
+
+  // Update progress modul
+  const { data: existingProg } = await supabase
+    .from("progress_modul")
+    .select("nilai, selesai")
+    .eq("id_mahasiswa", idMahasiswa)
+    .eq("id_modul", idModul)
+    .maybeSingle();
+
+  if (!existingProg) {
+    await supabase.from("progress_modul").insert({
+      id_mahasiswa: idMahasiswa,
+      id_modul: idModul,
+      nilai: bestScore,
+      selesai: bestScore >= passScore,
+      kuis_dicoba: true,
+      materi_dilihat: true,
+    });
+  } else {
+    await supabase
+      .from("progress_modul")
+      .update({
+        nilai: Math.max(Number(existingProg.nilai || 0), bestScore),
+        selesai: Math.max(Number(existingProg.nilai || 0), bestScore) >= passScore,
+        kuis_dicoba: true,
+      })
+      .eq("id_mahasiswa", idMahasiswa)
+      .eq("id_modul", idModul);
+  }
+
+  // Pencegahan XP Ganda: Cek apakah riwayat perolehan XP untuk attempt ini sudah pernah dicatat
+  if (xpDidapat > 0) {
+    try {
+      const { data: existingXpLog } = await supabase
+        .from("riwayat_perolehan_xp")
+        .select("id_perolehan_xp")
+        .eq("id_mahasiswa", idMahasiswa)
+        .eq("sumber_aktivitas", "kuis_modul")
+        .eq("id_referensi", idModul)
+        .eq("attempt_ke", attemptKe)
+        .maybeSingle();
+
+      if (!existingXpLog) {
+        // Catat ke log XP
+        await supabase.from("riwayat_perolehan_xp").insert({
+          id_mahasiswa: idMahasiswa,
+          sumber_aktivitas: "kuis_modul",
+          id_referensi: idModul,
+          attempt_ke: attemptKe,
+          xp_diperoleh: xpDidapat,
+        });
+
+        // Tambahkan XP & update Elo ke mahasiswa
+        await supabase
+          .from("mahasiswa")
+          .update({
+            total_xp: currXp + xpDidapat,
+            elo: eloSesudah,
+          })
+          .eq("id_mahasiswa", idMahasiswa);
+      }
+    } catch {
+      // Jika tabel riwayat_perolehan_xp belum dibuat, update langsung
+      await supabase
+        .from("mahasiswa")
+        .update({
+          total_xp: currXp + xpDidapat,
+          elo: eloSesudah,
+        })
+        .eq("id_mahasiswa", idMahasiswa);
+    }
+  } else {
+    // Hanya perbarui Elo jika tidak dapat XP
+    await supabase
+      .from("mahasiswa")
+      .update({ elo: eloSesudah })
+      .eq("id_mahasiswa", idMahasiswa);
+  }
 
   return {
-    attemptKe: row.o_attempt_ke as number,
-    lulus: row.o_lulus as boolean,
-    nilaiTerbaik: Number(row.o_nilai_terbaik),
-    xpDidapat: Number(row.o_xp ?? 0),
-    eloSesudah: Number(row.o_elo ?? 1000),
-    eloDelta: Number(row.o_elo_delta ?? 0),
+    attemptKe,
+    lulus: lulusSekarang,
+    nilaiTerbaik: bestScore,
+    xpDidapat,
+    eloSesudah,
+    eloDelta,
   };
 }
 
