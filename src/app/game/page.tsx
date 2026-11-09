@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -12,6 +13,7 @@ import {
   type Expression,
 } from "@/lib/game/characterRegistry";
 import { formatDialogue } from "@/lib/game/dialogueFormatter";
+import { getModuleBackground } from "@/lib/game/moduleBackgrounds";
 import {
   getModulState,
   submitAttemptModul,
@@ -114,6 +116,7 @@ function GamePageContent() {
     eloSesudah: number;
     eloDelta: number;
   } | null>(null);
+  const [isPortalReady, setIsPortalReady] = useState(false);
 
   // Ambil Avatar Tersimpan
   useEffect(() => {
@@ -261,6 +264,23 @@ function GamePageContent() {
     };
   }, [isUserLoading, profile?.idMahasiswa, modulIdParam]);
 
+  const isQuizActive = phase !== "result";
+
+  useEffect(() => {
+    setIsPortalReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isPortalReady || !isQuizActive) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isPortalReady, isQuizActive]);
+
   // Loading Screens
   if (isUserLoading || isLoadingData) {
     return (
@@ -400,21 +420,23 @@ function GamePageContent() {
       setCurrentQuestionIndex((prev) => prev + 1);
       setPhase("question");
     } else {
-      await finishQuiz();
+      await finishQuiz(recordedAnswers);
     }
   };
 
-  const finishQuiz = async () => {
+  const finishQuiz = async (
+    answerRecords: Array<{ id_soal: number; id_jawaban: number | null; is_benar: boolean }> = recordedAnswers,
+  ) => {
     if (!activeModul || !profile.idMahasiswa) return;
     setIsSavingResult(true);
 
-    const correctCount = recordedAnswers.filter((a) => a.is_benar).length;
+    const correctCount = answerRecords.filter((a) => a.is_benar).length;
     const finalScore = Math.round((correctCount / questions.length) * 100);
     const passGrade = activeModul.parameter_nilai ?? 75;
     const passed = finalScore >= passGrade;
 
     try {
-      await simpanRiwayatJawaban(profile.idMahasiswa, activeModul.id_modul, recordedAnswers);
+      await simpanRiwayatJawaban(profile.idMahasiswa, activeModul.id_modul, answerRecords);
       const submitRes = await submitAttemptModul(profile.idMahasiswa, activeModul.id_modul, finalScore);
 
       setFinalResult({
@@ -442,6 +464,36 @@ function GamePageContent() {
       setPhase("result");
     }
   };
+
+  // Visual novel controls: keyboard shortcuts make the story comfortable to play
+  // without removing the visible buttons for touch and mouse users.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
+
+      if (phase === "question" && currentQ && selectedOptionId === null) {
+        const optionIndex = Number(event.key) - 1;
+        if (optionIndex >= 0 && optionIndex < currentQ.jawaban.length) {
+          event.preventDefault();
+          handleSelectAnswer(currentQ.jawaban[optionIndex]);
+        }
+        return;
+      }
+
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+
+      if (phase === "intro") {
+        setPhase("question");
+      } else if (phase === "feedback") {
+        void handleNextStep();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentQ, currentQuestionIndex, phase, selectedOptionId, recordedAnswers]);
 
   // Ekspresi karakter
   let teacherExpression: Expression = "normal";
@@ -479,9 +531,19 @@ function GamePageContent() {
   const totalXp = profile.totalXp || 210;
   const koin = profile.totalPoin || "1.250";
   const badgeCount = profile.modulSelesai || 3;
+  const sceneBackground = activeModul ? getModuleBackground(activeModul.id_modul) : "/game/scene-6.jpg";
 
-  return (
-    <div className="min-h-screen bg-[#140e28] text-white p-3 sm:p-6 flex flex-col justify-between max-w-5xl mx-auto">
+  const gameScreen = (
+    <div
+      role={isQuizActive && isPortalReady ? "dialog" : undefined}
+      aria-modal={isQuizActive && isPortalReady ? true : undefined}
+      aria-label={isQuizActive && isPortalReady ? "Visual Novel Kuis" : undefined}
+      className={`min-h-screen bg-[#140e28] text-white p-3 sm:p-6 flex flex-col justify-between mx-auto ${
+        isQuizActive && isPortalReady
+          ? "fixed inset-0 z-[10000] h-[100dvh] w-screen max-w-none overflow-y-auto"
+          : "max-w-5xl"
+      }`}
+    >
       {/* Top Bar Header */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
@@ -531,40 +593,43 @@ function GamePageContent() {
         /* FASE VISUAL NOVEL: SCENE + SPRITE + DIALOGUE + CHOICES */
         <div className="flex flex-col gap-4">
           <VisualNovelScene
-            backgroundSrc="/game/scene-3.jpg"
+            backgroundSrc={sceneBackground}
             locationLabel="KAMPUS MADANI"
             sceneCaption={`ADEGAN 0${currentQuestionIndex + 1} • STUDI KASUS`}
           >
             {/* Sprite Karakter Siswa & Mentor Pengajar */}
             {phase === "intro" ? (
-              <CharacterSprite
-                src={getExpressionSrc(avatar, teacherExpression)}
-                alt={teacherName}
-                name={teacherName}
-                position="center"
-              />
+                 <CharacterSprite
+                   src={getExpressionSrc(avatar, teacherExpression)}
+                   alt={teacherName}
+                   name={teacherName}
+                   position="center"
+                   expression={teacherExpression}
+                 />
             ) : (
               <>
                 {/* Karakter Klien Mahasiswa (Kiri) */}
-                <CharacterSprite
-                  src="/game/student-1.png"
-                  alt="Rian - Mahasiswa Klien"
-                  name="Rian (Mahasiswa)"
-                  position="left"
-                />
+                 <CharacterSprite
+                   src="/game/student-1.png"
+                   alt="Rian - Mahasiswa Klien"
+                   name="Rian (Mahasiswa)"
+                   position="left"
+                   expression={phase === "feedback" ? (lastAnswerWasCorrect ? "happy" : "sad") : "thinking"}
+                 />
 
                 {/* Karakter Mentor Pengajar (Kanan) */}
-                <CharacterSprite
-                  src={getExpressionSrc(avatar, teacherExpression)}
-                  alt={teacherName}
-                  name={teacherName}
-                  position="right"
-                />
+                 <CharacterSprite
+                   src={getExpressionSrc(avatar, teacherExpression)}
+                   alt={teacherName}
+                   name={teacherName}
+                   position="right"
+                   expression={teacherExpression}
+                 />
               </>
             )}
 
             {/* Kotak Dialog */}
-            <div className="mt-auto relative z-20">
+            <div className="absolute inset-x-4 bottom-4 z-20 sm:inset-x-6 sm:bottom-6">
               <DialogueBox
                 speaker={speakerLabel}
                 text={formatDialogue(dialogText, playerName)}
@@ -604,7 +669,7 @@ function GamePageContent() {
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Pilih Solusi / Keputusan Terbaik:</span>
                 </span>
-                <span>Pilih salah satu opsi</span>
+                <span className="hidden sm:inline">Pilih salah satu opsi · tekan 1–4</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -629,4 +694,8 @@ function GamePageContent() {
       </footer>
     </div>
   );
+
+  return isQuizActive && isPortalReady
+    ? createPortal(gameScreen, document.body)
+    : gameScreen;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Play,
@@ -17,6 +18,8 @@ import {
   FileText,
   Zap,
   AlertCircle,
+  AlertTriangle,
+  Lock,
   Clock,
   Star,
   Compass,
@@ -81,12 +84,20 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
 
   const [activeTab, setActiveTab] = useState<"materi" | "kuis" | "remedial">("materi");
   const [isVnMode, setIsVnMode] = useState(true);
+  const [isQuizFullscreen, setIsQuizFullscreen] = useState(false);
   const [selectedSubTopikId, setSelectedSubTopikId] = useState<number | null>(null);
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(true);
   const [accessReason, setAccessReason] = useState("");
   const [resultNotice, setResultNotice] = useState<ResultNotice | null>(null);
   const [modulState, setModulState] = useState<ModulState | null>(null);
+
+  const exitQuizFullscreen = useCallback(() => {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+    setIsQuizFullscreen(false);
+  }, []);
 
   // State expand/collapse untuk sub-item Daftar Isi
   const [expandedSections, setExpandedSections] = useState<{
@@ -116,6 +127,25 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     fetchModulState();
   }, [fetchModulState]);
+
+  // Keep the immersive visual-novel quiz fixed to the viewport and prevent
+  // the module page behind it from scrolling.
+  useEffect(() => {
+    if (!isQuizFullscreen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") exitQuizFullscreen();
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [exitQuizFullscreen, isQuizFullscreen]);
 
   useEffect(() => {
     // Tunggu profil selesai dimuat agar status kunci modul tidak berkedip
@@ -436,6 +466,44 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
         : 50
       : 30;
 
+  const openVisualNovelQuiz = () => {
+    setActiveTab("kuis");
+    setIsVnMode(true);
+    setIsQuizFullscreen(true);
+  };
+
+  const visualNovelGame = (
+    <VisualNovelGame
+      idModul={course.id_modul}
+      namaModul={course.nama_modul}
+      parameterNilai={minScore}
+      onFinish={async (_lulus, nilai) => {
+        exitQuizFullscreen();
+        await handleSubmitAttempt(nilai);
+      }}
+      onBackToMateri={() => {
+        exitQuizFullscreen();
+        setActiveTab("materi");
+      }}
+      modulState={modulState}
+      embeddedFullscreen={isQuizFullscreen}
+      onExitFullscreen={exitQuizFullscreen}
+    />
+  );
+
+  const visualNovelShell = (
+    <div
+      className={isQuizFullscreen
+        ? "fixed inset-0 z-[10000] h-[100dvh] w-screen bg-[#0e0b24]"
+        : "w-full"}
+      role={isQuizFullscreen ? "dialog" : undefined}
+      aria-modal={isQuizFullscreen ? true : undefined}
+      aria-label={isQuizFullscreen ? "Visual Novel Kuis" : undefined}
+    >
+      {visualNovelGame}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 lg:flex-row lg:items-start lg:gap-8">
       {/* =====================================================
@@ -582,8 +650,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab("kuis");
-                  setIsVnMode(true);
+                  openVisualNovelQuiz();
                   const el = document.getElementById("quiz-vn-section");
                   if (el) el.scrollIntoView({ behavior: "smooth" });
                 }}
@@ -665,7 +732,10 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
         <div className="mb-6 grid grid-cols-3 gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
           <button
             type="button"
-            onClick={() => setActiveTab("materi")}
+            onClick={() => {
+              exitQuizFullscreen();
+              setActiveTab("materi");
+            }}
             className={`flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-black transition-all ${activeTab === "materi"
               ? "bg-gradient-to-r from-[#4A3F7A] to-[#3D2C6D] text-white shadow-md shadow-[#3D2C6D]/20"
               : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -680,11 +750,12 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
             type="button"
             onClick={() => {
               if (isRemedialNeeded) {
+                exitQuizFullscreen();
                 setActiveTab("remedial");
                 return;
               }
 
-              setActiveTab("kuis");
+              openVisualNovelQuiz();
             }}
             className={`flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-black transition-all ${activeTab === "kuis"
               ? "bg-gradient-to-r from-[#4A3F7A] to-[#3D2C6D] text-white shadow-md shadow-[#3D2C6D]/20"
@@ -718,7 +789,10 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
 
           <button
             type="button"
-            onClick={() => setActiveTab("remedial")}
+            onClick={() => {
+              exitQuizFullscreen();
+              setActiveTab("remedial");
+            }}
             className={`relative flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-black transition-all ${activeTab === "remedial"
               ? "bg-gradient-to-r from-[#4A3F7A] to-[#3D2C6D] text-white shadow-md shadow-[#3D2C6D]/20"
               : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -756,7 +830,10 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsVnMode(true)}
+                  onClick={() => {
+                    setIsVnMode(true);
+                    setIsQuizFullscreen(true);
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition ${
                     isVnMode
                       ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md border border-purple-400/40"
@@ -767,7 +844,10 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsVnMode(false)}
+                  onClick={() => {
+                    setIsVnMode(false);
+                    exitQuizFullscreen();
+                  }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                     !isVnMode
                       ? "bg-purple-700 text-white shadow-md"
@@ -780,27 +860,40 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Konten Kuis: Visual Novel Game vs Form Quiz */}
-            {isVnMode ? (
-              <div className="w-full">
-                <VisualNovelGame
-                  idModul={course.id_modul}
-                  namaModul={course.nama_modul}
-                  parameterNilai={minScore}
-                  onFinish={(_lulus, nilai) => handleSubmitAttempt(nilai)}
-                  onBackToMateri={() => setActiveTab("materi")}
-                />
+            {/* GATE: kuis/VN terkunci saat status "remedial" (belum selesai remedial) */}
+            {modulState && modulState.status === "remedial" && !modulState.canRetake ? (
+              <div className="flex min-h-[620px] w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-purple-500/40 bg-[#161233] p-6 text-center shadow-sm sm:p-8">
+                <Lock className="mb-4 h-16 w-16 animate-pulse text-rose-400" />
+                <h3 className="mb-1 text-xl font-black text-white">Kuis Terkunci</h3>
+                <p className="mb-4 max-w-md text-sm text-purple-200/80">
+                  Nilai terakhir Anda belum mencapai target lulus. Selesaikan semua materi remedial terlebih dahulu sebelum mengerjakan kuis ulang.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("remedial")}
+                  className="flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-black text-white shadow-lg transition hover:scale-105 hover:bg-emerald-700"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>Buka Materi Remedial</span>
+                </button>
               </div>
             ) : (
-              <div className="flex min-h-[620px] w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#5B5288]/40 bg-white p-6 shadow-sm sm:p-8">
-                <Quiz
-                  onSubmitAttempt={handleSubmitAttempt}
-                  onContinue={() => setActiveTab("materi")}
-                  onFailed={() => setActiveTab("remedial")}
-                  idModul={course.id_modul}
-                  initialScore={quizScore}
-                  passingGrade={minScore}
-                />
-              </div>
+              <>
+                {isVnMode ? (
+                  isQuizFullscreen && typeof document !== "undefined"
+                    ? createPortal(visualNovelShell, document.body)
+                    : visualNovelShell
+                ) : (
+                  <Quiz
+                    onSubmitAttempt={handleSubmitAttempt}
+                    onContinue={() => setActiveTab("materi")}
+                    onFailed={() => setActiveTab("remedial")}
+                    idModul={course.id_modul}
+                    initialScore={quizScore}
+                    passingGrade={minScore}
+                  />
+                )}
+              </>
             )}
           </div>
         ) : activeTab === "remedial" ? (
@@ -813,7 +906,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                   idModul={course.id_modul}
                   state={modulState}
                   onChanged={fetchModulState}
-                  onRetake={() => setActiveTab("kuis")}
+                  onRetake={openVisualNovelQuiz}
                   selectedSubTopikId={selectedSubTopikId}
                   onSelectSubTopik={setSelectedSubTopikId}
                 />
@@ -838,7 +931,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveTab("kuis")}
+                      onClick={openVisualNovelQuiz}
                       className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-emerald-700"
                     >
                       Ulangi Kuis Evaluasi
@@ -858,7 +951,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                   </p>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("kuis")}
+                    onClick={openVisualNovelQuiz}
                     className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#5B5288] px-6 py-3 text-sm font-black text-white shadow-md transition hover:bg-[#4A4172]"
                   >
                     <Target className="h-4 w-4" />
@@ -912,7 +1005,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                 rawContent={course.teks_materi || ""}
                 moduleTitle={course.nama_modul}
                 subTopikList={subTopikList}
-                onFinishReading={() => setActiveTab("kuis")}
+                onFinishReading={openVisualNovelQuiz}
               />
             </div>
 
@@ -1238,7 +1331,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                     return;
                   }
 
-                  setActiveTab("kuis");
+                   openVisualNovelQuiz();
                   toggleSection("kuis");
                 }}
                 className={`flex w-full items-center justify-between p-3 text-left transition ${isRemedialNeeded
@@ -1303,7 +1396,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                   <div className="border-t border-purple-100/60 p-2 space-y-1 bg-white">
                     <button
                       type="button"
-                      onClick={() => setActiveTab("kuis")}
+                       onClick={openVisualNovelQuiz}
                       className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-gray-700 transition hover:bg-purple-50 hover:text-[#5B5288]"
                     >
                       <div className="flex items-center gap-2 min-w-0">

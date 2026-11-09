@@ -20,6 +20,7 @@ export default function VisualNovelScene({
 }: Props) {
   return (
     <div
+      aria-label={`${locationLabel} — ${sceneCaption}`}
       className={`relative w-full rounded-3xl bg-gradient-to-b from-[#2e1d52] to-[#1a1033] p-2.5 sm:p-3 border-2 border-purple-500/40 shadow-[0_20px_50px_rgba(26,16,51,0.6)] ${className}`}
     >
       {/* Decorative Golden Corner Accents */}
@@ -30,9 +31,12 @@ export default function VisualNovelScene({
 
       {/* Main Scene Viewport */}
       <div
-        className="relative w-full min-h-[420px] sm:min-h-[480px] md:min-h-[520px] h-[52vw] max-h-[620px] rounded-2xl overflow-hidden bg-cover bg-center transition-all duration-700 flex flex-col justify-between p-4 sm:p-6"
+        className="relative w-full min-h-[420px] sm:min-h-[480px] md:min-h-[520px] h-[52vw] max-h-[620px] overflow-hidden rounded-2xl bg-cover bg-center p-4 transition-all duration-700 sm:p-6"
         style={{
-          backgroundImage: `linear-gradient(0deg, rgba(22,14,40,0.92) 0%, rgba(35,23,60,0.3) 50%, rgba(20,13,38,0.7) 100%), url('${backgroundSrc}')`,
+          backgroundImage: `linear-gradient(0deg, rgba(22,14,40,0.75) 0%, rgba(35,23,60,0.15) 50%, rgba(20,13,38,0.45) 100%), url('${backgroundSrc}')`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          imageRendering: "auto",
         }}
       >
         {/* Top Badges Bar */}

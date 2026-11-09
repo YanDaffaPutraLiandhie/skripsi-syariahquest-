@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
@@ -99,6 +99,12 @@ export async function proxy(request: NextRequest) {
   // =====================================================
 
   const protectedRoutes = [
+    // APPLICATION ENTRY
+    '/',
+
+    // GAME / VISUAL NOVEL
+    '/game',
+
     // MAHASISWA (new routes)
     '/mahasiswa/dashboard',
     '/mahasiswa/arena',

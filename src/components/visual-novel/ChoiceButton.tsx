@@ -41,7 +41,8 @@ export default function ChoiceButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`group w-full text-left rounded-2xl border-2 p-3.5 sm:p-4 transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 shadow-sm active:scale-[0.99] ${cardStyles} ${className}`}
+      aria-label={`Pilihan ${indexLetter}: ${text}`}
+      className={`group min-h-16 w-full text-left rounded-2xl border-2 p-3.5 sm:p-4 transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc94a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#21173d] disabled:cursor-not-allowed disabled:opacity-60 shadow-sm active:scale-[0.99] ${cardStyles} ${className}`}
     >
       <div className="flex items-center gap-3.5 min-w-0">
         <span

@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getSelectedMentor, MentorCharacter } from "@/constants/mentors";
+import type { Expression } from "@/lib/game/characterRegistry";
+import { getModuleBackground } from "@/lib/game/moduleBackgrounds";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { simpanRiwayatJawaban, type ModulState } from "@/lib/remedial";
 import {
   Sparkles,
   Trophy,
@@ -18,6 +21,7 @@ import {
   Award,
   Maximize2,
   Minimize2,
+  Lock,
 } from "lucide-react";
 
 export type SoalVN = {
@@ -38,6 +42,21 @@ type Props = {
   parameterNilai?: number;
   onFinish?: (lulus: boolean, nilai: number) => void;
   onBackToMateri?: () => void;
+  onExitFullscreen?: () => void;
+  embeddedFullscreen?: boolean;
+  modulState?: ModulState | null;
+};
+
+const EXPRESSION_CLASSES: Record<Expression, string> = {
+  normal: "",
+  smile: "saturate-[1.08] brightness-[1.03]",
+  happy: "scale-[1.03] saturate-[1.18] brightness-[1.06]",
+  sad: "brightness-[0.78] saturate-[0.65]",
+  confused: "-rotate-1 saturate-[0.9]",
+  thinking: "rotate-1 brightness-[0.96]",
+  surprised: "scale-[1.04] brightness-[1.1] contrast-[1.04]",
+  serious: "contrast-[1.12] saturate-[0.9]",
+  disappointed: "brightness-[0.72] saturate-[0.7]",
 };
 
 export default function VisualNovelGame({
@@ -46,6 +65,9 @@ export default function VisualNovelGame({
   parameterNilai = 75,
   onFinish,
   onBackToMateri,
+  onExitFullscreen,
+  embeddedFullscreen = false,
+  modulState = null,
 }: Props) {
   const router = useRouter();
   const { profile } = useCurrentUser();
@@ -59,7 +81,7 @@ export default function VisualNovelGame({
   const [selectedJawabanId, setSelectedJawabanId] = useState<number | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
   const [userAnswers, setUserAnswers] = useState<
-    { id_soal: number; is_benar: boolean; teks_soal: string; penjelasan: string }[]
+    { id_soal: number; id_jawaban: number | null; is_benar: boolean; teks_soal: string; penjelasan: string }[]
   >([]);
 
   // State alur dialog
@@ -67,6 +89,14 @@ export default function VisualNovelGame({
   const [dialogStage, setDialogStage] = useState<"intro" | "soal" | "feedback" | "selesai">("intro");
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [showRemedialStudy, setShowRemedialStudy] = useState(false);
+
+  // Gate remedial: kuis terkunci jika status "remedial" dan belum semua remedial selesai (canRetake false)
+  const isLocked =
+    Boolean(
+      modulState &&
+        modulState.status === "remedial" &&
+        modulState.canRetake === false,
+    );
 
   // Ambil karakter mentor
   useEffect(() => {
@@ -244,6 +274,7 @@ export default function VisualNovelGame({
       ...prev,
       {
         id_soal: currentSoal.id_soal,
+        id_jawaban: selectedJawabanId,
         is_benar: isCorrect,
         teks_soal: currentSoal.pertanyaan,
         penjelasan: chosen?.penjelasan || "",
@@ -259,43 +290,58 @@ export default function VisualNovelGame({
       setCurrentIndex((prev) => prev + 1);
       setDialogStage("soal");
     } else {
-      finishNovelGame();
+      finishNovelGame(userAnswers);
     }
   };
 
   // Simpan hasil nilai ke progress_modul di Supabase
-  const finishNovelGame = async () => {
+  const finishNovelGame = async (
+    answerRecords: typeof userAnswers = userAnswers,
+  ) => {
     setDialogStage("selesai");
     setIsSubmittingScore(true);
 
     const totalQuestions = soalList.length;
-    const correctCount = userAnswers.filter((a) => a.is_benar).length;
+    const correctCount = answerRecords.filter((a) => a.is_benar).length;
     const finalScore = Math.round((correctCount / totalQuestions) * 100);
     const isPassed = finalScore >= parameterNilai;
 
     try {
       if (profile?.idMahasiswa) {
-        await supabase.from("progress_modul").upsert(
-          {
-            id_mahasiswa: profile.idMahasiswa,
-            id_modul: idModul,
-            nilai: finalScore,
-            selesai: isPassed,
-            kuis_dicoba: true,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "id_mahasiswa,id_modul" }
+        await simpanRiwayatJawaban(
+          profile.idMahasiswa,
+          idModul,
+          answerRecords.map(({ id_soal, id_jawaban, is_benar }) => ({
+            id_soal,
+            id_jawaban,
+            is_benar,
+          })),
         );
 
-        // Jika lulus, tambahkan XP & Koin
-        if (isPassed) {
-          await supabase
-            .from("mahasiswa")
-            .update({
-              total_xp: (profile.totalXp || 0) + 100,
-              total_poin: (profile.totalPoin || 0) + 50,
-            })
-            .eq("id_mahasiswa", profile.idMahasiswa);
+        // The module page owns attempt/progress/XP submission. Keep this
+        // fallback only for callers that use the component without a parent.
+        if (!onFinish) {
+          await supabase.from("progress_modul").upsert(
+            {
+              id_mahasiswa: profile.idMahasiswa,
+              id_modul: idModul,
+              nilai: finalScore,
+              selesai: isPassed,
+              kuis_dicoba: true,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "id_mahasiswa,id_modul" },
+          );
+
+          if (isPassed) {
+            await supabase
+              .from("mahasiswa")
+              .update({
+                total_xp: (profile.totalXp || 0) + 100,
+                total_poin: (profile.totalPoin || 0) + 50,
+              })
+              .eq("id_mahasiswa", profile.idMahasiswa);
+          }
         }
       }
     } catch (e) {
@@ -320,6 +366,7 @@ export default function VisualNovelGame({
   };
 
   const handleRestartVN = () => {
+    if (isLocked) return;
     setCurrentIndex(0);
     setSelectedJawabanId(null);
     setIsAnswerSubmitted(false);
@@ -327,6 +374,33 @@ export default function VisualNovelGame({
     setDialogStage("soal");
     setShowRemedialStudy(false);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
+
+      if (dialogStage === "soal" && currentSoal && selectedJawabanId === null) {
+        const optionIndex = Number(event.key) - 1;
+        if (optionIndex >= 0 && optionIndex < currentSoal.pilihan.length) {
+          event.preventDefault();
+          handleChooseOption(currentSoal.pilihan[optionIndex].id_jawaban);
+        }
+        return;
+      }
+
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      if (dialogStage === "intro" && !isLocked) {
+        handleStart();
+      } else if (dialogStage === "feedback") {
+        handleNextQuestion();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentSoal, dialogStage, isLocked, selectedJawabanId]);
 
   // Progres bar: jumlah kasus yang sudah dijawab
   const progressPercent =
@@ -339,22 +413,41 @@ export default function VisualNovelGame({
   // Karakter klien tampil saat kasus berlangsung
   const showClient = dialogStage === "soal" || dialogStage === "feedback";
   const isIntro = dialogStage === "intro";
+  const sceneBackground = getModuleBackground(idModul);
+  const selectedOption = currentSoal?.pilihan.find((option) => option.id_jawaban === selectedJawabanId);
+  const mentorExpression: Expression =
+    dialogStage === "intro"
+      ? "smile"
+      : dialogStage === "soal"
+        ? "thinking"
+        : dialogStage === "feedback"
+          ? selectedOption?.is_benar
+            ? "happy"
+            : "sad"
+          : isPassed
+            ? "happy"
+            : "disappointed";
+  const clientExpression: Expression =
+    dialogStage === "feedback" ? (selectedOption?.is_benar ? "happy" : "sad") : "thinking";
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full overflow-hidden border-2 border-purple-500/40 bg-[#0e0b24] text-white shadow-2xl flex flex-col select-none ${isFullscreen
-          ? "h-screen rounded-none"
-          : "h-[calc(100dvh-120px)] min-h-[560px] max-h-[920px] rounded-3xl"
+      className={`relative w-full overflow-hidden border-2 border-purple-500/40 bg-[#0e0b24] text-white shadow-2xl flex flex-col select-none ${embeddedFullscreen
+          ? "h-[100dvh] min-h-0 max-h-none rounded-none border-0"
+          : isFullscreen
+            ? "h-screen rounded-none"
+            : "h-[calc(100dvh-120px)] min-h-[560px] max-h-[920px] rounded-3xl"
         }`}
     >
       {/* 1. SCENE BACKGROUND: Ruang Kelas / Kantor Konsultan */}
       <img
-        src="/game/scene-3.jpg"
+        src={sceneBackground}
         alt="Ruang Kelas Syariah Quest"
-        className="absolute inset-0 h-full w-full object-cover object-center brightness-90 contrast-[1.05]"
+        className="absolute inset-0 h-full w-full object-cover object-center brightness-[1.0] contrast-[1.08] saturate-[1.05]"
+        style={{ imageRendering: "auto" }}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0e0b24] via-transparent to-black/30" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0e0b24]/80 via-transparent to-black/20" />
 
       {/* TOP BAR */}
       <div className="relative z-30 shrink-0">
@@ -376,6 +469,9 @@ export default function VisualNovelGame({
                 <span>Target Lulus: {parameterNilai}%</span>
               </div>
             )}
+            {(dialogStage === "soal" || dialogStage === "feedback") && (
+              <span className="hidden text-[10px] font-bold text-purple-200/70 lg:inline">1–4 pilih · Enter lanjut</span>
+            )}
             <button
               type="button"
               onClick={toggleFullscreen}
@@ -385,6 +481,17 @@ export default function VisualNovelGame({
             >
               {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
+            {embeddedFullscreen && onExitFullscreen && (
+              <button
+                type="button"
+                onClick={onExitFullscreen}
+                title="Keluar dari mode kuis penuh"
+                aria-label="Keluar dari mode kuis penuh"
+                className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-xl border border-purple-400/40 bg-slate-900/80 text-purple-100 transition hover:bg-purple-700/60"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -410,9 +517,10 @@ export default function VisualNovelGame({
               Rian (Klien Mahasiswa)
             </div>
             <img
-              src="/game/student-1.png"
+              src="/game/student-2.png"
               alt="Rian - Mahasiswa / Klien Konsultasi"
-              className="min-h-0 w-full flex-1 object-contain object-bottom brightness-105 drop-shadow-[0_15px_30px_rgba(10,5,25,0.85)]"
+              className={`min-h-0 w-full flex-1 object-contain object-bottom brightness-[1.08] contrast-[1.05] drop-shadow-[0_8px_24px_rgba(10,5,25,0.70)] transition-all duration-300 ${EXPRESSION_CLASSES[clientExpression]}`}
+              style={{ imageRendering: "auto" }}
             />
           </div>
         )}
@@ -430,7 +538,8 @@ export default function VisualNovelGame({
           <img
             src={mentor?.avatar || "/game/npc-2.png"}
             alt={mentor?.name || "Mentor Pengajar"}
-            className="min-h-0 w-full flex-1 object-contain object-bottom brightness-105 drop-shadow-[0_15px_30px_rgba(10,5,25,0.85)]"
+            className={`min-h-0 w-full flex-1 object-contain object-bottom brightness-[1.08] contrast-[1.05] drop-shadow-[0_8px_24px_rgba(10,5,25,0.70)] transition-all duration-300 ${EXPRESSION_CLASSES[mentorExpression]}`}
+            style={{ imageRendering: "auto" }}
           />
         </div>
       </div>
@@ -439,7 +548,7 @@ export default function VisualNovelGame({
           3. TAHAP 1: DIALOG INTRO PENGAJAR
       ======================================================== */}
       {dialogStage === "intro" && (
-        <div className="relative z-30 shrink-0 border-t-2 border-purple-500/50 bg-[#161233]/95 p-4 backdrop-blur-md sm:p-6">
+        <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30 border-t-2 border-purple-500/50 bg-[#161233]/95 p-4 shadow-[0_-16px_40px_rgba(10,5,25,0.4)] backdrop-blur-md sm:p-6">
           <div className="mx-auto max-w-4xl">
             <div className="mb-2 inline-block rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 px-3 py-1 text-xs font-black text-white shadow">
               {mentor?.name || "Pengajar Pembimbing"}
@@ -447,16 +556,24 @@ export default function VisualNovelGame({
             <p className="text-sm font-medium leading-relaxed text-purple-100 sm:text-base">
               "{mentor?.greeting || "Selamat datang di ruang konsultasi syariah!"} Dalam misi ini, seorang klien mahasiswa bernama Rian sedang membutuhkan rekomendasi fatwa dan kaidah fiqih mengenai {namaModul}. Bersiaplah membantunya dengan teliti!"
             </p>
+            {isLocked && (
+              <div className="mt-3 rounded-xl border border-rose-500/40 bg-rose-950/20 p-2.5 text-xs text-rose-200 flex items-center gap-2">
+                <Lock className="h-4 w-4 shrink-0 text-rose-400" />
+                <span>
+                  Kuis terkunci. Nilai terakhir Anda ({modulState?.bestScore}%) di bawah target lulus ({modulState?.passScore}%). Selesaikan semua materi remedial terlebih dahulu sebelum mengerjakan kuis ulang.
+                </span>
+              </div>
+            )}
             <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={soalList.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2.5 text-sm font-black text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.5)] transition hover:scale-105 hover:from-amber-400 hover:to-amber-500 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-              >
-                <span>{soalList.length === 0 ? "Memuat kasus..." : "Mulai Konsultasi Bersama Rian"}</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  disabled={soalList.length === 0 || isLocked}
+                  className={`flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-2.5 text-sm font-black text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.5)] transition ${isLocked ? "opacity-50 cursor-not-allowed" : "hover:scale-105 hover:from-amber-400 hover:to-amber-500"} disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100`}
+                >
+                  <span>{isLocked ? "Kunci: Selesaikan remedial terlebih dahulu" : soalList.length === 0 ? "Memuat kasus..." : "Mulai Konsultasi Bersama Rian"}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
             </div>
           </div>
         </div>
@@ -466,7 +583,7 @@ export default function VisualNovelGame({
           4. TAHAP 2: DIALOG PERTANYAAN STUDI KASUS DARI KLIEN
       ======================================================== */}
       {dialogStage === "soal" && currentSoal && (
-        <div className="relative z-30 max-h-[58%] shrink-0 overflow-y-auto border-t-2 border-purple-500/50 bg-[#161233]/95 p-3 backdrop-blur-md sm:p-5">
+        <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30 max-h-[62%] overflow-y-auto border-t-2 border-purple-500/50 bg-[#161233]/95 p-3 shadow-[0_-16px_40px_rgba(10,5,25,0.4)] backdrop-blur-md sm:p-5">
           <div className="mx-auto flex max-w-4xl flex-col gap-2.5">
             <div className="flex items-center gap-2">
               <span className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-black text-white shadow">
@@ -531,7 +648,7 @@ export default function VisualNovelGame({
           5. TAHAP 3: REAKSI & FEEDBACK PENGAJAR / KLIEN
       ======================================================== */}
       {dialogStage === "feedback" && currentSoal && (
-        <div className="relative z-30 max-h-[58%] shrink-0 overflow-y-auto border-t-2 border-purple-500/50 bg-[#161233]/95 p-4 backdrop-blur-md sm:p-6">
+        <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30 max-h-[48%] overflow-y-auto border-t-2 border-purple-500/50 bg-[#161233]/95 p-4 shadow-[0_-16px_40px_rgba(10,5,25,0.4)] backdrop-blur-md sm:p-6">
           <div className="mx-auto flex max-w-4xl flex-col gap-3">
             {(() => {
               const chosen = currentSoal.pilihan.find((p) => p.id_jawaban === selectedJawabanId);
@@ -599,7 +716,7 @@ export default function VisualNovelGame({
           6. TAHAP 4: KESIMPULAN AKHIR & FITUR REMEDIAL
       ======================================================== */}
       {dialogStage === "selesai" && (
-        <div className="relative z-30 max-h-[70%] shrink-0 overflow-y-auto border-t-2 border-purple-500/50 bg-[#151130]/98 p-4 backdrop-blur-lg sm:p-6">
+        <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t-2 border-purple-500/50 bg-[#151130]/98 p-4 shadow-[0_-16px_40px_rgba(10,5,25,0.5)] backdrop-blur-lg sm:p-6">
           <div className="mx-auto max-w-2xl text-center">
             {isPassed ? (
               /* KELULUSAN / MENANG */

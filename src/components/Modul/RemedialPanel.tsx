@@ -495,7 +495,7 @@ export default function RemedialPanel({
   /* ── 3. Filter materi HANYA untuk topik aktif & fokus ke penjelasan materi ── */
   const focusedAiMaterials = useMemo(() => {
     const pure = aiMaterials.filter((m) => {
-      // Abaikan tipe non-materi (tips/panduan umum dsb) agar mahasiswa fokus ke materi
+      // Tampilkan hanya materi pembelajaran yang dapat dipelajari, abaikan tips/panduan umum
       if (m.tipe === "tips") return false;
       if (remedialTopics.length <= 1) return true;
       if (m.idSubTopik === currentTopic.id_sub_topik) return true;
@@ -503,12 +503,9 @@ export default function RemedialPanel({
       return false;
     });
 
-    // Dahulukan materi penjelasan (batasi 1 materi utama yang komprehensif agar fokus)
-    const penjelasanList = pure.filter((m) => m.tipe === "penjelasan");
-    if (penjelasanList.length > 0) {
-      return penjelasanList.slice(0, 1);
-    }
-    return pure.slice(0, 1);
+    // Urutkan: penjelasan dulu, lalu ringkasan, contoh kasus, lainnya agar konten inti terlihat lebih awal
+    const tipeUrutan: Record<string, number> = { penjelasan: 0, ringkasan: 1, contoh_soal: 2 };
+    return [...pure].sort((a, b) => (tipeUrutan[a.tipe] ?? 99) - (tipeUrutan[b.tipe] ?? 99));
   }, [aiMaterials, remedialTopics.length, currentTopic.id_sub_topik, currentTopicIndex]);
 
   const currentOfficialRemedial = state.remedial.filter((r) => {

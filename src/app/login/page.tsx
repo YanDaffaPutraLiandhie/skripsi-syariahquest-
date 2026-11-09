@@ -390,8 +390,8 @@ function LoginContent() {
         // VALIDASI REDIRECT
         // ===============================================
 
-        let destination = '/mahasiswa/dashboard'
-
+        let destination = '/game/map'
+ 
         if (
           redirectUrl &&
           redirectUrl.startsWith('/') &&

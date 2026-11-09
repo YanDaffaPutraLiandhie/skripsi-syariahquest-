@@ -19,6 +19,7 @@ import {
   User,
   Zap,
   ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 
 export default function Sidebar({
@@ -70,6 +71,7 @@ export default function Sidebar({
 
   const koin = profile?.totalPoin ? profile.totalPoin.toLocaleString("id-ID") : "1.250";
   const badgeCount = profile?.modulSelesai || 3;
+  const eloRating = profile?.elo || 1000;
   const studentName = (profile?.namaMahasiswa && profile.namaMahasiswa.trim().length > 0)
     ? profile.namaMahasiswa
     : "Ahmad Fauzi";
@@ -191,8 +193,9 @@ export default function Sidebar({
               </div>
             </div>
 
-            {/* Stacked Resources (Koin, XP, Badge) Tanpa Terpotong */}
+            {/* Stacked Resources (Koin, Lencana, ELO, XP) */}
             <div className="w-full mt-3.5 pt-3 border-t border-purple-800/40 grid grid-cols-2 gap-2 text-xs z-10">
+              {/* Koin */}
               <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#150e2c]/90 border border-purple-800/50 shadow-sm">
                 <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/30">
                   <Coins className="w-3.5 h-3.5 text-amber-400" />
@@ -203,6 +206,7 @@ export default function Sidebar({
                 </div>
               </div>
 
+              {/* Lencana */}
               <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#150e2c]/90 border border-purple-800/50 shadow-sm">
                 <div className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0 border border-purple-400/30">
                   <Award className="w-3.5 h-3.5 text-purple-300" />
@@ -210,6 +214,28 @@ export default function Sidebar({
                 <div className="flex flex-col text-left min-w-0">
                   <span className="text-[9px] text-purple-300/70 font-semibold uppercase leading-none">Lencana</span>
                   <span className="font-black text-purple-200 text-xs truncate leading-tight mt-0.5">{badgeCount} Badge</span>
+                </div>
+              </div>
+
+              {/* ELO Rating */}
+              <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#150e2c]/90 border border-emerald-800/50 shadow-sm">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="text-[9px] text-purple-300/70 font-semibold uppercase leading-none">ELO</span>
+                  <span className="font-black text-emerald-300 text-xs truncate leading-tight mt-0.5">{eloRating.toLocaleString("id-ID")}</span>
+                </div>
+              </div>
+
+              {/* Total XP */}
+              <div className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[#150e2c]/90 border border-cyan-800/50 shadow-sm">
+                <div className="w-6 h-6 rounded-lg bg-cyan-500/20 flex items-center justify-center shrink-0 border border-cyan-500/30">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                </div>
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="text-[9px] text-purple-300/70 font-semibold uppercase leading-none">Total XP</span>
+                  <span className="font-black text-cyan-300 text-xs truncate leading-tight mt-0.5">{totalXp.toLocaleString("id-ID")}</span>
                 </div>
               </div>
             </div>
@@ -298,13 +324,6 @@ export default function Sidebar({
               </p>
             </div>
 
-            <div className="p-2.5 rounded-2xl bg-[#140e28]/90 border border-purple-900/40 flex items-center justify-between text-[11px] font-bold text-purple-200/80">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-400">🔥</span>
-                <span>Streak Belajar</span>
-              </div>
-              <span className="text-[#ffc94a] font-black">3 Hari Aktif</span>
-            </div>
           </div>
         )}
 
@@ -312,13 +331,6 @@ export default function Sidebar({
 
         {/* 5. FOOTER & TOMBOL LOGOUT */}
         <div className="mt-auto w-full shrink-0 p-3.5 border-t border-purple-900/40 flex flex-col gap-2">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2 text-[10px] text-purple-300/70 px-1 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-[#59d7a5] animate-pulse" />
-              <span>Progres tersimpan lokal</span>
-            </div>
-          )}
-
           <button
             onClick={handleLogout}
             aria-label="Keluar"

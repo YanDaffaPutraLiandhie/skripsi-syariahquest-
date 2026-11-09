@@ -251,11 +251,17 @@ function generateRuleBasedMaterials(
 
   for (const area of weakAreas) {
     materialId++;
+    const narasiSoalSalah = area.soalSalah
+      .map(
+        (s) =>
+          `Soal "${s.teksSoal}" yang kamu jawab dengan "${s.jawabanMahasiswa}" masih kurang tepat. Prinsip yang benar untuk kasus ini adalah "${s.jawabanBenar}", yang mengajarkan bahwa berdasarkan kaidah fikih muamalah terkait sub-topik "${area.judul}" prinsip tersebut wajib dipenuhi agar transaksi syariah sah dan berkeberkahan. Kesalahan yang sering terjadi adalah memahami secara parsial tanpa memperhatikan seluruh rukun dan syarat keabsahan akad.`,
+      )
+      .join(" ");
     materials.push({
       id: `gen-${materialId}`,
       judul: `Materi Penguatan: ${area.judul}`,
       tipe: "penjelasan",
-      konten: `### 1. Konsep Pokok & Pengertian\n\nSub-topik **"${area.judul}"** merupakan kompetensi inti yang perlu kamu telaah kembali agar menguasai materi modul ini secara menyeluruh.\n\n> 📜 **Rujukan Pembelajaran:** "${area.judul}" memiliki ketentuan hukum dan prinsip dasar yang wajib dipenuhi dalam muamalah syariah.\n\n### 2. Poin-Poin Penting yang Perlu Diperhatikan\n- **Definisi & Batasan:** Pahami definisi syar'i dan batasan hukum yang berlaku.\n- **Rukun & Syarat:** Pastikan seluruh syarat keabsahan terpenuhi sesuai syariat.\n- **Konsekuensi Hukum:** Pahami akibat hukum dari pelaksanaan akad atau kaidah ini.\n\n💡 **Contoh Penerapan:**\nDalam praktik transaksi kontemporer, pemahaman mengenai "${area.judul}" membantu membedakan akad yang sah dari transaksi yang berpotensi melanggar ketentuan fikih.\n\n⚠️ **Catatan Penting:**\nTelaah kembali materi modul ini dengan cermat sebelum mengulangi kuis evaluasi.`,
+      konten: `### 1. Konsep Pokok & Pengertian\n\nSub-topik **"${area.judul}"** merupakan kompetensi inti yang perlu kamu telaah kembali agar menguasai materi modul ini secara menyeluruh.\n\n> 📜 **Rujukan Pembelajaran:** "${area.judul}" memiliki ketentuan hukum dan prinsip dasar yang wajib dipenuhi dalam muamalah syariah.\n\n### 2. Poin-Poin Penting yang Perlu Diperhatikan\n- **Definisi & Batasan:** Pahami definisi syar'i dan batasan hukum yang berlaku.\n- **Rukun & Syarat:** Pastikan seluruh syarat keabsahan terpenuhi sesuai syariat.\n- **Konsekuensi Hukum:** Pahami akibat hukum dari pelaksanaan akad atau kaidah ini.\n\n### 3. Analisis Soal yang Salah & Jawaban Benar\n${narasiSoalSalah}\n\n💡 **Contoh Penerapan:**\nDalam praktik transaksi kontemporer, pemahaman mengenai "${area.judul}" membantu membedakan akad yang sah dari transaksi yang berpotensi melanggar ketentuan fikih.\n\n⚠️ **Catatan Penting:**\nTelaah kembali materi modul ini dengan cermat sebelum mengulangi kuis evaluasi.`,
       idSubTopik: area.idSubTopik,
       prioritas: 1,
     });
@@ -276,7 +282,7 @@ async function generateWithLLM(
   try {
     const daftarId = weakAreas.map((a) => `${a.idSubTopik} = ${a.judul}`).join("; ");
 
-    const prompt = `Sebagai AI tutor akademik pembelajaran Syariah, buatkan 1 materi penjelasan pembelajaran yang mendalam, terstruktur, menarik, dan interaktif untuk dibaca mahasiswa pada sub-topik berikut:
+    const prompt = `Sebagai AI tutor akademik pembelajaran Syariah, buatkan 1 materi remedial pembelajaran yang mendalam, terstruktur, dan interaktif untuk dibaca mahasiswa pada sub-topik berikut. Tujuannya adalah memperkuat pemahaman konsep berdasarkan soal yang salah dikerjakan mahasiswa.
 
 Modul: ${moduleContext?.namaModul ?? "Tidak diketahui"}
 Materi acuan: ${moduleContext?.teksMateri?.substring(0, 1500) ?? "Tidak tersedia"}
@@ -284,29 +290,48 @@ Materi acuan: ${moduleContext?.teksMateri?.substring(0, 1500) ?? "Tidak tersedia
 Sub-topik yang belum dikuasai mahasiswa:
 ${weakAreas.map((a) => `- ${a.judul}: ${a.benar}/${a.total} benar (${a.persentaseBenar}%)`).join("\n")}
 
-INSTRUKSI PENTING FORMAT TAMPILAN (AGAR TIDAK MEMBOSANKAN SAAT DIBACA):
-- Kemas materi dengan tampilan yang menarik, terstruktur, dan mudah dipahami (hindari paragraf panjang yang membosankan).
-- Gunakan struktur Markdown kaya berikut:
-  1. "### 1. Definisi & Konsep Pokok"
-     Jelaskan inti konsep dengan bahasa yang komunikatif dan tebalkan istilah kunci dengan "**kata kunci**".
-  2. "> 📜 **Rujukan Dalil / Kaidah Fiqih:** [Tuliskan kutipan ayat Al-Qur'an, Hadits, atau Kaidah Fikih terkait beserta artinya]"
-  3. "### 2. Ketentuan & Rukun Penting"
-     Gunakan daftar poin bullet ("- ") untuk rukun, syarat, atau prinsip utama.
-  4. "💡 **Contoh Kasus Nyata:** [Berikan contoh kasus penerapan muamalah sehari-hari yang konkret dan mudah dibayangkan]"
-  5. "⚠️ **Poin Kritis / Perhatian:** [Jelaskan kekeliruan umum yang sering terjadi agar mahasiswa tidak salah paham]"
-- JANGAN membocorkan kunci jawaban kuis secara langsung; fokuskan pada penguasaan konsep yang benar.
+Data soal yang salah mahasiswa (termasuk jawaban yang dipilih dan alasan yang benar untuk membimbing pemahaman):
+${weakAreas
+  .map(
+    (a) =>
+      `Sub-topik: ${a.judul}\n` +
+      a.soalSalah
+        .map(
+          (s) =>
+            `  - Soal: ${s.teksSoal}\n    Jawaban mahasiswa: ${s.jawabanMahasiswa}\n    Prinsip yang benar untuk kasus ini: ${s.jawabanBenar}\n`,
+        )
+        .join(""),
+  )
+  .join("\n")}
 
-Pemetaan idSubTopik: ${daftarId}
+INSTRUKSI PENTING FORMAT TAMPILAN:
+- Kemas materi dalam bentuk kalimat naratif yang mudah dibaca, hindari daftar terstruktur yang terlalu kaku.
+- Untuk SETIAP soal yang salah, tuliskan dalam bentuk kalimat yang natural:
+  1. Sebutkan soal yang salah dalam kalimat
+  2. Sebutkan jawaban yang dipilih mahasiswa dan jelaskan mengapa kurang tepat dalam kalimat
+  3. Sebutkan prinsip yang benar untuk kasus tersebut dalam bentuk kalimat penuh (jangan sebut secara terstruktur atau label "JAWABAN BENAR", sampaikan sebagai bagian dari penjelasan konsep)
+  4. Jelaskan alasan mengapa prinsip tersebut adalah yang benar berdasarkan kaidah fikih muamalah dalam kalimat
+  5. Jelaskan mengapa jawaban mahasiswa salah dan kesalahan umum yang perlu dihindari dalam kalimat
+- JANGAN menampilkan kunci jawaban secara mentah atau terstruktur. Sertakan jawaban yang benar secara tersirat dalam kalimat penjelasan, sehingga mahasiswa memahami konsep bukan sekadar menghafal jawaban.
+- Gunakan struktur Markdown sederhana dengan judul paragraf:
+  1. "### 1. Definisi & Konsep Pokok" - jelaskan inti konsep dengan kalimat naratif dan istilah kunci ditebalkan
+  2. "> 📜 **Rujukan Dalil / Kaidah Fiqih:** [ayat Al-Qur'an, Hadits, atau Kaidah Fikih terkait beserta artinya]"
+  3. "### 2. Analisis Soal yang Salah & Pemahaman yang Benar" - tuliskan setiap soal salah dalam bentuk kalimat naratif (poin 1-5 di atas)
+  4. "### 3. Ketentuan & Rukun Penting" - tuliskan dalam kalimat, boleh disertai bullet sederhana
+  5. "💡 **Contoh Kasus Nyata:** [contoh penerapan muamalah sehari-hari yang konkret]"
+  6. "⚠️ **Poin Kritis / Perhatian:** [kekeliruan umum yang sering terjadi]"
+- Hindari format tabel, daftar angka terstruktur, atau label "JAWABAN BENAR" yang terlihat seperti kunci jawaban mentah. Sampaikan dalam bentuk pembicara tutor kepada siswa.
+- Fokuskan pada penguasaan konsep yang benar melalui kalimat-kalimat penjelasan.
 
 Balas HANYA JSON tanpa teks lain dengan format:
-{"materials":[{"judul":"Penjelasan Materi: [Judul Sub-topik]","tipe":"penjelasan","konten":"...","idSubTopik":0}]}`;
+{"materials":[{"judul":"Remedial: [Judul Sub-topik]","tipe":"penjelasan","konten":"...","idSubTopik":0}]}`;
 
     const text = await panggilGemini(prompt, {
       system:
         "Kamu adalah AI tutor pembelajaran Islam yang membantu mahasiswa memahami materi Syariah. " +
-        "PENTING: Jangan pernah menyebutkan atau membocorkan jawaban benar dari soal kuis secara langsung. " +
-        "Fokuslah pada penjelasan konsep, prinsip, dan pemahaman materi, bukan pada kunci jawaban. " +
-        "Tujuanmu adalah mendorong mahasiswa untuk memahami konsep, bukan menghafal jawaban.",
+        "Sampaikan jawaban dan penjelasan untuk setiap soal yang salah dalam bentuk kalimat naratif yang natural, hindari daftar terstruktur atau label 'JAWABAN BENAR'. " +
+        "JANGAN tunjukkan kunci jawaban secara mentah. Sertakan jawaban yang benar secara tersirat dalam kalimat penjelasan, sehingga mahasiswa memahami konsep, bukan menghafal jawaban mentah. " +
+        "Tujuanmu adalah mendorong mahasiswa memahami konsep melalui kalimat penjelasan.",
       temperature: 0.5,
     });
 

@@ -40,7 +40,7 @@ export default function DialogueBox({
 
       {/* Dialogue Line with clear readability */}
       <div className="mt-2.5 sm:mt-3 min-h-[48px] sm:min-h-[58px] flex items-center">
-        <p className="text-sm sm:text-base md:text-lg font-bold leading-relaxed whitespace-pre-line text-[#261c42]">
+        <p aria-live="polite" className="text-sm sm:text-base md:text-lg font-bold leading-relaxed whitespace-pre-line text-[#261c42]">
           {text}
         </p>
       </div>
@@ -60,7 +60,7 @@ export default function DialogueBox({
           <button
             type="button"
             onClick={onNext}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#5740a0] via-[#6649b8] to-[#7858ca] hover:from-[#483387] hover:to-[#6345b5] active:scale-95 text-white text-xs sm:text-sm font-black shadow-lg transition-all cursor-pointer group"
+            className="flex min-h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#5740a0] via-[#6649b8] to-[#7858ca] px-6 py-2.5 text-xs font-black text-white shadow-lg transition-all hover:from-[#483387] hover:to-[#6345b5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffc94a] focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-95 sm:text-sm cursor-pointer group"
           >
             <span>{nextLabel || defaultLabel}</span>
             {isFinal ? (

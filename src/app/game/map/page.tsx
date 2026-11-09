@@ -84,7 +84,7 @@ const CITY_LOCATIONS: CityLocation[] = [
     name: "Bank Syariah Amanah",
     district: "Kawasan Finansial & Akad",
     desc: "Temui nasabah dan klien bisnis, pecahkan kasus pembiayaan murabahah dan mudharabah dalam petualangan visual novel.",
-    href: "/mahasiswa/kuis",
+    href: "/game",
     x: 70,
     y: 56,
     status: "active",
@@ -157,68 +157,9 @@ export default function GameMapPage() {
   return (
     <div className="min-h-screen w-full bg-[#110b24] text-white p-3 sm:p-6 flex flex-col gap-5 select-none">
       <div className="w-full max-w-7xl mx-auto flex flex-col gap-5">
-        {/* Top Header Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-purple-900/40">
-          <div className="flex items-center gap-3.5">
-            <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7858ca] via-[#5740a0] to-[#39268d] border-2 border-[#ffc94a]/60 shadow-[0_0_25px_rgba(120,88,202,0.6)]">
-              <Compass className="w-6 h-6 text-[#ffc94a] animate-spin-slow" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#ffc94a] border border-[#110b24]" />
-            </div>
-
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest text-[#d8c7ff] uppercase">
-                <Sparkles className="w-3.5 h-3.5 text-[#ffc94a]" />
-                <span>EXPLORATION · KOTA SYARIAH HD</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                Peta Petualangan Syariah-Quest
-              </h1>
-            </div>
-          </div>
-
-          {/* View Mode Tabs & Resource HUD */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center p-1 rounded-2xl bg-[#1f153a] border border-purple-500/30 text-xs font-bold shadow-inner">
-              <button
-                type="button"
-                onClick={() => setActiveTab("map")}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${activeTab === "map"
-                  ? "bg-gradient-to-r from-[#7858ca] to-[#5740a0] text-white shadow-md font-black"
-                  : "text-purple-300 hover:text-white"
-                  }`}
-              >
-                <MapIcon className="w-3.5 h-3.5" />
-                <span>Peta Kota</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("missions")}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${activeTab === "missions"
-                  ? "bg-gradient-to-r from-[#7858ca] to-[#5740a0] text-white shadow-md font-black"
-                  : "text-purple-300 hover:text-white"
-                  }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#ffc94a]" />
-                <span>Daftar Misi</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("quests")}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${activeTab === "quests"
-                  ? "bg-gradient-to-r from-[#7858ca] to-[#5740a0] text-white shadow-md font-black"
-                  : "text-purple-300 hover:text-white"
-                  }`}
-              >
-                <ListTodo className="w-3.5 h-3.5" />
-                <span>Target Bab</span>
-              </button>
-            </div>
-
-            <ResourceHUD koin={koin} xp={totalXp} badgeCount={badgeCount} />
-          </div>
-        </div>
+        {/* Story-first game header */}
+        <header className="flex flex-col gap-4 border-b border-purple-900/50 pb-4 lg:flex-row lg:items-center lg:justify-between">
+        </header>   
 
         {/* TAB 1: PETA KOTA INTERAKTIF HD */}
         {activeTab === "map" && (
