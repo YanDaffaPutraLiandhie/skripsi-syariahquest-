@@ -159,6 +159,16 @@ export async function middleware(request: NextRequest) {
     if (!hasValidActivity) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('reason', 'idle')
+      const { error: signOutError } = await supabase.auth.signOut({
+        scope: 'local',
+      })
+      if (signOutError) {
+        console.error(
+          'Gagal menghapus sesi yang kedaluwarsa:',
+          signOutError.message
+        )
+      }
+
       const response = isApiRoute
         ? NextResponse.json(
             { error: 'Session expired' },
