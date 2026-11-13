@@ -43,7 +43,7 @@ type ExamResult = {
 export default function UjianPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: quizId } = use(params);
   const router = useRouter();
-  const { profile } = useCurrentUser();
+  const { profile, isLoading: isProfileLoading } = useCurrentUser();
 
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [masteryScore, setMasteryScore] = useState(0);
@@ -173,10 +173,15 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
       }
     }
 
-    if (profile?.idMahasiswa) {
-      fetchQuiz();
+    // Tunggu profil selesai dimuat. Kalau profil tidak ada, hentikan loading
+    // (sebelumnya layar "Mempersiapkan Lembar Ujian..." bisa tidak pernah selesai).
+    if (isProfileLoading) return;
+    if (!profile?.idMahasiswa) {
+      setIsLoading(false);
+      return;
     }
-  }, [quizId, profile?.idMahasiswa]);
+    fetchQuiz();
+  }, [quizId, profile?.idMahasiswa, isProfileLoading]);
 
   const questions = useMemo(
     () => selectAdaptiveQuestions(allQuestions, masteryScore),
@@ -236,42 +241,46 @@ export default function UjianPage({ params }: { params: Promise<{ id: string }> 
     // kuis) selalu dicatat apa adanya ke riwayat_ujian.
     // XP diberikan berdasarkan jumlah jawaban benar.
     // ==========================================
-    if (profile?.idMahasiswa) {
-      // Cegah exploit tab ganda / submit dobel
-      const { data: checkHistory } = await supabase
-        .from('riwayat_ujian')
-        .select('id')
-        .eq('id_quis', quizId)
-        .eq('id_mahasiswa', profile.idMahasiswa)
-        .limit(1);
-
-      if (!checkHistory || checkHistory.length === 0) {
-        // 1. Tambah XP sesuai jumlah jawaban benar
-        const { data: mhsData } = await supabase
-          .from('mahasiswa')
-          .select('total_xp')
+    try {
+      if (profile?.idMahasiswa) {
+        // Cegah exploit tab ganda / submit dobel
+        const { data: checkHistory } = await supabase
+          .from('riwayat_ujian')
+          .select('id')
+          .eq('id_quis', quizId)
           .eq('id_mahasiswa', profile.idMahasiswa)
-          .single();
-        const currentXp = mhsData?.total_xp || 0;
-        const bonusXp = correctCount * 10; // 1 soal benar = 10 XP
+          .limit(1);
 
-        await supabase
-          .from('mahasiswa')
-          .update({ total_xp: currentXp + bonusXp })
-          .eq('id_mahasiswa', profile.idMahasiswa);
+        if (!checkHistory || checkHistory.length === 0) {
+          // 1. Catat riwayat DULU. Kalau gagal, XP tidak diberikan supaya
+          //    tidak ada XP tanpa catatan (yang bisa dimanfaatkan berulang).
+          const { error: insertError } = await supabase.from('riwayat_ujian').insert({
+            id_quis: Number(quizId),
+            id_mahasiswa: profile.idMahasiswa,
+            nilai: finalScore,
+            lulus: true, // tidak ada lagi konsep lulus/tidak lulus; ditandai selesai
+          });
 
-        // 2. Catat riwayat ujian apa adanya (tanpa nilai minimal / pematokan)
-        const { error: insertError } = await supabase.from('riwayat_ujian').insert({
-          id_quis: Number(quizId),
-          id_mahasiswa: profile.idMahasiswa,
-          nilai: finalScore,
-          lulus: true, // tidak ada lagi konsep lulus/tidak lulus; ditandai selesai
-        });
+          if (insertError) {
+            console.error("Gagal menyimpan riwayat ujian:", insertError);
+          } else {
+            // 2. Tambah XP sesuai jumlah jawaban benar (1 soal benar = 10 XP)
+            const { data: mhsData } = await supabase
+              .from('mahasiswa')
+              .select('total_xp')
+              .eq('id_mahasiswa', profile.idMahasiswa)
+              .single();
+            const currentXp = mhsData?.total_xp || 0;
 
-        if (insertError) {
-          console.error("Gagal menyimpan riwayat ujian:", insertError);
+            await supabase
+              .from('mahasiswa')
+              .update({ total_xp: currentXp + correctCount * 10 })
+              .eq('id_mahasiswa', profile.idMahasiswa);
+          }
         }
       }
+    } catch (err) {
+      console.error("Gagal menyimpan hasil ujian:", err);
     }
 
     setIsSubmitted(true);

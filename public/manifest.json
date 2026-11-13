@@ -1,0 +1,497 @@
+[
+  {
+    "file": "02_karakter_fullbody/karakter_wanita_hijab_biru.png",
+    "source": "sprite_examples(1).png",
+    "size": [
+      61,
+      183
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "02_karakter_fullbody/karakter_pria_kasual.png",
+    "source": "sprite_examples(1).png",
+    "size": [
+      62,
+      183
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "02_karakter_fullbody/karakter_pria_kacamata.png",
+    "source": "sprite_examples(1).png",
+    "size": [
+      85,
+      183
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "02_karakter_fullbody/karakter_wanita_hijab_cokelat.png",
+    "source": "sprite_examples(1).png",
+    "size": [
+      62,
+      183
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "02_karakter_fullbody/karakter_wanita_hijab_abu.png",
+    "source": "sprite_examples(1).png",
+    "size": [
+      63,
+      183
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "02_karakter_fullbody/karakter_pria_formal.png",
+    "source": "sprite_examples(1).png",
+    "size": [
+      58,
+      183
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/loading_bar.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      100,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/badge_level_up.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      80,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/koin_level.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      72,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/bintang_efek.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      83,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/misi_selesai.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      108,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/kilau_bintang.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      76,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "01_efek_asset/portal_sihir.png",
+    "source": "level_coin_sparkle.png",
+    "size": [
+      83,
+      115
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "08_peta_misi/panel_status_misi.png",
+    "source": "mission_world_map.png",
+    "size": [
+      116,
+      283
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "08_peta_misi/peta_dunia_misi.png",
+    "source": "mission_world_map.png",
+    "size": [
+      290,
+      328
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "04_karakter_pengajar/bu_sari.png",
+    "source": "teacher_main(1).png",
+    "size": [
+      124,
+      257
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "04_karakter_pengajar/pak_arif.png",
+    "source": "teacher_main(1).png",
+    "size": [
+      117,
+      257
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/pasar.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      110,
+      101
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/kantor_konsultan.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      116,
+      101
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/kota_pea.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      111,
+      99
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/hutan.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      116,
+      98
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/masjid.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      110,
+      99
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/kelas.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      116,
+      99
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/interior_malam.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      111,
+      98
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/perpustakaan.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      111,
+      101
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/pantai.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      122,
+      98
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/bank_syariah.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      122,
+      101
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/gunung.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      110,
+      98
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "07_lokasi/ruang_diskusi.png",
+    "source": "location_gallery(1).png",
+    "size": [
+      122,
+      99
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/bingung.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/marah.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/terkejut.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/tersenyum.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/senang.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/sedih.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/serius.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "05_ekspresi_pak_arif/normal.png",
+    "source": "teacher_male_expressions(1).png",
+    "size": [
+      65,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/kevin.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      119,
+      124
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/lestari.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      119,
+      124
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/aisyah.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      120,
+      134
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/fajar.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      119,
+      134
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/nadia.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      119,
+      134
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/bima.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      120,
+      124
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/dimas.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      120,
+      124
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/rani.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      119,
+      124
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/sinta.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      120,
+      134
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "06_mahasiswa_pelanggan/raka.png",
+    "source": "ten_students_customers(1).png",
+    "size": [
+      119,
+      134
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/bingung.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      74,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/marah.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      77,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/terkejut.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      76,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/tersenyum.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      77,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/senang.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      76,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/sedih.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      77,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/serius.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      77,
+      84
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  },
+  {
+    "file": "03_ekspresi_bu_sari/normal.png",
+    "source": "teacher_female_expressions(1).png",
+    "size": [
+      74,
+      88
+    ],
+    "note": "Crop mempertahankan latar/panel asli dari sprite sheet."
+  }
+]

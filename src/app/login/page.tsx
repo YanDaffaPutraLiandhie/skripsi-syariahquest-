@@ -14,6 +14,7 @@ import { Eye, EyeOff, UserPlus } from 'lucide-react'
 
 import { supabase } from '../../lib/supabase'
 import { logActivity } from '../../lib/logActivity'
+import { writeSessionActivityCookie } from '@/lib/sessionActivity'
 
 import './login.css'
 
@@ -33,6 +34,7 @@ function LoginContent() {
 
   const redirectUrl =
     searchParams.get('redirect')
+  const sessionExpired = searchParams.get('reason') === 'idle'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -259,6 +261,8 @@ function LoginContent() {
         return
       }
 
+      writeSessionActivityCookie()
+
       // =================================================
       // 5. ADMIN
       // =================================================
@@ -390,8 +394,8 @@ function LoginContent() {
         // VALIDASI REDIRECT
         // ===============================================
 
-        let destination = '/mahasiswa/dashboard'
-
+        let destination = '/game/map'
+ 
         if (
           redirectUrl &&
           redirectUrl.startsWith('/') &&
@@ -529,6 +533,12 @@ function LoginContent() {
         <p className="login-subtitle">
           Masuk untuk melanjutkan perjalanan belajarmu.
         </p>
+
+        {sessionExpired && (
+          <p className="login-error" role="status">
+            Sesi Anda berakhir karena tidak ada aktivitas selama satu jam. Silakan masuk kembali.
+          </p>
+        )}
 
         <form
           onSubmit={handleLogin}

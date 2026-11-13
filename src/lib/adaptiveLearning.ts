@@ -18,6 +18,32 @@ export type AdaptiveDecision = {
   reason: string;
 };
 
+export type LearningObjectMastery = {
+  id_sub_topik: number;
+  lo_code: string | null;
+  judul: string;
+  urutan: number;
+  masteryProbability: number;
+  totalAnswers: number;
+  totalCorrect: number;
+  questionCount: number;
+  remedialText: string | null;
+};
+
+export type AdaptiveLearningPlan = {
+  engine: "bkt";
+  moduleId: number;
+  masteryThreshold: number;
+  learningObjects: LearningObjectMastery[];
+  nextLearningObject: LearningObjectMastery | null;
+  difficulty: {
+    key: "foundation" | "practice" | "challenge";
+    label: string;
+    targetQuantile: number;
+  };
+  reason: string;
+};
+
 const DEFAULT_REQUIRED_SCORE = 70;
 export const MAX_QUESTION_COUNT = 50;
 
@@ -94,6 +120,93 @@ export function selectAdaptiveQuestions<T extends { id_soal: number }>(
     : Math.max(5, Math.ceil(limitedQuestions.length * 0.85));
 
   return shuffleQuestions(limitedQuestions).slice(0, Math.min(targetCount, limitedQuestions.length));
+}
+
+type AdaptiveQuestion = {
+  id_soal: number;
+  id_sub_topik?: number | null;
+  lo_code?: string | null;
+  difficulty_rating?: number | null;
+};
+
+export function selectQuestionsForBktPlan<T extends AdaptiveQuestion>(
+  questions: T[],
+  plan: AdaptiveLearningPlan | null,
+): T[] {
+  if (questions.length === 0) return [];
+
+  const shuffled = shuffleQuestions(questions);
+  const total = shuffled.length;
+  const count =
+    total <= 10
+      ? total
+      : Math.min(MAX_QUESTION_COUNT, Math.max(10, Math.ceil(total * 0.7)));
+  const target = plan?.nextLearningObject;
+
+  if (!target || plan.learningObjects.length === 0) {
+    return shuffled.slice(0, count);
+  }
+
+  const belongsTo = (question: T, learningObject: LearningObjectMastery) =>
+    question.id_sub_topik === learningObject.id_sub_topik ||
+    (Boolean(learningObject.lo_code) && question.lo_code === learningObject.lo_code);
+
+  const targetQuestions = shuffled.filter((question) => belongsTo(question, target));
+  if (targetQuestions.length === 0) return shuffled.slice(0, count);
+
+  const hasDifficultyRating = (question: T) =>
+    question.difficulty_rating !== null &&
+    question.difficulty_rating !== undefined &&
+    Number.isFinite(Number(question.difficulty_rating));
+  const ratedQuestions = targetQuestions
+    .filter(hasDifficultyRating)
+    .sort(
+      (left, right) =>
+        Number(left.difficulty_rating) - Number(right.difficulty_rating),
+    );
+  const difficulty = plan.difficulty;
+  const targetRating =
+    ratedQuestions.length > 0
+      ? Number(
+          ratedQuestions[
+            Math.round((ratedQuestions.length - 1) * difficulty.targetQuantile)
+          ].difficulty_rating,
+        )
+      : null;
+
+  const ratingDistance = (question: T) =>
+    targetRating === null
+      ? 0
+      : hasDifficultyRating(question)
+        ? Math.abs(Number(question.difficulty_rating) - targetRating)
+        : Number.POSITIVE_INFINITY;
+
+  targetQuestions.sort((left, right) => ratingDistance(left) - ratingDistance(right));
+
+  const targetCount = Math.min(targetQuestions.length, Math.ceil(count * 0.7));
+  const selected = new Map<number, T>();
+  for (const question of targetQuestions.slice(0, targetCount)) {
+    selected.set(question.id_soal, question);
+  }
+
+  const masteryBySubTopic = new Map(
+    plan.learningObjects.map((item) => [item.id_sub_topik, item.masteryProbability]),
+  );
+  const otherQuestions = shuffled
+    .filter((question) => !selected.has(question.id_soal))
+    .sort((left, right) => {
+      const leftMastery = masteryBySubTopic.get(left.id_sub_topik ?? -1) ?? 0.5;
+      const rightMastery = masteryBySubTopic.get(right.id_sub_topik ?? -1) ?? 0.5;
+      const masteryPriority = leftMastery - rightMastery;
+      return masteryPriority || ratingDistance(left) - ratingDistance(right);
+    });
+
+  for (const question of otherQuestions) {
+    if (selected.size >= count) break;
+    selected.set(question.id_soal, question);
+  }
+
+  return shuffleQuestions(Array.from(selected.values()));
 }
 
 export function getAdaptiveFeedback(masteryScore: number) {

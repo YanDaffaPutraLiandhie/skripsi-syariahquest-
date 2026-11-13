@@ -86,7 +86,7 @@ function DaftarKuisContent() {
             <p className="mt-1.5 text-sm text-[#c9c3e6] lg:text-base font-medium">
               Menampilkan hasil untuk pencarian:{" "}
               <span className="font-bold text-white">
-                "{searchQuery}"
+                “{searchQuery}”
               </span>
             </p>
           ) : (
@@ -114,7 +114,11 @@ function DaftarKuisContent() {
         <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
           <div className="text-4xl mb-4">🔍</div>
           <h3 className="text-xl font-bold text-gray-700">Kuis tidak ditemukan</h3>
-          <p className="text-gray-500">Belum ada kuis yang ditambahkan oleh dosen.</p>
+          <p className="text-gray-500">
+            {searchQuery
+              ? "Coba kata kunci lain."
+              : "Belum ada kuis yang ditambahkan oleh dosen."}
+          </p>
         </div>
       ) : (
         /* GRID KARTU KUIS */

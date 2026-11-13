@@ -1,0 +1,17 @@
+const pages=['story','map','missions','profile','collection'];const names={story:'Bab 1 · Awal Perjalanan',map:'Peta Kota Syariah',missions:'Misi & Modul',profile:'Profil Petualang',collection:'Koleksi Badge'};
+function showPage(name){pages.forEach(p=>{document.getElementById('page-'+p).classList.toggle('active',p===name)});document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===name));document.getElementById('crumb').textContent=names[name]||name;window.scrollTo({top:0,behavior:'smooth'})}
+document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+document.querySelectorAll('.launch-story').forEach(b=>b.addEventListener('click',()=>{showPage('story');toast('Cerita dibuka — selamat menjelajah!')}));
+document.getElementById('back').addEventListener('click',()=>showPage('map'));
+document.getElementById('sound').addEventListener('click',()=>toast('Pengaturan audio: musik latar belum diaktifkan.'));
+let idx=0, xp=210;const scenes=[
+{speaker:'Aisyah',line:'Assalamu’alaikum! Kamu mahasiswa baru yang akan mengikuti program Konsultan Syariah, ya?',bg:'assets/scene-2.jpg',char:'assets/npc-2.png',caption:'ADEGAN 01 · PERTEMUAN'},
+{speaker:'Aku Mahasiswa',line:'Wa’alaikumussalam! Iya, saya ingin belajar bagaimana prinsip syariah diterapkan dalam kehidupan sehari-hari.',bg:'assets/scene-1.jpg',char:'assets/student-1.png',caption:'ADEGAN 02 · PERKENALAN'},
+{speaker:'Aisyah',line:'Bagus! Kita mulai dari Kampus Madani. Pilihanmu akan membuka pelajaran dan tantangan berikutnya.',bg:'assets/scene-3.jpg',char:'assets/npc-2.png',caption:'ADEGAN 03 · MISI DIMULAI'}
+];
+function renderScene(){const s=scenes[idx];document.getElementById('speaker').textContent=s.speaker;document.getElementById('line').textContent=s.line;document.getElementById('scene').style.backgroundImage=`linear-gradient(0deg,#281a4caa,transparent 60%),url('${s.bg}')`;document.getElementById('character').src=s.char;document.querySelector('.scene-caption').textContent=s.caption;document.getElementById('counter').textContent=`0${idx+1} / 03`;document.getElementById('choices').style.display=idx===0?'grid':'none';document.getElementById('next').innerHTML=idx===2?'Selesaikan bab <b>✓</b>':'Lanjutkan <b>→</b>'}
+document.querySelectorAll('[data-choice]').forEach(b=>b.addEventListener('click',()=>{const n=Number(b.dataset.choice);scenes[1].line=n===0?'Wa’alaikumussalam! Iya, saya ingin belajar bagaimana prinsip syariah diterapkan dalam kehidupan sehari-hari.':'Saya ingin memahami akad, transaksi yang adil, dan bagaimana menjaga amanah dalam kegiatan ekonomi.';idx=1;renderScene();toast('Pilihan dialog tersimpan untuk sesi ini.')}));
+document.getElementById('next').addEventListener('click',()=>{if(idx<2){idx++;renderScene()}else{xp+=50;document.querySelector('.resources span:nth-child(2)').textContent=`⚡ ${xp} XP`;showPage('missions');toast('Bab 1 selesai! +50 XP (simulasi).')}});
+document.querySelectorAll('[data-location]').forEach(b=>b.addEventListener('click',()=>{if(b.disabled){toast('Lokasi ini terkunci. Selesaikan misi sebelumnya.')}else{showPage('story');toast(`Membuka cerita: ${b.dataset.location}`)}}));
+let toastTimer;function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
+renderScene();

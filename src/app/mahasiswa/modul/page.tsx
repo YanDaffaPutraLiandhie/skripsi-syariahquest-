@@ -40,7 +40,8 @@ function ModulPembelajaranContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressDB[]>([]);
   const [statusBadges, setStatusBadges] = useState<Record<number, ModulBadgeInfo>>({});
-  const { profile } = useCurrentUser();
+  const { profile, isLoading: isProfileLoading } = useCurrentUser();
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q")?.toLowerCase().trim() || "";
@@ -49,6 +50,10 @@ function ModulPembelajaranContent() {
   // AMBIL DATA MODUL
   // =========================================================
   useEffect(() => {
+    // Tunggu profil siap supaya modul & progres diambil sekali saja
+    // (sebelumnya terjadi dua kali fetch dan kartu sempat berubah-ubah).
+    if (isProfileLoading) return;
+
     let mounted = true;
 
     async function fetchModul() {
@@ -56,12 +61,15 @@ function ModulPembelajaranContent() {
         const { data, error } = await supabase
           .from("modul")
           .select("id_modul, nama_modul, id_level, thumbnail_url, parameter_nilai, status, deadline")
-          .eq("status", true);
+          .eq("status", true)
+          .order("id_modul", { ascending: true });
 
         if (error) {
           console.error("Gagal menarik data modul:", error);
+          if (mounted) setLoadError("Modul belum bisa dimuat. Muat ulang halaman untuk mencoba lagi.");
           return;
         }
+        if (mounted) setLoadError(null);
 
         if (!mounted) return;
         setDaftarModul(data ?? []);
@@ -84,6 +92,7 @@ function ModulPembelajaranContent() {
         }
       } catch (error) {
         console.error("Terjadi kesalahan saat mengambil modul:", error);
+        if (mounted) setLoadError("Modul belum bisa dimuat. Muat ulang halaman untuk mencoba lagi.");
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -96,7 +105,7 @@ function ModulPembelajaranContent() {
     return () => {
       mounted = false;
     };
-  }, [profile?.idMahasiswa]);
+  }, [profile?.idMahasiswa, isProfileLoading]);
 
   // =========================================================
   // TINGKAT KESULITAN
@@ -320,7 +329,15 @@ function ModulPembelajaranContent() {
       {/* =====================================================
           GRID MODUL PEMBELAJARAN
       ===================================================== */}
-      {filteredModul.length === 0 ? (
+      {loadError ? (
+        <div className="rounded-3xl border border-rose-200 bg-white p-10 text-center shadow-sm">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+            <AlertCircle className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-black text-gray-800">Gagal Memuat Modul</h3>
+          <p className="mt-1 text-xs text-gray-500">{loadError}</p>
+        </div>
+      ) : filteredModul.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-12 text-center shadow-sm">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-[#5B5288]">
             <Search className="h-6 w-6" />

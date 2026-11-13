@@ -1,7 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  SESSION_ACTIVITY_COOKIE,
+  SESSION_IDLE_TIMEOUT_MS,
+} from '@/lib/sessionActivity'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
@@ -86,6 +90,9 @@ export async function proxy(request: NextRequest) {
     '/register',
     '/forgot-password',
     '/reset-password',
+    '/update-password',
+    '/auth/session-bridge',
+    '/api/register',
   ]
 
   const isPublicRoute = publicRoutes.some(
@@ -98,46 +105,23 @@ export async function proxy(request: NextRequest) {
   // PROTECTED ROUTES
   // =====================================================
 
-  const protectedRoutes = [
-    // MAHASISWA (new routes)
-    '/mahasiswa/dashboard',
-    '/mahasiswa/arena',
-    '/mahasiswa/modul',
-    '/mahasiswa/profile',
-    '/mahasiswa/leaderboard',
-    '/mahasiswa/kuis',
-    '/mahasiswa/play',
-    '/mahasiswa/join',
-
-    // MAHASISWA (old routes - redirect to login with redirect param)
-    '/dashboard',
-    '/arena',
-    '/modul',
-    '/profile',
-    '/leaderboard',
-    '/kuis',
-    '/play',
-    '/join',
-
-    // ADMIN
-    '/admin',
-
-    // DOSEN
-    '/Dosen',
-    '/dosen',
-  ]
-
-  const isProtectedRoute = protectedRoutes.some(
-    (route) =>
-      pathname === route ||
-      pathname.startsWith(`${route}/`)
-  )
+  const isApiRoute = pathname === '/api' || pathname.startsWith('/api/')
+  const isNextInternalRoute = pathname.startsWith('/_next/')
+  const isProtectedRoute =
+    !isPublicRoute && !isNextInternalRoute
 
   // =====================================================
   // USER BELUM LOGIN
   // =====================================================
 
   if (isProtectedRoute && !user) {
+    if (isApiRoute) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     console.log(
       'PROXY: USER BELUM LOGIN'
     )
@@ -160,6 +144,40 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(
       loginUrl
     )
+  }
+
+  if (isProtectedRoute && user) {
+    const lastActivity = Number(
+      request.cookies.get(SESSION_ACTIVITY_COOKIE)?.value
+    )
+    const hasValidActivity =
+      Number.isFinite(lastActivity) &&
+      lastActivity > 0 &&
+      lastActivity <= Date.now() &&
+      Date.now() - lastActivity < SESSION_IDLE_TIMEOUT_MS
+
+    if (!hasValidActivity) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('reason', 'idle')
+      const response = isApiRoute
+        ? NextResponse.json(
+            { error: 'Session expired' },
+            { status: 401 }
+          )
+        : NextResponse.redirect(loginUrl)
+
+      request.cookies.getAll().forEach(({ name }) => {
+        if (name.startsWith('sb-')) {
+          response.cookies.set(name, '', { path: '/', maxAge: 0 })
+        }
+      })
+      response.cookies.set(SESSION_ACTIVITY_COOKIE, '', {
+        path: '/',
+        maxAge: 0,
+      })
+
+      return response
+    }
   }
 
   // =====================================================

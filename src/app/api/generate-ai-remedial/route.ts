@@ -72,73 +72,79 @@ async function saveAiRemedialMaterials(
     konten: string;
     idSubTopik: number;
     prioritas: number;
+    source?: {
+      soal_salah?: string;
+      sumber?: string;
+      kemiripan?: number;
+      topik?: string;
+    };
   }>,
   moduleContext: { namaModul: string; teksMateri: string } | null,
 ): Promise<number> {
-  let savedCount = 0;
-  let urutan = 1;
+  if (generatedMaterials.length === 0) {
+    return 0;
+  }
 
-  // Clean up any existing AI materials for this attempt to prevent duplicates
-  await supabaseAdmin
+  const { error: deleteError } = await supabaseAdmin
     .from("modul_remedial")
     .delete()
     .eq("id_modul", idModul)
     .eq("id_mahasiswa", idMahasiswa)
     .eq("id_attempt_ke", idAttemptKe)
     .eq("is_ai_generated", true);
+  if (deleteError) throw deleteError;
 
   // Get max urutan for this modul
-  const { data: maxUrutan } = await supabaseAdmin
+  const { data: maxUrutan, error: urutanError } = await supabaseAdmin
     .from("modul_remedial")
     .select("urutan")
     .eq("id_modul", idModul)
     .order("urutan", { ascending: false })
     .limit(1)
-    .single<ModulRemedialRow>();
+    .maybeSingle<ModulRemedialRow>();
+  if (urutanError) throw urutanError;
 
-  if (maxUrutan?.urutan) {
-    urutan = maxUrutan.urutan + 1;
-  }
-
-  for (const material of generatedMaterials) {
-    // Prepare source material JSON
+  let urutan = (maxUrutan?.urutan ?? 0) + 1;
+  const generatedAt = new Date().toISOString();
+  const rows = generatedMaterials.map((material) => {
     const sourceMaterial = {
       subTopik: material.judul.replace(/^(Ringkasan Materi|Contoh Soal & Pembahasan|Tips Belajar):\s*/, ""),
       tipe: material.tipe,
       prioritas: material.prioritas,
-      weakAreaDetail: weakAreas.find(w => w.idSubTopik === material.idSubTopik),
-      moduleContext: moduleContext ? {
-        namaModul: moduleContext.namaModul,
-        teksMateri: moduleContext.teksMateri.substring(0, 500)
-      } : null,
-      generatedAt: new Date().toISOString(),
-      ...(material as any).source,
+      weakAreaDetail: weakAreas.find((w) => w.idSubTopik === material.idSubTopik),
+      moduleContext: moduleContext
+        ? {
+            namaModul: moduleContext.namaModul,
+            teksMateri: moduleContext.teksMateri.substring(0, 500),
+          }
+        : null,
+      generatedAt,
+      ...material.source,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabaseAdmin as any)
-      .from("modul_remedial")
-      .insert({
-        id_modul: idModul,
-        id_sub_topik: material.idSubTopik,
-        judul: material.judul,
-        tipe: "teks",
-        konten: material.konten,
-        urutan: urutan++,
-        is_ai_generated: true,
-        id_mahasiswa: idMahasiswa,
-        id_attempt_ke: idAttemptKe,
-        generated_at: new Date().toISOString(),
-      });
+    return {
+      id_modul: idModul,
+      id_sub_topik: material.idSubTopik > 0 ? material.idSubTopik : null,
+      judul: material.judul,
+      tipe: "teks",
+      konten: material.konten,
+      urutan: urutan++,
+      is_ai_generated: true,
+      id_mahasiswa: idMahasiswa,
+      id_attempt_ke: idAttemptKe,
+      generated_at: generatedAt,
+      source_material: JSON.stringify(sourceMaterial),
+    };
+  });
 
-    if (!error) {
-      savedCount++;
-    } else {
-      console.error("Failed to save AI remedial:", error);
-    }
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseAdmin as any)
+    .from("modul_remedial")
+    .insert(rows)
+    .select("id_remedial");
+  if (error) throw error;
 
-  return savedCount;
+  return data?.length ?? 0;
 }
 
 async function logGenerationJob(
@@ -281,6 +287,12 @@ export async function POST(request: NextRequest) {
 
     console.log("[generate-ai-remedial] Weak areas:", result.weakAreas?.length, "Generated materials:", result.generatedMaterials?.length);
 
+    if (result.generatedMaterials.length === 0) {
+      throw new Error(
+        "Materi remedial tidak dapat dibuat karena tidak ditemukan area lemah. Pastikan riwayat jawaban kuis untuk percobaan ini tersedia.",
+      );
+    }
+
     // Save AI-generated materials to database
     const savedCount = await saveAiRemedialMaterials(
       supabaseAdmin,
@@ -291,6 +303,9 @@ export async function POST(request: NextRequest) {
       result.generatedMaterials,
       modul ? { namaModul: modul.nama_modul, teksMateri: modul.teks_materi } : null,
     );
+    if (savedCount === 0) {
+      throw new Error("Materi remedial berhasil dibuat, tetapi tidak ada materi yang tersimpan.");
+    }
 
     // Log job completion
     await logGenerationJob(

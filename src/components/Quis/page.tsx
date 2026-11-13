@@ -14,12 +14,18 @@ import Link from "next/link";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
 import { checkAndAwardModulBadges, type EarnedBadge } from "@/lib/badges";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Brain, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import {
-  selectQuestionsByElo,
-  siapkanKonteksSoal,
   kalibrasiSoal,
 } from "@/lib/eloAdaptive";
+import {
+  selectQuestionsForBktPlan,
+  type AdaptiveLearningPlan,
+} from "@/lib/adaptiveLearning";
+import {
+  fetchAdaptiveLearningPlan,
+  recordAdaptiveResponses,
+} from "@/lib/adaptiveLearningClient";
 import {
   getSubTopikModul,
   hitungPerSubTopik,
@@ -27,7 +33,7 @@ import {
   type HasilSubTopik,
   type SubTopik,
 } from "@/lib/subTopik";
-import { getModulState, submitAttemptModul } from "@/lib/remedial";
+import { getModulState, submitAttemptModul, simpanRiwayatJawaban } from "@/lib/remedial";
 
 type JawabanDB = {
   id_jawaban: number;
@@ -40,12 +46,18 @@ type SoalDB = {
   id_soal: number;
   id_modul: number;
   id_sub_topik: number | null;
+  lo_code?: string | null;
   difficulty_rating?: number | null;
   soal: string;
   jawaban: JawabanDB[];
 };
 
-export type SubmitResult = { xp: number; eloDelta?: number; eloAfter?: number };
+export type SubmitResult = {
+  xp: number;
+  eloDelta?: number;
+  eloAfter?: number;
+  attemptKe?: number;
+};
 
 type QuizProps = {
   /** Dipanggil saat mahasiswa lulus dan menekan "Lanjut". */
@@ -57,6 +69,7 @@ type QuizProps = {
   onSubmitAttempt?: (score: number) => Promise<SubmitResult | number | void>;
   /** Dipanggil saat gagal dan mahasiswa menekan "Lihat Materi Remedial". */
   onFailed?: () => void;
+  onAdaptiveProgressUpdated?: () => void | Promise<void>;
   idModul: number;
   /** Nilai terbaik sebelumnya (jika sudah pernah mengerjakan). */
   initialScore?: number | null;
@@ -71,10 +84,63 @@ type Hasil = {
   perSubTopik: HasilSubTopik[];
 };
 
+function AdaptivePlanCard({ plan }: { plan: AdaptiveLearningPlan | null }) {
+  if (!plan) return null;
+  const next = plan.nextLearningObject;
+  const mastery = next ? Math.round(next.masteryProbability * 100) : 0;
+
+  return (
+    <aside
+      aria-live="polite"
+      className="mb-6 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm"
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+          <Brain className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black uppercase tracking-wide text-violet-700">
+            Rute belajar personal · BKT
+          </p>
+          {next ? (
+            <>
+              <h3 className="mt-1 text-base font-extrabold text-[#3A2E65]">
+                Fokus: {next.judul}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">{plan.reason}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-slate-600">
+                <span>Estimasi penguasaan: {mastery}%</span>
+                <span>Latihan: {plan.difficulty.label}</span>
+                <span>{next.totalAnswers} respons tercatat</span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={`Estimasi penguasaan ${next.judul}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={mastery}
+                className="mt-2 h-2 overflow-hidden rounded-full bg-violet-100"
+              >
+                <div
+                  className="h-full rounded-full bg-violet-600 transition-all"
+                  style={{ width: `${mastery}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">{plan.reason}</p>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 export default function Quiz({
   onContinue,
   onSubmitAttempt,
   onFailed,
+  onAdaptiveProgressUpdated,
   idModul,
   initialScore,
   passingGrade,
@@ -84,6 +150,8 @@ export default function Quiz({
 
   const [questions, setQuestions] = useState<SoalDB[]>([]);
   const [subTopik, setSubTopik] = useState<SubTopik[]>([]);
+  const [adaptivePlan, setAdaptivePlan] = useState<AdaptiveLearningPlan | null>(null);
+  const [adaptiveError, setAdaptiveError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -105,6 +173,7 @@ export default function Quiz({
 
   // true setelah attempt berhasil disimpan -> retry tidak membuat attempt ganda
   const attemptTersimpan = useRef(false);
+  const adaptiveSubmissionKey = useRef<string | null>(null);
 
   // ---------------------------------------------------------------
   // MUAT SOAL (sekali per modul/mahasiswa; ulang hanya via reloadKey)
@@ -127,9 +196,9 @@ export default function Quiz({
           return;
         }
         setRemedialWajib(false);
-        const [soalRes, konteks, daftarSubTopik] = await Promise.all([
+        const [soalRes, plan, daftarSubTopik] = await Promise.all([
           supabase.from("soal").select("*, jawaban(*)").eq("id_modul", idModul),
-          siapkanKonteksSoal(idMahasiswa, idModul),
+          fetchAdaptiveLearningPlan(idModul),
           // sub-topik opsional: kuis tetap jalan walau tabel belum dimigrasi
           getSubTopikModul(idModul).catch(() => [] as SubTopik[]),
         ]);
@@ -144,7 +213,8 @@ export default function Quiz({
         }));
 
         setSubTopik(daftarSubTopik);
-        setQuestions(selectQuestionsByElo(semua, konteks.elo, konteks.fallback));
+        setAdaptivePlan(plan);
+        setQuestions(selectQuestionsForBktPlan(semua, plan));
       } catch (err) {
         console.error("Gagal memuat soal:", err);
         if (!batal) setLoadError("Soal gagal dimuat. Periksa koneksi lalu coba lagi.");
@@ -169,6 +239,7 @@ export default function Quiz({
     if (!idMahasiswa || !hasil) return;
 
     setSaveError(null);
+    setAdaptiveError(null);
 
     try {
       const rows = questions.map((q) => {
@@ -182,12 +253,7 @@ export default function Quiz({
 
       if (!attemptTersimpan.current) {
         // Snapshot terakhir (dipakai memilih remedial) -- atomik di database
-        const { error: riwayatError } = await supabase.rpc("simpan_riwayat_jawaban", {
-          p_id_mahasiswa: idMahasiswa,
-          p_id_modul: idModul,
-          p_rows: rows,
-        });
-        if (riwayatError) throw riwayatError;
+        await simpanRiwayatJawaban(idMahasiswa, idModul, rows);
 
         // Nilai akhir modul = nilai tertinggi; XP & Elo dihitung di SERVER (RPC)
         let xp = 0;
@@ -221,6 +287,33 @@ export default function Quiz({
         );
       }
 
+      try {
+        adaptiveSubmissionKey.current ??= crypto.randomUUID();
+
+        const adaptiveResult = await recordAdaptiveResponses(
+          idModul,
+          adaptiveSubmissionKey.current,
+          rows.map(({ id_soal, id_jawaban }) => ({ id_soal, id_jawaban })),
+        );
+
+        setAdaptivePlan(adaptiveResult.plan);
+        try {
+          await onAdaptiveProgressUpdated?.();
+        } catch (refreshError) {
+          console.error("BKT tersimpan, tetapi status remedial gagal diperbarui:", refreshError);
+        }
+        if (adaptiveResult.unmapped > 0) {
+          setAdaptiveError(
+            `${adaptiveResult.unmapped} soal belum terhubung ke Learning Object dan tidak ikut menghitung penguasaan.`,
+          );
+        }
+      } catch (adaptiveErr) {
+        console.error("Gagal memperbarui penguasaan BKT:", adaptiveErr);
+        setAdaptiveError(
+          "Nilai kuis tersimpan, tetapi progres personalisasi belum diperbarui. Kamu bisa mencoba lagi.",
+        );
+      }
+
       // Badge: non-kritis, gagal tidak membatalkan penyimpanan
       if (hasil.lulus) {
         try {
@@ -235,6 +328,8 @@ export default function Quiz({
       setSaveError(
         "Hasil kuis belum tersimpan. Nilaimu masih ditampilkan di bawah; tekan “Coba simpan lagi”.",
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -289,7 +384,9 @@ export default function Quiz({
     setEloInfo(null);
     setNewBadges([]);
     setSaveError(null);
+    setAdaptiveError(null);
     attemptTersimpan.current = false;
+    adaptiveSubmissionKey.current = null;
     setReloadKey((k) => k + 1);
   };
 
@@ -436,6 +533,26 @@ if (remedialWajib){
             </button>
           </div>
         )}
+
+        {adaptiveError && (
+          <div className="mx-auto mb-4 flex w-full max-w-xl flex-col items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+            <p className="text-sm font-semibold text-amber-900">{adaptiveError}</p>
+            {attemptTersimpan.current && (
+              <button
+                onClick={() => {
+                  setIsSaving(true);
+                  simpan().finally(() => setIsSaving(false));
+                }}
+                disabled={isSaving}
+                className="rounded-lg bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800 disabled:opacity-60"
+              >
+                Coba perbarui personalisasi
+              </button>
+            )}
+          </div>
+        )}
+
+        <AdaptivePlanCard plan={adaptivePlan} />
 
         {newBadges.length > 0 && (
           <div className="flex flex-wrap justify-center gap-4 mb-4 max-w-xl mx-auto w-full mt-4">
@@ -609,6 +726,7 @@ if (remedialWajib){
 
   return (
     <div className="flex flex-col h-full w-full max-w-3xl mx-auto py-6 px-4 bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.02)] border border-slate-50">
+      <AdaptivePlanCard plan={adaptivePlan} />
       <div className="mb-8">
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-bold text-slate-400 uppercase tracking-wider">

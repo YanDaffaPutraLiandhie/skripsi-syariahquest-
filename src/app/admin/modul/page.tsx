@@ -484,7 +484,7 @@ export default function ManajemenModulPage() {
   async function handleDelete(id: number) {
     const result = await Swal.fire({
       title: 'Hapus Modul?',
-      text: 'Data yang dihapus tidak dapat dikembalikan.',
+      text: 'Modul beserta data terkait yang terhubung melalui foreign key akan dihapus permanen dan tidak dapat dikembalikan.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
@@ -496,12 +496,17 @@ export default function ManajemenModulPage() {
     if (!result.isConfirmed) return
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('modul')
         .delete()
         .eq('id_modul', id)
+        .select('id_modul')
+        .maybeSingle()
 
       if (error) throw error
+      if (!data) {
+        throw new Error('Modul tidak ditemukan atau tidak memiliki izin untuk dihapus.')
+      }
 
       setModules((prev) => prev.filter((b) => b.id_modul !== id))
 
@@ -512,10 +517,21 @@ export default function ManajemenModulPage() {
         confirmButtonColor: '#4a3f7a',
       })
     } catch (error) {
+      console.error('Gagal menghapus modul:', error)
+      const isForeignKeyError =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23503'
+
       Swal.fire({
         icon: 'error',
         title: 'Gagal',
-        text: 'Terjadi kesalahan saat menghapus modul.',
+        text: isForeignKeyError
+          ? 'Modul masih tertahan oleh relasi data. Jalankan migrasi 008_cascade_module_deletion.sql di Supabase, lalu coba lagi.'
+          : error instanceof Error
+            ? error.message
+            : 'Terjadi kesalahan saat menghapus modul.',
         confirmButtonColor: '#4a3f7a',
       })
     }
