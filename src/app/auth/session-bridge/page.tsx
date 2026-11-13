@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
+import { writeSessionActivityCookie } from '@/lib/sessionActivity'
 
 function SessionBridgeContent() {
   const router = useRouter()
@@ -31,6 +32,8 @@ function SessionBridgeContent() {
         setError('Gagal mengaktifkan sesi login.')
         return
       }
+
+      writeSessionActivityCookie()
 
       // Ganti history supaya token tidak tertinggal di URL / tombol back
       router.replace(redirectPath)

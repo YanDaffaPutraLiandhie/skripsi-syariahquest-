@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/layout/ClientLayout";
+import SessionTimeout from "@/components/auth/SessionTimeout";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="id">
       <body className={`${nunito.variable} font-sans bg-background text-gray-800`}>
         <ClientLayout>{children}</ClientLayout>
+        <SessionTimeout />
       </body>
     </html>
   );
