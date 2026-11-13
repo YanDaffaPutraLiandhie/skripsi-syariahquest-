@@ -25,6 +25,7 @@ export type CharacterDef = {
   role: "player_avatar" | "npc" | "mentor";
   avatar: string;
   expressions: Partial<Record<Expression, string>>;
+  expressionPortraits?: Partial<Record<Expression, string>>;
 };
 
 export const CHARACTER_REGISTRY: Record<CharacterId, CharacterDef> = {
@@ -43,6 +44,17 @@ export const CHARACTER_REGISTRY: Record<CharacterId, CharacterDef> = {
       surprised: "/game/npc-2.png",
       serious: "/game/npc-2.png",
       disappointed: "/game/npc-2.png",
+    },
+    expressionPortraits: {
+      normal: "/game/expressions/aisyah-normal.png",
+      smile: "/game/expressions/aisyah-happy.png",
+      happy: "/game/expressions/aisyah-happy.png",
+      confused: "/game/expressions/aisyah-confused.png",
+      thinking: "/game/expressions/aisyah-confused.png",
+      surprised: "/game/expressions/aisyah-confused.png",
+      serious: "/game/expressions/aisyah-confused.png",
+      sad: "/game/expressions/aisyah-normal.png",
+      disappointed: "/game/expressions/aisyah-normal.png",
     },
   },
   teacher_male: {
@@ -139,4 +151,14 @@ export function getExpressionSrc(id: CharacterId | string | null | undefined, ex
   const c = CHARACTER_REGISTRY[id as CharacterId];
   if (!c) return "/game/npc-2.png";
   return c.expressions[expr] ?? c.avatar ?? "/game/npc-2.png";
+}
+
+export function getExpressionPortraitSrc(
+  id: CharacterId | string | null | undefined,
+  expr: Expression = "normal",
+): string | undefined {
+  if (!id) return undefined;
+  const character = CHARACTER_REGISTRY[id as CharacterId];
+  if (!character) return undefined;
+  return character.expressionPortraits?.[expr] ?? character.expressionPortraits?.normal;
 }

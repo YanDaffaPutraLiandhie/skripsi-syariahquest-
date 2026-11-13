@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { supabase } from "@/lib/supabase";
 import {
   getCharacter,
+  getExpressionPortraitSrc,
   getExpressionSrc,
   type CharacterId,
   type Expression,
@@ -650,6 +651,11 @@ function GamePageContent() {
                     : "Lanjutkan →"
                 }
                 showNextButton={phase === "intro" || phase === "feedback"}
+                speakerPortrait={getExpressionPortraitSrc(
+                  avatar || "teacher_female",
+                  teacherExpression,
+                )}
+                speakerExpression={teacherExpression}
                 onNext={() => {
                   if (phase === "intro") {
                     setPhase("question");

@@ -31,7 +31,7 @@ export default function VisualNovelScene({
 
       {/* Main Scene Viewport */}
       <div
-        className="relative w-full min-h-[420px] sm:min-h-[480px] md:min-h-[520px] h-[52vw] max-h-[620px] overflow-hidden rounded-2xl bg-cover bg-center p-4 transition-all duration-700 sm:p-6"
+        className="relative w-full h-[max(420px,min(72dvh,620px))] max-h-[620px] overflow-hidden rounded-2xl bg-cover bg-center p-3 transition-all duration-700 sm:p-6"
         style={{
           backgroundImage: `linear-gradient(0deg, rgba(22,14,40,0.75) 0%, rgba(35,23,60,0.15) 50%, rgba(20,13,38,0.45) 100%), url('${backgroundSrc}')`,
           backgroundSize: "cover",

@@ -2,9 +2,12 @@
 
 import React from "react";
 import { ArrowRight, Check, Sparkles, Volume2 } from "lucide-react";
+import type { Expression } from "@/lib/game/characterRegistry";
 
 type Props = {
   speaker: string;
+  speakerPortrait?: string;
+  speakerExpression?: Expression;
   text: string;
   counter?: string; // e.g. "01 / 03"
   isFinal?: boolean;
@@ -16,6 +19,8 @@ type Props = {
 
 export default function DialogueBox({
   speaker,
+  speakerPortrait,
+  speakerExpression = "normal",
   text,
   counter,
   isFinal = false,
@@ -25,6 +30,17 @@ export default function DialogueBox({
   className = "",
 }: Props) {
   const defaultLabel = isFinal ? "Selesaikan Bab" : "Lanjutkan";
+  const portraitExpressionClasses: Record<Expression, string> = {
+    normal: "",
+    smile: "saturate-[1.15] brightness-[1.05]",
+    happy: "scale-[1.08] saturate-[1.2] brightness-[1.08]",
+    sad: "brightness-[0.72] saturate-[0.65]",
+    confused: "-rotate-2 saturate-[0.85]",
+    thinking: "rotate-2 brightness-[0.9]",
+    surprised: "scale-[1.08] brightness-[1.15] contrast-[1.08]",
+    serious: "contrast-[1.15] saturate-[0.8]",
+    disappointed: "brightness-[0.65] saturate-[0.6]",
+  };
 
   return (
     <div
@@ -32,6 +48,15 @@ export default function DialogueBox({
     >
       {/* Speaker Name Pill with Golden Border & Gem */}
       <div className="absolute -top-4 sm:-top-5 left-4 sm:left-6 inline-flex items-center gap-2">
+        {speakerPortrait && (
+          <img
+            src={speakerPortrait}
+            alt=""
+            aria-hidden="true"
+            data-expression={speakerExpression}
+            className={`h-10 w-10 shrink-0 rounded-xl border-2 border-[#ffc94a] bg-[#eee8ff] object-cover shadow-lg transition-all duration-300 ${portraitExpressionClasses[speakerExpression]}`}
+          />
+        )}
         <div className="rounded-t-xl rounded-br-xl bg-gradient-to-r from-[#5740a0] via-[#6a49b8] to-[#7858ca] border border-[#ffc94a]/60 px-4 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-black tracking-wide text-white shadow-lg flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-[#ffc94a]" />
           <span>{speaker}</span>
