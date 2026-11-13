@@ -114,7 +114,33 @@ export async function getModulState(
     })),
     daftarSubTopik,
   );
-  const lemah = subTopikLemah(hasilSubTopik, passScore);
+  const { data: konsep, error: konsepError } = await supabase
+    .from("konsep_mahasiswa")
+    .select("id_sub_topik, tingkat_pemahaman, total_jawaban, total_benar")
+    .eq("id_mahasiswa", idMahasiswa)
+    .eq("id_modul", idModul);
+  if (konsepError) throw konsepError;
+
+  const latestBySubTopik = new Map(
+    hasilSubTopik.map((hasil) => [hasil.id_sub_topik, hasil]),
+  );
+  const conceptBySubTopik = new Map(
+    (konsep ?? []).map((row) => [Number(row.id_sub_topik), row]),
+  );
+  const hasilDenganMastery = daftarSubTopik.map((subTopik) => {
+    const latest = latestBySubTopik.get(subTopik.id_sub_topik);
+    const concept = conceptBySubTopik.get(subTopik.id_sub_topik);
+    return {
+      id_sub_topik: subTopik.id_sub_topik,
+      judul: subTopik.judul,
+      benar: latest?.benar ?? Number(concept?.total_benar ?? 0),
+      total: latest?.total ?? Number(concept?.total_jawaban ?? 0),
+      masteryProbability:
+        concept === undefined ? undefined : Number(concept.tingkat_pemahaman),
+      remedialText: subTopik.remedial_text ?? null,
+    };
+  });
+  const lemah = subTopikLemah(hasilDenganMastery, passScore);
   const lemahIds = new Set(lemah.map((l) => l.id_sub_topik));
   const soalSalah = new Set(
     jawabanTerakhir.filter((r) => !r.is_benar).map((r) => r.id_soal as number),

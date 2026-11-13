@@ -5,6 +5,8 @@ export type SubTopik = {
   id_sub_topik: number;
   judul: string;
   urutan: number;
+  lo_code?: string | null;
+  remedial_text?: string | null;
 };
 
 export type HasilSubTopik = {
@@ -12,12 +14,14 @@ export type HasilSubTopik = {
   judul: string;
   benar: number;
   total: number;
+  masteryProbability?: number;
+  remedialText?: string | null;
 };
 
 export async function getSubTopikModul(idModul: number): Promise<SubTopik[]> {
   const { data, error } = await supabase
     .from("sub_topik")
-    .select("id_sub_topik, judul, urutan")
+    .select("id_sub_topik, judul, urutan, lo_code, remedial_text")
     .eq("id_modul", idModul)
     .order("urutan", { ascending: true });
 
@@ -42,6 +46,9 @@ export function hitungPerSubTopik(
       judul: judulMap.get(r.id_sub_topik) ?? `Sub-topik ${r.id_sub_topik}`,
       benar: 0,
       total: 0,
+      remedialText:
+        daftar.find((subTopik) => subTopik.id_sub_topik === r.id_sub_topik)
+          ?.remedial_text ?? null,
     };
 
     cur.total += 1;
@@ -65,6 +72,15 @@ export function subTopikLemah(
 ): HasilSubTopik[] {
   const batas = passScore / 100;
   return hasil
-    .filter((h) => h.total > 0 && h.benar < h.total && h.benar / h.total < batas)
-    .sort((a, b) => a.benar / a.total - b.benar / b.total);
+    .filter((h) => {
+      if (h.masteryProbability !== undefined) {
+        return h.masteryProbability < 0.8;
+      }
+      return h.total > 0 && h.benar < h.total && h.benar / h.total < batas;
+    })
+    .sort((a, b) => {
+      const aMastery = a.masteryProbability ?? a.benar / Math.max(1, a.total);
+      const bMastery = b.masteryProbability ?? b.benar / Math.max(1, b.total);
+      return aMastery - bMastery;
+    });
 }

@@ -9,6 +9,14 @@ import { supabase } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { simpanRiwayatJawaban, type ModulState } from "@/lib/remedial";
 import {
+  selectQuestionsForBktPlan,
+  type AdaptiveLearningPlan,
+} from "@/lib/adaptiveLearning";
+import {
+  fetchAdaptiveLearningPlan,
+  recordAdaptiveResponses,
+} from "@/lib/adaptiveLearningClient";
+import {
   Sparkles,
   Trophy,
   RotateCcw,
@@ -19,6 +27,7 @@ import {
   AlertTriangle,
   Lightbulb,
   Award,
+  Brain,
   Maximize2,
   Minimize2,
   Lock,
@@ -26,6 +35,9 @@ import {
 
 export type SoalVN = {
   id_soal: number;
+  id_sub_topik?: number | null;
+  lo_code?: string | null;
+  difficulty_rating?: number | null;
   pertanyaan: string;
   kasusKlien: string;
   pilihan: {
@@ -41,6 +53,7 @@ type Props = {
   namaModul: string;
   parameterNilai?: number;
   onFinish?: (lulus: boolean, nilai: number) => void;
+  onAdaptiveProgressUpdated?: () => void | Promise<void>;
   onBackToMateri?: () => void;
   onExitFullscreen?: () => void;
   embeddedFullscreen?: boolean;
@@ -64,6 +77,7 @@ export default function VisualNovelGame({
   namaModul,
   parameterNilai = 75,
   onFinish,
+  onAdaptiveProgressUpdated,
   onBackToMateri,
   onExitFullscreen,
   embeddedFullscreen = false,
@@ -77,6 +91,13 @@ export default function VisualNovelGame({
 
   const [mentor, setMentor] = useState<MentorCharacter | null>(null);
   const [soalList, setSoalList] = useState<SoalVN[]>([]);
+  const [questionBank, setQuestionBank] = useState<SoalVN[]>([]);
+  const [adaptivePlan, setAdaptivePlan] = useState<AdaptiveLearningPlan | null>(null);
+  const [adaptiveError, setAdaptiveError] = useState<string | null>(null);
+  const [adaptiveStatus, setAdaptiveStatus] = useState<string | null>(null);
+  const [hasAdaptiveQuestionSet, setHasAdaptiveQuestionSet] = useState(false);
+  const [isSavingAdaptive, setIsSavingAdaptive] = useState(false);
+  const adaptiveSubmissionKey = useRef<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedJawabanId, setSelectedJawabanId] = useState<number | null>(null);
   const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
@@ -128,29 +149,57 @@ export default function VisualNovelGame({
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const { data: dbQuestions, error } = await supabase
-          .from("soal")
-          .select("id_soal, soal, jawaban(*)")
-          .eq("id_modul", idModul);
+        const [questionsResult, planResult] = await Promise.all([
+          supabase
+            .from("soal")
+            .select("id_soal, soal, id_sub_topik, lo_code, difficulty_rating, jawaban(id_jawaban, jawaban, jawaban_benar, penjelasan)")
+            .eq("id_modul", idModul)
+            .order("id_soal", { ascending: true }),
+          fetchAdaptiveLearningPlan(idModul)
+            .then((plan) => ({ plan, error: null as string | null }))
+            .catch((error: unknown) => ({
+              plan: null,
+              error: error instanceof Error ? error.message : "Gagal memuat personalisasi.",
+            })),
+        ]);
+        const { data: dbQuestions, error } = questionsResult;
+        setAdaptivePlan(planResult.plan);
+        setAdaptiveError(
+          planResult.error
+            ? "Personalisasi belum tersedia. Kuis tetap dapat dikerjakan, tetapi rute BKT tidak aktif."
+            : null,
+        );
 
         if (!error && dbQuestions && dbQuestions.length > 0) {
           const mapped: SoalVN[] = dbQuestions.map((q: any) => ({
             id_soal: q.id_soal,
+            id_sub_topik: q.id_sub_topik,
+            lo_code: q.lo_code,
+            difficulty_rating: q.difficulty_rating,
             pertanyaan: q.soal,
             kasusKlien: `Halo Konsultan! Terkait ${namaModul}, saya ingin berkonsultasi mengenai hal ini:`,
             pilihan: (q.jawaban || []).map((j: any) => ({
               id_jawaban: j.id_jawaban,
               teks: j.jawaban,
-              is_benar: !!j.is_benar,
-              penjelasan: j.is_benar
-                ? "Pilihan ini tepat sesuai dengan kaidah rukun dan syarat fiqih muamalah."
-                : "Pilihan ini kurang tepat karena belum memenuhi syarat keabsahan akad syariah.",
+              // support both column names: jawaban_benar (older) and is_benar (newer)
+              is_benar: !!(j.jawaban_benar ?? j.is_benar),
+              penjelasan:
+                j.penjelasan ||
+                ((j.jawaban_benar ?? j.is_benar)
+                  ? "Pilihan ini tepat sesuai dengan kaidah rukun dan syarat fiqih muamalah."
+                  : "Pilihan ini kurang tepat karena belum memenuhi syarat keabsahan akad syariah."),
             })),
-          }));
-          setSoalList(mapped);
+          }))
+          // only keep soal that have at least 2 pilihan
+          .filter((s) => s.pilihan.length >= 2);
+          setQuestionBank(mapped);
+          setHasAdaptiveQuestionSet(mapped.length > 0);
+          setSoalList(selectQuestionsForBktPlan(mapped, planResult.plan));
         } else {
+          if (error) console.error("Gagal memuat bank soal visual novel:", error);
+          setHasAdaptiveQuestionSet(false);
           // Fallback soal skenario studi kasus jika modul belum ada soal di DB
-          setSoalList([
+          const fallbackQuestions: SoalVN[] = [
             {
               id_soal: 101,
               pertanyaan: "Bagaimana hukum transaksi jual beli barang yang belum jelas spesifikasi dan waktu penyerahannya?",
@@ -244,10 +293,13 @@ export default function VisualNovelGame({
                 },
               ],
             },
-          ]);
+          ];
+          setQuestionBank(fallbackQuestions);
+          setSoalList(fallbackQuestions);
         }
       } catch (e) {
         console.error("Gagal memuat soal visual novel:", e);
+        setHasAdaptiveQuestionSet(false);
       }
     }
 
@@ -291,6 +343,44 @@ export default function VisualNovelGame({
       setDialogStage("soal");
     } else {
       finishNovelGame(userAnswers);
+    }
+  };
+
+  const saveAdaptiveProgress = async (
+    answerRecords: typeof userAnswers = userAnswers,
+  ) => {
+    if (!hasAdaptiveQuestionSet || answerRecords.length === 0) return;
+
+    setIsSavingAdaptive(true);
+    setAdaptiveError(null);
+    setAdaptiveStatus(null);
+    adaptiveSubmissionKey.current ??= crypto.randomUUID();
+    try {
+      const result = await recordAdaptiveResponses(
+        idModul,
+        adaptiveSubmissionKey.current,
+        answerRecords.map(({ id_soal, id_jawaban }) => ({ id_soal, id_jawaban })),
+      );
+      setAdaptivePlan(result.plan);
+      try {
+        await onAdaptiveProgressUpdated?.();
+      } catch (refreshError) {
+        console.error("BKT tersimpan, tetapi status remedial gagal diperbarui:", refreshError);
+      }
+      if (result.unmapped > 0) {
+        setAdaptiveError(
+          `${result.unmapped} soal belum terhubung ke Learning Object dan tidak ikut menghitung penguasaan.`,
+        );
+      } else {
+        setAdaptiveStatus("Progres penguasaan BKT berhasil diperbarui.");
+      }
+    } catch (error) {
+      console.error("Gagal memperbarui penguasaan BKT visual novel:", error);
+      setAdaptiveError(
+        "Nilai kuis tersimpan, tetapi progres personalisasi belum diperbarui. Kamu bisa mencoba lagi.",
+      );
+    } finally {
+      setIsSavingAdaptive(false);
     }
   };
 
@@ -347,9 +437,10 @@ export default function VisualNovelGame({
     } catch (e) {
       console.error("Gagal menyimpan progress visual novel:", e);
     } finally {
+      await saveAdaptiveProgress(answerRecords);
       setIsSubmittingScore(false);
       if (onFinish) {
-        onFinish(isPassed, finalScore);
+        await onFinish(isPassed, finalScore);
       }
     }
   };
@@ -373,6 +464,14 @@ export default function VisualNovelGame({
     setUserAnswers([]);
     setDialogStage("soal");
     setShowRemedialStudy(false);
+    adaptiveSubmissionKey.current = null;
+    setAdaptiveError(null);
+    setAdaptiveStatus(null);
+    setSoalList(
+      hasAdaptiveQuestionSet
+        ? selectQuestionsForBktPlan(questionBank, adaptivePlan)
+        : questionBank,
+    );
   };
 
   useEffect(() => {
@@ -517,7 +616,7 @@ export default function VisualNovelGame({
               Rian (Klien Mahasiswa)
             </div>
             <img
-              src="/game/student-2.png"
+              src="/game/student-1.png"
               alt="Rian - Mahasiswa / Klien Konsultasi"
               className={`min-h-0 w-full flex-1 object-contain object-bottom brightness-[1.08] contrast-[1.05] drop-shadow-[0_8px_24px_rgba(10,5,25,0.70)] transition-all duration-300 ${EXPRESSION_CLASSES[clientExpression]}`}
               style={{ imageRendering: "auto" }}
@@ -576,6 +675,36 @@ export default function VisualNovelGame({
                 </button>
             </div>
           </div>
+          {(adaptivePlan || adaptiveError || adaptiveStatus) && (
+            <div className="mx-3 mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-violet-300/20 bg-violet-950/60 px-3 py-2 text-[10px] sm:mx-4 sm:text-xs">
+              <div className="flex min-w-0 flex-1 items-start gap-2">
+                <Brain className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" />
+                <div className="min-w-0 text-violet-100">
+                  <p>
+                    {adaptivePlan?.nextLearningObject
+                      ? `Rute BKT: ${adaptivePlan.nextLearningObject.judul} · Penguasaan ${Math.round(adaptivePlan.nextLearningObject.masteryProbability * 100)}% · ${adaptivePlan.difficulty.label}`
+                      : adaptivePlan?.reason || adaptiveStatus}
+                  </p>
+                  {adaptiveError && (
+                    <p className="mt-1 text-amber-200">{adaptiveError}</p>
+                  )}
+                  {adaptiveStatus && !adaptiveError && (
+                    <p className="mt-1 text-emerald-200">{adaptiveStatus}</p>
+                  )}
+                </div>
+              </div>
+              {adaptiveError && hasAdaptiveQuestionSet && (
+                <button
+                  type="button"
+                  onClick={() => void saveAdaptiveProgress()}
+                  disabled={isSavingAdaptive || isSubmittingScore}
+                  className="shrink-0 rounded-lg border border-violet-300/30 px-2.5 py-1 font-bold text-violet-100 transition hover:bg-violet-800/70 disabled:opacity-50"
+                >
+                  {isSavingAdaptive ? "Menyimpan..." : "Coba simpan progres"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

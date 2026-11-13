@@ -477,6 +477,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
       idModul={course.id_modul}
       namaModul={course.nama_modul}
       parameterNilai={minScore}
+      onAdaptiveProgressUpdated={fetchModulState}
       onFinish={async (_lulus, nilai) => {
         exitQuizFullscreen();
         await handleSubmitAttempt(nilai);
@@ -888,6 +889,7 @@ export default function ModulDetailPage({ params }: { params: Promise<{ id: stri
                     onSubmitAttempt={handleSubmitAttempt}
                     onContinue={() => setActiveTab("materi")}
                     onFailed={() => setActiveTab("remedial")}
+                    onAdaptiveProgressUpdated={fetchModulState}
                     idModul={course.id_modul}
                     initialScore={quizScore}
                     passingGrade={minScore}

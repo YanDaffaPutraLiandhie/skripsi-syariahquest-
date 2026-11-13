@@ -2,13 +2,18 @@
 
 import { useEffect, useRef, useState, Suspense } from "react";
 import Papa from "papaparse";
-import { Plus, Trash2, Download } from "lucide-react";
+import { Plus, Trash2, Download, Sparkles, CheckCircle2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/logActivity";
 import { parseQuestionFile } from "@/lib/parseQuestionFile";
+import {
+  generateLearningObjects,
+  generateSoalOtomatis,
+  type LearningObject,
+} from "@/lib/generateContent";
 import DosenContainer from "@/components/layout/DosenContainer";
 
 const ANSWER_KEYS = ["A", "B", "C", "D"] as const;
@@ -30,6 +35,8 @@ interface SoalEntry {
   jawabanC: string;
   jawabanD: string;
   kunciJawaban: AnswerKey | null;
+  idSubTopik: number | null;
+  difficultyRating: number;
 }
 
 function makeEmptyEntry(): SoalEntry {
@@ -41,7 +48,38 @@ function makeEmptyEntry(): SoalEntry {
     jawabanC: "",
     jawabanD: "",
     kunciJawaban: null,
+    idSubTopik: null,
+    difficultyRating: 1100,
   };
+}
+
+/**
+ * Cocokkan soal ke Learning Object berdasarkan jumlah kata kunci yang muncul dalam teks soal.
+ * Hanya mengembalikan id_sub_topik jika ada kecocokan yang cukup kuat (>= 1 kata kunci).
+ */
+function matchLOToQuestion(
+  question: string,
+  learningObjects: { id_sub_topik: number; lo_code: string | null; judul: string; keywords?: string | null }[],
+): number | null {
+  if (!question || learningObjects.length === 0) return null;
+  const q = question.toLowerCase();
+  let bestMatch: { id: number; score: number } | null = null;
+  for (const lo of learningObjects) {
+    const keywords = ((lo.keywords || lo.judul) || "")
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean);
+    let score = 0;
+    for (const kw of keywords) {
+      if (kw.length > 2 && q.includes(kw.toLowerCase())) score += 1;
+    }
+    // Bonus jika judul LO muncul utuh
+    if (lo.judul && q.includes(lo.judul.toLowerCase())) score += 2;
+    if (score > 0 && (!bestMatch || score > bestMatch.score)) {
+      bestMatch = { id: lo.id_sub_topik, score };
+    }
+  }
+  return bestMatch?.id ?? null;
 }
 
 // =============================================
@@ -98,6 +136,11 @@ function BankSoalPageContent() {
 
   const [idModul, setIdModul] = useState<number | null>(null);
   const [namaModul, setNamaModul] = useState("");
+  const [teksMateri, setTeksMateri] = useState("");
+  const [learningObjects, setLearningObjects] = useState<
+    { id_sub_topik: number; lo_code: string | null; judul: string; keywords?: string | null }[]
+  >([]);
+  const [learningObjectError, setLearningObjectError] = useState("");
 
   const [loadingModul, setLoadingModul] = useState(true);
 
@@ -108,7 +151,12 @@ function BankSoalPageContent() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [generateMessageOpen, setGenerateMessageOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  const [generatingLO, setGeneratingLO] = useState(false);
+  const [generatingSoal, setGeneratingSoal] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState("");
 
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,7 +188,7 @@ function BankSoalPageContent() {
 
       const { data, error } = await supabase
         .from("modul")
-        .select("id_modul, nama_modul")
+        .select("id_modul, nama_modul, teks_materi")
         .eq("id_modul", parsedId)
         .maybeSingle();
 
@@ -161,6 +209,7 @@ function BankSoalPageContent() {
 
       setIdModul(Number(data.id_modul));
       setNamaModul(data.nama_modul ?? "");
+      setTeksMateri(data.teks_materi ?? "");
 
       console.log("MODUL DIPILIH:", {
         id_modul: data.id_modul,
@@ -172,6 +221,47 @@ function BankSoalPageContent() {
 
     loadModul();
   }, [idModulParam]);
+
+  useEffect(() => {
+    if (!idModul) return;
+
+    let active = true;
+    async function loadLearningObjects() {
+      setLearningObjects([]);
+      setLearningObjectError("");
+      const { data, error } = await supabase
+        .from("sub_topik")
+        .select("id_sub_topik, lo_code, judul, keywords")
+        .eq("id_modul", idModul)
+        .order("urutan", { ascending: true });
+
+      if (!active) return;
+      if (error) {
+        console.error("Gagal memuat Learning Object modul:", error);
+        setLearningObjectError(
+          "Learning Object gagal dimuat. Soal tetap bisa disimpan, tetapi belum dapat dipetakan untuk personalisasi.",
+        );
+        return;
+      }
+
+      setLearningObjects((data ?? []).map((lo) => ({
+        id_sub_topik: lo.id_sub_topik,
+        lo_code: lo.lo_code,
+        judul: lo.judul,
+        keywords: lo.keywords ?? null,
+      })));
+
+      // AUTO-GENERATE LO dari teks materi jika belum ada LO dan materi tersedia
+      if ((data ?? []).length === 0 && teksMateri.trim().length >= 50 && !generatingLO) {
+        await handleGenerateLO();
+      }
+    }
+
+    void loadLearningObjects();
+    return () => {
+      active = false;
+    };
+  }, [idModul, teksMateri, generatingLO]);
 
   function updateEntry(id: string, patch: Partial<SoalEntry>) {
     setSoalEntries((prev) =>
@@ -202,6 +292,8 @@ function BankSoalPageContent() {
       "jawaban_c",
       "jawaban_d",
       "kunci_jawaban",
+      "subtopik",
+      "difficulty_rating",
     ];
 
     const exampleRows = [
@@ -212,6 +304,8 @@ function BankSoalPageContent() {
         "Makruh",
         "Mubah",
         "A",
+        "",
+        "950",
       ],
       [
         "Siapa pendiri mazhab Syafi'i?",
@@ -220,6 +314,8 @@ function BankSoalPageContent() {
         "Imam Hanafi",
         "Imam Hambali",
         "B",
+        "",
+        "1100",
       ],
     ];
 
@@ -267,7 +363,24 @@ function BankSoalPageContent() {
         throw new Error("File CSV/XLSX kosong atau formatnya tidak sesuai.");
       }
 
-          const parsed: SoalEntry[] = rows.map((row) => {
+          const parsed: SoalEntry[] = rows.map((row, index) => {
+            const rawDifficulty = (row.difficulty_rating || "").trim();
+            const difficultyRating = rawDifficulty === "" ? 1100 : Number(rawDifficulty) || 1100;
+
+            const topicValue = (row.subtopik || row.lo_code || "").trim().toLowerCase();
+            const learningObject = topicValue
+              ? learningObjects.find(
+                  (item) =>
+                    item.judul.toLowerCase() === topicValue ||
+                    item.lo_code?.toLowerCase() === topicValue,
+                )
+              : undefined;
+            if (topicValue && !learningObject) {
+              throw new Error(
+                `Learning Object "${row.subtopik || row.lo_code}" pada soal ke-${index + 1} tidak ditemukan di modul ini.`,
+              );
+            }
+
             const normalizedKunci = (
               row.kunci_jawaban || row.kunci || ""
             )
@@ -288,6 +401,8 @@ function BankSoalPageContent() {
               jawabanC: (row.jawaban_c || "").trim(),
               jawabanD: (row.jawaban_d || "").trim(),
               kunciJawaban: validKunci,
+              idSubTopik: learningObject?.id_sub_topik ?? null,
+              difficultyRating: difficultyRating,
             };
           });
 
@@ -310,6 +425,114 @@ function BankSoalPageContent() {
       setImporting(false);
       if (importInputRef.current) importInputRef.current.value = "";
     }
+  }
+
+  /**
+   * Generate Learning Objects (LO) otomatis dari teks materi modul via AI.
+   * Setelah sukses, daftar LO di-refresh secara otomatis.
+   */
+  async function handleGenerateLO(): Promise<LearningObject[]> {
+    if (!idModul) return [];
+    setGeneratingLO(true);
+    setGenerateMessage("");
+    setFormError("");
+    try {
+      const los = await generateLearningObjects(idModul);
+      setLearningObjects(
+        los.map((lo) => ({
+          id_sub_topik: lo.id_sub_topik,
+          lo_code: lo.lo_code,
+          judul: lo.judul,
+          keywords: lo.keywords ?? null,
+        })),
+      );
+      return los;
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Gagal generate Learning Objects.",
+      );
+      return [];
+    } finally {
+      setGeneratingLO(false);
+    }
+  }
+
+  /**
+   * Generate soal otomatis per LO via AI dan simpan ke database.
+   * Setelah sukses, form soal manual diisi dengan hasil generate.
+   */
+  async function handleGenerateSoal() {
+    if (!idModul) return;
+    if (learningObjects.length === 0) {
+      setFormError(
+        "Belum ada Learning Object. Jalankan Generate Learning Objects terlebih dahulu.",
+      );
+      return;
+    }
+    setGeneratingSoal(true);
+    setGenerateMessage("");
+    setFormError("");
+    try {
+      const soalList = await generateSoalOtomatis(idModul, 5);
+      if (soalList.length === 0) {
+        setGenerateMessage("Tidak ada soal yanghasil.");
+        return;
+      }
+      setSoalEntries(
+        soalList.map((s) => {
+          const jawabans = s.jawaban;
+          const findCorrectKey = (): AnswerKey | null => {
+            for (let i = 0; i < jawabans.length && i < 4; i++) {
+              if (jawabans[i].jawaban_benar) return ANSWER_KEYS[i];
+            }
+            return null;
+          };
+          return {
+            id: crypto.randomUUID(),
+            soal: s.soal,
+            jawabanA: jawabans[0]?.jawaban ?? "",
+            jawabanB: jawabans[1]?.jawaban ?? "",
+            jawabanC: jawabans[2]?.jawaban ?? "",
+            jawabanD: jawabans[3]?.jawaban ?? "",
+            kunciJawaban: findCorrectKey(),
+            idSubTopik: s.id_sub_topik,
+            difficultyRating: (s.difficulty_rating as number) ?? 1100,
+          };
+        }),
+      );
+      setGenerateMessage(
+        `${soalList.length} soal otomatis telah dihasilkan dan disimpan ke bank soal. Anda dapat mengeditnya sebelum menyimpan.`,
+      );
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Gagal generate soal otomatis.",
+      );
+    } finally {
+      setGeneratingSoal(false);
+    }
+  }
+
+  /**
+   * Tombol SATU: Generate Otomatis (LO + Soal).
+   * 1. Generate LO dari teks materi
+   * 2. Generate soal otomatis per LO
+   */
+  async function handleGenerateAll() {
+    if (!idModul) return;
+    setGeneratingLO(true);
+    setGeneratingSoal(true);
+    setGenerateMessage("");
+    setFormError("");
+
+    // Langkah 1: Generate LO
+    const los = await handleGenerateLO();
+    if (los.length === 0) {
+      setGeneratingSoal(false);
+      return;
+    }
+
+    // Langkah 2: Generate soal otomatis
+    await handleGenerateSoal();
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -370,6 +593,53 @@ function BankSoalPageContent() {
         }
       }
 
+      // Auto-deteksi otomatis tingkat kesulitan + Learning Object untuk semua soal sebelum disimpan
+      setFormError("");
+      const autoDetectResults: Array<{ index: number; difficulty: number; loId: number | null }> = [];
+      for (const [index, entry] of soalEntries.entries()) {
+        const nomor = index + 1;
+        if (!entry.soal.trim()) continue;
+        try {
+          const res = await fetch("/api/analyze-soal", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}`,
+            },
+            body: JSON.stringify({
+              soal: entry.soal.trim(),
+              idModul,
+              learningObjects: learningObjects.map((lo) => ({
+                id_sub_topik: lo.id_sub_topik,
+                lo_code: lo.lo_code,
+                judul: lo.judul,
+                keywords: lo.keywords ?? null,
+              })),
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              autoDetectResults.push({
+                index,
+                difficulty: data.difficulty_rating ?? entry.difficultyRating,
+                loId: data.matched_lo?.id_sub_topik ?? entry.idSubTopik,
+              });
+            }
+          }
+        } catch {
+          // Gagal deteksi per-soal tidak membatalkan penyimpanan; gunakan nilai default
+        }
+      }
+
+      // Terapkan hasil deteksi otomatis ke entries
+      for (const r of autoDetectResults) {
+        updateEntry(soalEntries[r.index].id, {
+          difficultyRating: r.difficulty,
+          idSubTopik: r.loId ?? null,
+        });
+      }
+
       for (const [index, entry] of soalEntries.entries()) {
         const nomor = index + 1;
 
@@ -380,6 +650,8 @@ function BankSoalPageContent() {
           .insert({
             id_modul: idModul,
             soal: entry.soal.trim(),
+            id_sub_topik: entry.idSubTopik,
+            difficulty_rating: entry.difficultyRating,
           })
           .select("id_soal, id_modul, soal")
           .single();
@@ -527,6 +799,15 @@ function BankSoalPageContent() {
             <Download size={14} />
             Template CSV
           </button>
+
+          <button
+            type="button"
+            onClick={handleGenerateAll}
+            disabled={generatingLO || generatingSoal}
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-400 to-amber-400 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:from-purple-300 hover:to-amber-300 transition disabled:opacity-60"
+          >
+            {generatingLO || generatingSoal ? "Membuat..." : "Generate Otomatis"}
+          </button>
         </div>
       }
     >
@@ -605,13 +886,30 @@ function BankSoalPageContent() {
               </div>
 
               <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+
+                </div>
+                {learningObjectError && (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    {learningObjectError}
+                  </p>
+                )}
                 <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#4a3f7a]">
                     Teks Pertanyaan Soal
                   </label>
                   <AutoResizeTextarea
                     value={entry.soal}
-                    onChange={(val) => updateEntry(entry.id, { soal: val })}
+                    onChange={(val) => {
+                      updateEntry(entry.id, { soal: val });
+                      // Auto-cocokkan LO jika belum dipilih dan ada kata kunci yang cocok
+                      if (!entry.idSubTopik) {
+                        const matched = matchLOToQuestion(val, learningObjects);
+                        if (matched !== null) {
+                          updateEntry(entry.id, { idSubTopik: matched });
+                        }
+                      }
+                    }}
                     placeholder="Tuliskan pertanyaan soal di sini..."
                     className="w-full min-h-[3.5rem] rounded-2xl border border-[#e4e2ee] bg-[#f8f7fd] p-4 text-sm font-semibold text-[#2b2540] outline-none transition focus:border-[#4a3f7a] focus:bg-white focus:ring-2 focus:ring-[#4a3f7a]/20"
                   />
@@ -676,9 +974,57 @@ function BankSoalPageContent() {
           </div>
         )}
 
+        {generateMessage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setGenerateMessageOpen(false)}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-amber-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-[#4a3f7a]">Soal Otomatis Dihasilkan</h3>
+              </div>
+              <p className="text-sm text-gray-700 mb-4">{generateMessage}</p>
+              <button
+                type="button"
+                onClick={() => setGenerateMessageOpen(false)}
+                className="w-full rounded-xl bg-[#4a3f7a] px-4 py-2 text-xs font-bold text-white hover:bg-[#3d3466] transition"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
+
         {successMessage && (
-          <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-center text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
-            {successMessage}
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={() => setSuccessMessage("")}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-emerald-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-[#4a3f7a]">Berhasil Disimpan</h3>
+              </div>
+              <p className="text-sm text-gray-700 mb-4">{successMessage}</p>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage("")}
+                className="w-full rounded-xl bg-[#4a3f7a] px-4 py-2 text-xs font-bold text-white hover:bg-[#3d3466] transition"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         )}
 
@@ -700,7 +1046,7 @@ function BankSoalPageContent() {
             disabled={saving}
             className="rounded-full bg-amber-400 px-10 py-3.5 text-sm font-bold text-amber-950 shadow-lg shadow-amber-900/25 hover:bg-amber-300 transition disabled:opacity-50"
           >
-            {saving ? "Menyimpan Soal..." : "Simpan Semua Soal"}
+            {saving ? "Menyimpan Semua Soal..." : "Deteksi Otomatis & Simpan Semua Soal"}
           </button>
         </div>
       </form>

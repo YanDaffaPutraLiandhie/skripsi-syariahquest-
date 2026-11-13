@@ -92,15 +92,15 @@ export const CHARACTER_REGISTRY: Record<CharacterId, CharacterDef> = {
     id: "npc_pedagang",
     name: "Pak Hasan (Pedagang Pasar)",
     role: "npc",
-    avatar: "/game/npc-3.png",
+    avatar: "/game/npc-5.png",
     expressions: {
-      normal: "/game/npc-3.png",
-      smile: "/game/npc-3.png",
+      normal: "/game/npc-5.png",
+      smile: "/game/npc-5.png",
     },
   },
   npc_banker: {
     id: "npc_banker",
-    name: "Pak Burhan (Bankir Syariah)",
+    name: "Nasabah Bank",
     role: "npc",
     avatar: "/game/npc-4.png",
     expressions: {
@@ -110,22 +110,22 @@ export const CHARACTER_REGISTRY: Record<CharacterId, CharacterDef> = {
   },
   npc_umkm: {
     id: "npc_umkm",
-    name: "Bu Halimah (Pelaku UMKM)",
+    name: "Bu Halimah (Pemilik Usaha)",
     role: "npc",
-    avatar: "/game/npc-5.png",
+    avatar: "/game/npc-6.png",
     expressions: {
-      normal: "/game/npc-5.png",
-      smile: "/game/npc-5.png",
+      normal: "/game/npc-6.png",
+      smile: "/game/npc-6.png",
     },
   },
   npc_klien: {
     id: "npc_klien",
     name: "Mas Dimas (Klien Konsultasi)",
     role: "npc",
-    avatar: "/game/npc-6.png",
+    avatar: "/game/npc-6-alt.png",
     expressions: {
-      normal: "/game/npc-6.png",
-      smile: "/game/npc-6.png",
+      normal: "/game/npc-6-alt.png",
+      smile: "/game/npc-6-alt.png",
     },
   },
 };

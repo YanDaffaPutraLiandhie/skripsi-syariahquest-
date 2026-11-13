@@ -143,6 +143,19 @@ async function fetchWeakAreas(
   });
 
   const daftarSubTopik = await getSubTopikModul(idModul);
+
+  // Ambil mastery probability dari konsep_mahasiswa (sumber yang sama dengan remedial.ts)
+  const { data: konsepRows, error: konsepErr } = await supabaseAdmin
+    .from("konsep_mahasiswa")
+    .select("id_sub_topik, tingkat_pemahaman, total_jawaban, total_benar")
+    .eq("id_mahasiswa", idMahasiswa)
+    .eq("id_modul", idModul);
+  if (konsepErr) console.error("[fetchWeakAreas] Gagal ambil konsep_mahasiswa:", konsepErr);
+  const masteryBySubTopik = new Map<number, number>();
+  for (const k of konsepRows ?? []) {
+    masteryBySubTopik.set(k.id_sub_topik as number, Number(k.tingkat_pemahaman ?? 0.1));
+  }
+
   const hasilSubTopik = hitungPerSubTopik(
     semuaJawaban.map((r) => ({
       id_sub_topik: soalKeSubTopik.get(r.id_soal as number) ?? null,
@@ -150,7 +163,21 @@ async function fetchWeakAreas(
     })),
     daftarSubTopik,
   );
-  const lemah = subTopikLemah(hasilSubTopik, passScore);
+  // Gabungkan masteryProbability dari BKT (sama seperti remedial.ts)
+  const hasilDenganMastery = daftarSubTopik.map((subTopik) => {
+    const latest = hasilSubTopik.find((h) => h.id_sub_topik === subTopik.id_sub_topik);
+    const mastery = masteryBySubTopik.get(subTopik.id_sub_topik);
+    return {
+      id_sub_topik: subTopik.id_sub_topik,
+      judul: subTopik.judul,
+      benar: latest?.benar ?? 0,
+      total: latest?.total ?? 0,
+      masteryProbability:
+        mastery !== undefined ? mastery : undefined,
+      remedialText: subTopik.remedial_text ?? null,
+    };
+  });
+  const lemah = subTopikLemah(hasilDenganMastery, passScore);
 
   console.log(
     "[fetchWeakAreas] Sub-topik lemah:",
