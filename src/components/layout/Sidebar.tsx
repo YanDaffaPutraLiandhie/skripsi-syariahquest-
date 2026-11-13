@@ -91,7 +91,7 @@ export default function Sidebar({
         id="main-sidebar"
         suppressHydrationWarning
         aria-label="Profil dan Navigasi Syariah-Quest"
-        className={`fixed left-0 top-0 z-50 flex h-screen w-full max-w-72 flex-col overflow-y-auto overflow-x-hidden bg-[#181338] border-r-2 border-[#2f255c] text-white transition-all duration-300 scrollbar-none select-none ${
+        className={`fixed left-0 top-0 z-50 flex h-dvh w-full max-w-72 flex-col overflow-y-auto overflow-x-hidden bg-[#181338] border-r-2 border-[#2f255c] text-white transition-all duration-300 scrollbar-none select-none ${
           isCollapsed ? "md:w-20" : "md:w-72"
         } ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
@@ -116,7 +116,7 @@ export default function Sidebar({
 
         {/* 1. BRAND HEADER */}
         <div
-          className={`pt-5 pb-3 px-5 flex items-center gap-3 transition-all border-b border-purple-900/40 ${
+          className={`shrink-0 pt-5 pb-3 px-5 flex items-center gap-3 transition-all border-b border-purple-900/40 ${
             isCollapsed ? "justify-center px-2" : ""
           }`}
         >
@@ -143,7 +143,7 @@ export default function Sidebar({
         {/* 2. PROFILE SECTION (DIBESARKAN & DISUSUN KE BAWAH) */}
         {/* 2. PROFILE SECTION (DIBESARKAN & DISUSUN KE BAWAH) */}
         {!isCollapsed ? (
-          <div className="mx-3.5 my-3 p-4 rounded-3xl bg-gradient-to-b from-[#241c4a] via-[#1d163d] to-[#161030] border-2 border-purple-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex flex-col items-center text-center relative overflow-hidden">
+          <div className="mx-3.5 my-3 shrink-0 p-4 rounded-3xl bg-gradient-to-b from-[#241c4a] via-[#1d163d] to-[#161030] border-2 border-purple-500/40 shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex flex-col items-center text-center relative overflow-hidden">
             {/* Ambient Background Glow */}
             <div className="pointer-events-none absolute -top-8 -right-8 w-28 h-28 rounded-full bg-[#ffc94a]/15 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-8 -left-8 w-28 h-28 rounded-full bg-purple-600/20 blur-2xl" />
@@ -241,7 +241,7 @@ export default function Sidebar({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center my-4 px-2">
+          <div className="flex shrink-0 flex-col items-center my-4 px-2">
             <button
               type="button"
               onClick={() => setShowMentorModal(true)}
@@ -259,7 +259,7 @@ export default function Sidebar({
 
         {/* 3. MENU NAVIGASI (MENGISI RUANG SIDEBAR AGAR TIDAK KOSONG) */}
         {!isCollapsed && (
-          <div className="px-3.5 py-1">
+          <div className="shrink-0 px-3.5 py-1">
             <div className="px-3 mb-2 text-[10px] font-black tracking-widest text-purple-300/60 uppercase">
               Petualangan Syariah
             </div>
@@ -307,7 +307,7 @@ export default function Sidebar({
 
         {/* 4. MISI AKTIF & STATUS BELAJAR WIDGET */}
         {!isCollapsed && (
-          <div className="mx-3.5 mt-3 mb-2 flex flex-col gap-2">
+          <div className="mx-3.5 mt-3 mb-2 flex shrink-0 flex-col gap-2">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-[#1d163a] to-[#251c4a] border border-purple-800/40 text-xs shadow-md">
               <div className="flex items-center justify-between text-[10px] font-black text-amber-300 mb-1">
                 <span className="flex items-center gap-1.5">
